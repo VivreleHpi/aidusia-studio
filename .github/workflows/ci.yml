@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck + build
+        run: npm run build
+
+      - name: Leak-scan (sources)
+        run: node scripts/leak-scan.mjs
+
+      - name: Leak-scan (bundle dist/)
+        run: node scripts/leak-scan.mjs
