@@ -1,15 +1,82 @@
+import { useEffect, useState } from "react";
+import { Sidebar } from "@/components/Sidebar";
+import { ChatView } from "@/components/ChatView";
+import { ProviderBar } from "@/components/ProviderBar";
+import { useConversations } from "@/hooks/useConversations";
+import { useChat } from "@/hooks/useChat";
+import { getConversation, type Conversation } from "@/lib/db";
+
+const DEFAULT_PROVIDER = "ollama";
+
 function App() {
+  const {
+    conversations,
+    currentId,
+    setCurrentId,
+    loading,
+    refresh,
+    createConversation,
+    removeConversation,
+  } = useConversations();
+
+  const [current, setCurrent] = useState<Conversation | null>(null);
+  const [providerId, setProviderId] = useState(DEFAULT_PROVIDER);
+  const [model, setModel] = useState("");
+
+  useEffect(() => {
+    if (!currentId) {
+      setCurrent(null);
+      return;
+    }
+    getConversation(currentId).then((c) => setCurrent(c ?? null));
+  }, [currentId, conversations]);
+
+  const reloadCurrent = () => {
+    if (currentId) getConversation(currentId).then((c) => setCurrent(c ?? null));
+    refresh();
+  };
+
+  const { sendMessage, stop, streaming, error } = useChat(reloadCurrent);
+
+  async function handleSend(content: string) {
+    let id = currentId;
+    if (!id) {
+      const created = await createConversation();
+      id = created.id;
+    }
+    await sendMessage(id, content, providerId, model);
+  }
+
+  if (loading) return null;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6 text-center dark:bg-neutral-950">
-      <h1 className="text-3xl font-semibold text-neutral-900 dark:text-neutral-100">
-        AIDUSIA Studio
-      </h1>
-      <p className="max-w-md text-neutral-600 dark:text-neutral-400">
-        En construction — chat IA local (Ollama, Gemma 4 dans le navigateur) et
-        cloud (BYOK), rien ne quitte votre machine.
-      </p>
-    </main>
-  )
+    <div className="flex h-screen bg-white dark:bg-neutral-950">
+      <Sidebar
+        conversations={conversations}
+        currentId={currentId}
+        onSelect={setCurrentId}
+        onCreate={createConversation}
+        onDelete={removeConversation}
+      />
+      <div className="flex flex-1 flex-col">
+        <ProviderBar
+          providerId={providerId}
+          model={model}
+          onChangeProvider={(p, m) => {
+            setProviderId(p);
+            setModel(m);
+          }}
+        />
+        <ChatView
+          conversation={current}
+          streaming={streaming}
+          error={error}
+          onSend={handleSend}
+          onStop={stop}
+        />
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;
