@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { providers } from "@/providers";
+import { getOllamaBaseUrl } from "@/providers/ollama";
 import { clearAllApiKeys, clearApiKey, getApiKey, isPersistEnabled, setApiKey, setPersistEnabled } from "@/lib/apiKeys";
 import type { KeyTestResult } from "@/providers/types";
+import { HardwareGovernor } from "@/components/HardwareGovernor";
 
 interface ProviderRowState {
   draft: string;
@@ -80,10 +82,15 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
         </div>
 
         <p className="mb-4 text-sm text-muted-foreground">
-          Vos clés restent dans ce navigateur — jamais sur un serveur (sauf le proxy
-          OpenAI, stateless, voir README). Le statut ci-dessous reflète un vrai
-          appel au fournisseur, pas juste la présence d'une clé.
+          Vos clés restent dans ce navigateur — jamais sur un serveur (sauf les
+          proxys OpenAI et Ollama Cloud, stateless, voir README). Le statut
+          ci-dessous reflète un vrai appel au fournisseur, pas juste la
+          présence d'une clé.
         </p>
+
+        <div className="mb-4">
+          <HardwareGovernor ollamaBaseUrl={getOllamaBaseUrl()} />
+        </div>
 
         <div className="flex flex-col gap-2">
           {providers.map((provider) => {

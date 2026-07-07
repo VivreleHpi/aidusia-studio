@@ -2,9 +2,10 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
 
-function getBaseUrl(): string {
+export function getOllamaBaseUrl(): string {
   return localStorage.getItem("aidusia_ollama_url") || DEFAULT_BASE_URL;
 }
+const getBaseUrl = getOllamaBaseUrl;
 
 export function setOllamaBaseUrl(url: string) {
   localStorage.setItem("aidusia_ollama_url", url.replace(/\/+$/, ""));
