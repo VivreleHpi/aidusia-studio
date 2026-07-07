@@ -1,4 +1,5 @@
 import { createWorker } from "tesseract.js";
+import { preprocessForOcr } from "./imagePreprocess";
 
 // OCR 100% local (WASM, tesseract.js) : aucune image n'est jamais envoyee a
 // un serveur. Tous les fichiers (worker, moteur WASM, donnees de langue)
@@ -15,6 +16,11 @@ export async function extractTextFromImage(
   lang: OcrLanguage = "fra",
   onProgress?: (progress: number) => void,
 ): Promise<string> {
+  // Sans ce pretraitement, une photo (contraste faible, eclairage inegal,
+  // texte petit) produit un texte largement illisible meme si le pipeline
+  // OCR lui-meme fonctionne correctement - vecu en pratique.
+  const preprocessed = await preprocessForOcr(file);
+
   const worker = await createWorker(lang, 1, {
     workerPath: WORKER_PATH,
     corePath: CORE_PATH,
@@ -28,7 +34,7 @@ export async function extractTextFromImage(
   try {
     const {
       data: { text },
-    } = await worker.recognize(file);
+    } = await worker.recognize(preprocessed);
     return text.trim();
   } finally {
     await worker.terminate();
