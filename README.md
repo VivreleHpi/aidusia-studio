@@ -1,14 +1,32 @@
 # AIDUSIA Studio
 
 Testez vos IA — locales ou cloud — directement dans le navigateur. Rien ne
-transite par un serveur à nous, à une seule exception documentée (OpenAI, ci-dessous).
+transite par un serveur à nous, à une seule exception documentée (OpenAI et
+Ollama Cloud, ci-dessous).
+
+## Démarrage en 60 secondes
+
+Trois chemins, du plus simple au plus riche — le Studio vous guide au premier
+lancement (assistant de démarrage), mais voici le résumé :
+
+1. **Le plus simple, zéro téléchargement** : ouvrez "Fournisseurs", collez une
+   clé API (Anthropic, Gemini, Mistral, OpenRouter, OpenAI). Ça marche
+   immédiatement, sur ordinateur comme sur mobile.
+2. **IA locale et gratuite (ordinateur)** : installez
+   [Ollama](https://ollama.com/download), lancez-le. Si vous utilisez le
+   Studio en local (`http://localhost:...`), **aucune configuration
+   supplémentaire n'est nécessaire** — Ollama autorise `localhost` par défaut,
+   vérifié empiriquement. Si vous utilisez une instance déployée sur un vrai
+   domaine, lancez Ollama avec la variable `OLLAMA_ORIGINS` pointée sur ce
+   domaine (l'assistant de démarrage vous donne la commande exacte à copier).
+3. **Mobile, sans backend** : la voie recommandée aujourd'hui est la clé API
+   cloud (option 1). L'IA locale *dans* le navigateur mobile (Gemma 4, WebGPU)
+   est sur la feuille de route — voir plus bas — et n'est pas encore livrée.
 
 ## Ce que c'est
 
 - Une interface de chat qui parle **directement, depuis votre navigateur**, à :
   - **Ollama** en local sur votre machine ;
-  - **Un modèle local dans le navigateur** (Gemma 4, via WebGPU — aucune donnée
-    ne sort jamais de l'appareil) ;
   - **Anthropic, Google Gemini, Mistral, OpenRouter** avec votre propre clé
     API (BYOK), en connexion directe navigateur → fournisseur ;
   - **OpenAI** et **Ollama Cloud**, via un petit proxy — voir "Pourquoi un
@@ -27,6 +45,21 @@ transite par un serveur à nous, à une seule exception documentée (OpenAI, ci-
   (IndexedDB / localStorage), jamais sur un serveur.
 - Zéro compte, zéro analytics, zéro cookie de suivi.
 
+## Feuille de route — ce qui arrive sera plus lourd
+
+Ce qui suit n'est **pas encore livré** :
+
+- **IA locale dans le navigateur** (Gemma 4 via WebGPU, sans Ollama ni
+  serveur) — nécessite de télécharger plusieurs Go de poids de modèle au
+  premier usage. Pensé pour fonctionner sur mobile récent (WebGPU requis).
+- **Modal de réglages complet** (profil, apparence, confidentialité).
+- **PWA installable** sur mobile.
+
+Ces fonctionnalités sont plus exigeantes en ressources (téléchargement,
+calcul) que ce qui existe aujourd'hui : l'objectif reste que l'utilisateur
+n'ait presque rien à faire pour en profiter — l'assistant de démarrage guidera
+ce téléchargement le moment venu, comme il guide déjà l'installation d'Ollama.
+
 ## Confidentialité de la dictée vocale — soyons clairs
 
 L'OCR est 100% local (WASM dans votre navigateur, aucune image n'est jamais
@@ -44,17 +77,20 @@ badge affiché pendant l'écoute le rappelle.
 - Ce n'est pas le produit complet AIDUSIA — ce dépôt est une brique isolée,
   volontairement minimale, extraite pour être vérifiable par tous.
 
-## Pourquoi un proxy pour OpenAI (et pas les autres) ?
+## Pourquoi un proxy pour OpenAI et Ollama Cloud (et pas les autres) ?
 
-OpenAI bloque volontairement les requêtes directes depuis un navigateur
-(pas d'en-tête CORS sur ses réponses réelles — vérifié empiriquement, pas
-une légende de forum). Anthropic, Gemini et Mistral autorisent l'accès
-direct navigateur et sont donc appelés sans intermédiaire.
+OpenAI et Ollama Cloud bloquent volontairement (ou par défaut, sans le
+prévoir) les requêtes directes depuis un navigateur — vérifié empiriquement,
+aucune des deux ne renvoie d'en-tête CORS sur sa vraie réponse, contrairement
+au preflight qui peut induire en erreur. Anthropic, Gemini, Mistral et
+OpenRouter autorisent l'accès direct navigateur et sont donc appelés sans
+intermédiaire.
 
-Le proxy OpenAI est :
+Chaque proxy est :
 - **stateless** (aucune donnée écrite nulle part) ;
 - **sans log** de votre clé ni de vos messages ;
-- **open-source**, dans ce même dépôt — vérifiable ligne par ligne ;
+- **open-source**, dans ce même dépôt (`api/openai/`, `api/ollama-cloud/`) —
+  vérifiable ligne par ligne ;
 - **remplaçable** par votre propre instance si vous préférez ne pas nous faire confiance.
 
 ## Statut

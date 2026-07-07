@@ -54,7 +54,16 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
           {webgpu ? verdictLabel[webgpu.verdict] : "…"}
         </span>
       </div>
-      {webgpu && <p className="mb-3 text-xs text-muted-foreground">{webgpu.detail}</p>}
+      {webgpu && <p className="mb-1 text-xs text-muted-foreground">{webgpu.detail}</p>}
+      {webgpu && !webgpu.supported && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Essayez une version récente de Chrome, Edge ou Safari 26+, et
+          vérifiez que l'accélération matérielle est activée dans les
+          réglages du navigateur. Cela ne bloque rien aujourd'hui (Ollama et
+          le cloud restent disponibles) — ce sera nécessaire pour l'IA locale
+          dans le navigateur (Gemma 4), à venir sur ce Studio.
+        </p>
+      )}
 
       <dl className="mb-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div>

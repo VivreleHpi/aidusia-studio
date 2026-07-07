@@ -3,6 +3,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { ProviderBar } from "@/components/ProviderBar";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import { getConversation, type Conversation } from "@/lib/db";
@@ -25,6 +27,7 @@ function App() {
   const [model, setModel] = useState("");
   const [providersOpen, setProvidersOpen] = useState(false);
   const [keysVersion, setKeysVersion] = useState(0);
+  const [onboarding, setOnboarding] = useState(shouldShowOnboarding);
 
   useEffect(() => {
     if (!currentId) {
@@ -86,6 +89,12 @@ function App() {
             setProvidersOpen(false);
             setKeysVersion((v) => v + 1);
           }}
+        />
+      )}
+      {onboarding && (
+        <OnboardingWizard
+          onFinish={() => setOnboarding(false)}
+          onOpenProviders={() => setProvidersOpen(true)}
         />
       )}
     </div>
