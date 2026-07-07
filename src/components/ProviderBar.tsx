@@ -1,26 +1,26 @@
 import { useEffect, useState } from "react";
 import { providers } from "@/providers";
 import type { ProviderModel } from "@/providers/types";
-import { getApiKey, setApiKey } from "@/lib/apiKeys";
+import { getApiKey } from "@/lib/apiKeys";
 
 interface ProviderBarProps {
   providerId: string;
   model: string;
   onChangeProvider: (providerId: string, model: string) => void;
+  onOpenProviders: () => void;
 }
 
 const selectClass =
   "rounded-md border border-border bg-card px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
-export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBarProps) {
+export function ProviderBar({ providerId, model, onChangeProvider, onOpenProviders }: ProviderBarProps) {
   const [models, setModels] = useState<ProviderModel[]>([]);
-  const [keyDraft, setKeyDraft] = useState(getApiKey(providerId) ?? "");
   const [modelsError, setModelsError] = useState<string | null>(null);
 
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
+  const missingKey = provider.requiresApiKey && !getApiKey(providerId);
 
   useEffect(() => {
-    setKeyDraft(getApiKey(providerId) ?? "");
     setModelsError(null);
     provider
       .listModels(getApiKey(providerId))
@@ -63,20 +63,25 @@ export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBar
         ))}
       </select>
 
-      {provider.requiresApiKey && (
-        <input
-          type="password"
-          placeholder="Cle API"
-          value={keyDraft}
-          onChange={(e) => {
-            setKeyDraft(e.target.value);
-            setApiKey(providerId, e.target.value);
-          }}
-          className={`w-40 ${selectClass}`}
-        />
+      {missingKey && (
+        <button
+          type="button"
+          onClick={onOpenProviders}
+          className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning hover:bg-warning/20"
+        >
+          Clé API manquante — configurer
+        </button>
       )}
 
       {modelsError && <span className="text-destructive">{modelsError}</span>}
+
+      <button
+        type="button"
+        onClick={onOpenProviders}
+        className="ml-auto rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/10"
+      >
+        Fournisseurs
+      </button>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { ProviderBar } from "@/components/ProviderBar";
+import { ProvidersPanel } from "@/components/ProvidersPanel";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import { getConversation, type Conversation } from "@/lib/db";
@@ -22,6 +23,8 @@ function App() {
   const [current, setCurrent] = useState<Conversation | null>(null);
   const [providerId, setProviderId] = useState(DEFAULT_PROVIDER);
   const [model, setModel] = useState("");
+  const [providersOpen, setProvidersOpen] = useState(false);
+  const [keysVersion, setKeysVersion] = useState(0);
 
   useEffect(() => {
     if (!currentId) {
@@ -60,12 +63,14 @@ function App() {
       />
       <div className="flex flex-1 flex-col">
         <ProviderBar
+          key={keysVersion}
           providerId={providerId}
           model={model}
           onChangeProvider={(p, m) => {
             setProviderId(p);
             setModel(m);
           }}
+          onOpenProviders={() => setProvidersOpen(true)}
         />
         <ChatView
           conversation={current}
@@ -75,6 +80,14 @@ function App() {
           onStop={stop}
         />
       </div>
+      {providersOpen && (
+        <ProvidersPanel
+          onClose={() => {
+            setProvidersOpen(false);
+            setKeysVersion((v) => v + 1);
+          }}
+        />
+      )}
     </div>
   );
 }
