@@ -8,7 +8,17 @@ function titleFromFirstMessage(content: string): string {
   return trimmed.length > 0 ? trimmed : "Nouvelle conversation";
 }
 
-export function useChat(onUpdated: () => void) {
+// IMPORTANT : le rendu pendant le streaming se fait EXCLUSIVEMENT depuis
+// l'objet `updated` tenu en memoire ici (deja mute en place a chaque jeton),
+// jamais en relisant IndexedDB. Une reponse longue (~150 jetons observe en
+// test reel) declenchait auparavant une ecriture+relecture IndexedDB par
+// jeton : les lectures concurrentes pouvaient resoudre dans le desordre et
+// ecraser l'etat affiche par une version perimee (silencieux - "je vois
+// rien" sur une longue reponse). IndexedDB ne sert plus qu'a la persistance,
+// en arriere-plan, throttlee - jamais comme source du rendu live.
+const PERSIST_INTERVAL_MS = 500;
+
+export function useChat(onUpdated: (conversation: Conversation) => void, onListChanged: () => void) {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -54,7 +64,8 @@ export function useChat(onUpdated: () => void) {
         updatedAt: Date.now(),
       };
       await saveConversation(updated);
-      onUpdated();
+      onUpdated(updated);
+      onListChanged();
 
       const provider = getProvider(providerId);
       const apiKey = getApiKey(providerId);
@@ -63,6 +74,7 @@ export function useChat(onUpdated: () => void) {
       setStreaming(true);
 
       let accumulated = "";
+      let lastPersist = 0;
       try {
         await provider.chatStream(
           {
@@ -77,8 +89,15 @@ export function useChat(onUpdated: () => void) {
           ({ delta }) => {
             accumulated += delta;
             assistantMessage.content = accumulated;
-            saveConversation({ ...updated, updatedAt: Date.now() });
-            onUpdated();
+            // Rendu immediat, en memoire - aucune lecture IndexedDB.
+            onUpdated(updated);
+            // Persistance throttlee : la version finale est de toute facon
+            // ecrite dans le `finally` ci-dessous.
+            const now = Date.now();
+            if (now - lastPersist > PERSIST_INTERVAL_MS) {
+              lastPersist = now;
+              void saveConversation({ ...updated, updatedAt: now });
+            }
           },
         );
       } catch (err) {
@@ -88,11 +107,13 @@ export function useChat(onUpdated: () => void) {
       } finally {
         setStreaming(false);
         abortRef.current = null;
-        await saveConversation({ ...updated, updatedAt: Date.now() });
-        onUpdated();
+        const finalConversation = { ...updated, updatedAt: Date.now() };
+        await saveConversation(finalConversation);
+        onUpdated(finalConversation);
+        onListChanged();
       }
     },
-    [onUpdated],
+    [onUpdated, onListChanged],
   );
 
   return { sendMessage, stop, streaming, error };

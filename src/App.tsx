@@ -37,12 +37,7 @@ function App() {
     getConversation(currentId).then((c) => setCurrent(c ?? null));
   }, [currentId, conversations]);
 
-  const reloadCurrent = () => {
-    if (currentId) getConversation(currentId).then((c) => setCurrent(c ?? null));
-    refresh();
-  };
-
-  const { sendMessage, stop, streaming, error } = useChat(reloadCurrent);
+  const { sendMessage, stop, streaming, error } = useChat(setCurrent, refresh);
 
   async function handleSend(content: string, images?: string[]) {
     let id = currentId;
