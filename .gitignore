@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Artefact du smoke test OCR (scripts/smoke-ocr.mjs decompresse le .traineddata
+# a la racine quand cachePath="." - jamais a committer, les .gz self-hostes
+# sont dans public/tesseract/lang/)
+/*.traineddata
+/ocr-smoke.png
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

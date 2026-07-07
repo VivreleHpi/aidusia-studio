@@ -9,12 +9,33 @@ transite par un serveur à nous, à une seule exception documentée (OpenAI, ci-
   - **Ollama** en local sur votre machine ;
   - **Un modèle local dans le navigateur** (Gemma 4, via WebGPU — aucune donnée
     ne sort jamais de l'appareil) ;
-  - **Anthropic, Google Gemini, Mistral** avec votre propre clé API (BYOK),
-    en connexion directe navigateur → fournisseur ;
-  - **OpenAI**, via un petit proxy — voir "Pourquoi un proxy" plus bas.
+  - **Anthropic, Google Gemini, Mistral, OpenRouter** avec votre propre clé
+    API (BYOK), en connexion directe navigateur → fournisseur ;
+  - **OpenAI** et **Ollama Cloud**, via un petit proxy — voir "Pourquoi un
+    proxy" plus bas.
+- Un **Gouverneur Matériel** qui dit la vérité sur ce que votre machine peut
+  faire tourner (WebGPU, mémoire, Ollama local — avec la vraie VRAM utilisée
+  quand Ollama est joignable), sans jamais prétendre savoir ce qu'il ne peut
+  pas mesurer.
+- **OCR 100% local** (WASM, `tesseract.js`, auto-hébergé — jamais de CDN) :
+  extrayez le texte d'une image directement dans le champ de saisie.
+- **Dictée vocale** via l'API Web Speech du navigateur — voir l'avertissement
+  de confidentialité ci-dessous, ce n'est **pas** garanti 100% local partout.
+- Seuls les modèles réellement renvoyés par l'API du fournisseur (avec votre
+  clé) apparaissent dans la liste — jamais un catalogue figé en dur.
 - Conversations et clés stockées **uniquement dans votre navigateur**
   (IndexedDB / localStorage), jamais sur un serveur.
 - Zéro compte, zéro analytics, zéro cookie de suivi.
+
+## Confidentialité de la dictée vocale — soyons clairs
+
+L'OCR est 100% local (WASM dans votre navigateur, aucune image n'est jamais
+envoyée nulle part). La **dictée vocale, elle, ne l'est pas forcément** :
+elle utilise l'API Web Speech native du navigateur, qui sur Chrome/Edge
+envoie l'audio aux serveurs de Google pour la reconnaissance. C'est la seule
+option de dictée qui n'ajoute pas un gros modèle WASM (type Whisper) au
+bundle — un choix pragmatique, pas un choix "tout local" par défaut. Le
+badge affiché pendant l'écoute le rappelle.
 
 ## Ce que ce n'est PAS
 
