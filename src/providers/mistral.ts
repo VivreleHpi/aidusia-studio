@@ -2,18 +2,26 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 
 const API_BASE = "https://api.mistral.ai/v1";
 
-const KNOWN_MODELS: ProviderModel[] = [
-  { id: "mistral-large-latest", label: "Mistral Large" },
-  { id: "mistral-small-latest", label: "Mistral Small" },
-];
+interface MistralModel {
+  id: string;
+  name?: string;
+}
 
 export const mistralProvider: ChatProvider = {
   id: "mistral",
   label: "Mistral",
   requiresApiKey: true,
 
-  async listModels(): Promise<ProviderModel[]> {
-    return KNOWN_MODELS;
+  // Vrai appel GET /v1/models : seuls les modeles reellement accessibles
+  // avec cette cle apparaissent.
+  async listModels(apiKey?: string): Promise<ProviderModel[]> {
+    if (!apiKey) return [];
+    const response = await fetch(`${API_BASE}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!response.ok) throw new Error(`Mistral a repondu ${response.status}`);
+    const data = (await response.json()) as { data: MistralModel[] };
+    return data.data.map((m) => ({ id: m.id, label: m.name ?? m.id }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

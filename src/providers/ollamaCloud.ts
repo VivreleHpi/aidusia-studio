@@ -1,0 +1,72 @@
+import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+
+// ollama.com ne renvoie pas de header CORS sur ses vraies reponses (verifie
+// empiriquement, comme OpenAI) -> passe par le proxy Edge same-origin.
+const PROXY_BASE = "/api/ollama-cloud";
+
+interface OllamaTagsResponse {
+  models: { name: string }[];
+}
+
+export const ollamaCloudProvider: ChatProvider = {
+  id: "ollama-cloud",
+  label: "Ollama Cloud",
+  requiresApiKey: true,
+
+  async listModels(apiKey?: string): Promise<ProviderModel[]> {
+    if (!apiKey) return [];
+    const response = await fetch(`${PROXY_BASE}/tags`, {
+      headers: { "X-Ollama-Key": apiKey },
+    });
+    if (!response.ok) throw new Error(`Ollama Cloud a repondu ${response.status}`);
+    const data = (await response.json()) as OllamaTagsResponse;
+    return data.models.map((m) => ({ id: m.name, label: m.name }));
+  },
+
+  async testKey(apiKey: string): Promise<KeyTestResult> {
+    const response = await fetch(`${PROXY_BASE}/tags`, {
+      headers: { "X-Ollama-Key": apiKey },
+    });
+    if (response.status === 401) return { ok: false, reason: "Cle invalide" };
+    if (!response.ok) return { ok: false, reason: `Erreur ${response.status}` };
+    return { ok: true };
+  },
+
+  async chatStream(
+    params: ChatStreamParams,
+    apiKey: string | undefined,
+    onChunk: (chunk: StreamChunk) => void,
+  ): Promise<void> {
+    if (!apiKey) throw new Error("Cle Ollama Cloud manquante");
+    const response = await fetch(`${PROXY_BASE}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Ollama-Key": apiKey },
+      signal: params.signal,
+      body: JSON.stringify({
+        model: params.model,
+        stream: true,
+        messages: params.systemPrompt
+          ? [{ role: "system", content: params.systemPrompt }, ...params.messages]
+          : params.messages,
+      }),
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`Ollama Cloud a repondu ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line) as { message?: { content?: string } };
+        if (json.message?.content) onChunk({ delta: json.message.content });
+      }
+    }
+  },
+};

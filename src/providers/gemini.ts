@@ -2,18 +2,27 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-const KNOWN_MODELS: ProviderModel[] = [
-  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-];
+interface GeminiModel {
+  name: string; // "models/gemini-2.5-pro"
+  displayName: string;
+  supportedGenerationMethods?: string[];
+}
 
 export const geminiProvider: ChatProvider = {
   id: "gemini",
   label: "Google Gemini",
   requiresApiKey: true,
 
-  async listModels(): Promise<ProviderModel[]> {
-    return KNOWN_MODELS;
+  // Vrai appel GET /v1beta/models : seuls les modeles reellement
+  // disponibles pour cette cle et compatibles chat apparaissent.
+  async listModels(apiKey?: string): Promise<ProviderModel[]> {
+    if (!apiKey) return [];
+    const response = await fetch(`${API_BASE}/models?key=${encodeURIComponent(apiKey)}`);
+    if (!response.ok) throw new Error(`Gemini a repondu ${response.status}`);
+    const data = (await response.json()) as { models: GeminiModel[] };
+    return data.models
+      .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+      .map((m) => ({ id: m.name.replace(/^models\//, ""), label: m.displayName }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

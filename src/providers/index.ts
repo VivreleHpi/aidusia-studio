@@ -1,16 +1,20 @@
 import type { ChatProvider } from "./types";
 import { ollamaProvider } from "./ollama";
+import { ollamaCloudProvider } from "./ollamaCloud";
 import { anthropicProvider } from "./anthropic";
 import { geminiProvider } from "./gemini";
 import { mistralProvider } from "./mistral";
 import { openaiProvider } from "./openai";
+import { openrouterProvider } from "./openrouter";
 
 export const providers: ChatProvider[] = [
   ollamaProvider,
+  ollamaCloudProvider,
   anthropicProvider,
   geminiProvider,
   mistralProvider,
   openaiProvider,
+  openrouterProvider,
 ];
 
 export function getProvider(id: string): ChatProvider {

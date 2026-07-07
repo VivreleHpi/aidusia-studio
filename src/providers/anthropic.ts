@@ -3,13 +3,10 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 const API_BASE = "https://api.anthropic.com/v1";
 const API_VERSION = "2023-06-01";
 
-// Liste statique : l'API Anthropic n'expose pas d'endpoint /models public
-// stable et documente pour un usage direct-navigateur en v1.
-const KNOWN_MODELS: ProviderModel[] = [
-  { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-  { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
-];
+interface AnthropicModel {
+  id: string;
+  display_name: string;
+}
 
 function headers(apiKey: string) {
   return {
@@ -25,8 +22,14 @@ export const anthropicProvider: ChatProvider = {
   label: "Anthropic (Claude)",
   requiresApiKey: true,
 
-  async listModels(): Promise<ProviderModel[]> {
-    return KNOWN_MODELS;
+  // Vrai appel GET /v1/models : seuls les modeles reellement accessibles
+  // avec cette cle apparaissent, jamais une liste figee en dur.
+  async listModels(apiKey?: string): Promise<ProviderModel[]> {
+    if (!apiKey) return [];
+    const response = await fetch(`${API_BASE}/models`, { headers: headers(apiKey) });
+    if (!response.ok) throw new Error(`Anthropic a repondu ${response.status}`);
+    const data = (await response.json()) as { data: AnthropicModel[] };
+    return data.data.map((m) => ({ id: m.id, label: m.display_name }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

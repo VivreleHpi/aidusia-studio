@@ -1,41 +1,36 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 
-// OpenAI bloque volontairement les requetes CORS directes depuis un navigateur
-// (verifie empiriquement : aucun header Access-Control-Allow-Origin sur la
-// vraie reponse POST, contrairement au preflight OPTIONS). Ce provider passe
-// donc par notre proxy Edge same-origin (api/openai/[...path].ts), stateless
-// et sans log - voir README "Pourquoi un proxy pour OpenAI".
-const PROXY_BASE = "/api/openai";
+const API_BASE = "https://openrouter.ai/api/v1";
 
-interface OpenAIModel {
+interface OpenRouterModel {
   id: string;
+  name: string;
 }
 
-export const openaiProvider: ChatProvider = {
-  id: "openai",
-  label: "OpenAI (via proxy)",
+export const openrouterProvider: ChatProvider = {
+  id: "openrouter",
+  label: "OpenRouter",
   requiresApiKey: true,
 
-  // Vrai appel GET /v1/models (via proxy) : seuls les modeles reellement
-  // accessibles avec cette cle apparaissent.
-  async listModels(apiKey?: string): Promise<ProviderModel[]> {
-    if (!apiKey) return [];
-    const response = await fetch(`${PROXY_BASE}/models`, {
-      headers: { "X-OpenAI-Key": apiKey },
-    });
-    if (!response.ok) throw new Error(`OpenAI a repondu ${response.status}`);
-    const data = (await response.json()) as { data: OpenAIModel[] };
-    return data.data
-      .filter((m) => m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3"))
-      .map((m) => ({ id: m.id, label: m.id }));
+  // Catalogue reel, public (aucune cle requise pour le lister) - jamais de
+  // liste figee en dur : ce sont les modeles reellement proposes par
+  // OpenRouter au moment de l'appel.
+  async listModels(): Promise<ProviderModel[]> {
+    const response = await fetch(`${API_BASE}/models`);
+    if (!response.ok) throw new Error(`OpenRouter a repondu ${response.status}`);
+    const data = (await response.json()) as { data: OpenRouterModel[] };
+    return data.data.map((m) => ({ id: m.id, label: m.name }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {
-    const response = await fetch(`${PROXY_BASE}/chat/completions`, {
+    const response = await fetch(`${API_BASE}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-OpenAI-Key": apiKey },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "openai/gpt-4o-mini",
         max_tokens: 1,
         messages: [{ role: "user", content: "hi" }],
       }),
@@ -52,10 +47,13 @@ export const openaiProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API OpenAI manquante");
-    const response = await fetch(`${PROXY_BASE}/chat/completions`, {
+    if (!apiKey) throw new Error("Cle API OpenRouter manquante");
+    const response = await fetch(`${API_BASE}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-OpenAI-Key": apiKey },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       signal: params.signal,
       body: JSON.stringify({
         model: params.model,
@@ -67,7 +65,7 @@ export const openaiProvider: ChatProvider = {
     });
     if (!response.ok || !response.body) {
       const body = await response.text().catch(() => "");
-      throw new Error(`Proxy OpenAI a repondu ${response.status}: ${body}`);
+      throw new Error(`OpenRouter a repondu ${response.status}: ${body}`);
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
