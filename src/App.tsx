@@ -44,13 +44,13 @@ function App() {
 
   const { sendMessage, stop, streaming, error } = useChat(reloadCurrent);
 
-  async function handleSend(content: string) {
+  async function handleSend(content: string, images?: string[]) {
     let id = currentId;
     if (!id) {
       const created = await createConversation();
       id = created.id;
     }
-    await sendMessage(id, content, providerId, model);
+    await sendMessage(id, content, providerId, model, undefined, images);
   }
 
   if (loading) return null;
@@ -81,6 +81,8 @@ function App() {
           error={error}
           onSend={handleSend}
           onStop={stop}
+          providerId={providerId}
+          model={model}
         />
       </div>
       {providersOpen && (

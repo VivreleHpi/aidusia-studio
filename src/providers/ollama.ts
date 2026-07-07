@@ -14,7 +14,7 @@ export function setOllamaBaseUrl(url: string) {
 async function fetchTags(baseUrl: string) {
   const response = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
   if (!response.ok) throw new Error(`Ollama a repondu ${response.status}`);
-  return response.json() as Promise<{ models: { name: string }[] }>;
+  return response.json() as Promise<{ models: { name: string; capabilities?: string[] }[] }>;
 }
 
 export const ollamaProvider: ChatProvider = {
@@ -26,7 +26,11 @@ export const ollamaProvider: ChatProvider = {
     const baseUrl = getBaseUrl();
     try {
       const data = await fetchTags(baseUrl);
-      return data.models.map((m) => ({ id: m.name, label: m.name }));
+      return data.models.map((m) => ({
+        id: m.name,
+        label: m.name,
+        visionCapable: m.capabilities?.includes("vision") ?? false,
+      }));
     } catch {
       throw new Error(
         `Ollama injoignable sur ${baseUrl}. Verifiez qu'Ollama tourne et que ` +

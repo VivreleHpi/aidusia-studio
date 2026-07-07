@@ -37,6 +37,15 @@ lancement (assistant de démarrage), mais voici le résumé :
   pas mesurer.
 - **OCR 100% local** (WASM, `tesseract.js`, auto-hébergé — jamais de CDN) :
   extrayez le texte d'une image directement dans le champ de saisie.
+  **Limite honnête** : Tesseract est conçu pour le texte **imprimé/tapé** ;
+  il est fondamentalement mauvais sur l'**écriture manuscrite**, quel que
+  soit le prétraitement appliqué — ce n'est pas un bug réglable, c'est la
+  nature de cette technologie.
+- **Analyse d'image par vision** (bouton 🖼️, visible seulement quand le
+  modèle sélectionné a une vraie capacité vision détectée via l'API — Ollama
+  uniquement pour l'instant) : envoie l'image telle quelle au modèle au lieu
+  d'en extraire le texte. Bien meilleur que l'OCR pour une photo, un document
+  manuscrit ou une capture d'écran complexe.
 - **Dictée vocale** via l'API Web Speech du navigateur — voir l'avertissement
   de confidentialité ci-dessous, ce n'est **pas** garanti 100% local partout.
 - Seuls les modèles réellement renvoyés par l'API du fournisseur (avec votre
@@ -54,6 +63,9 @@ Ce qui suit n'est **pas encore livré** :
   premier usage. Pensé pour fonctionner sur mobile récent (WebGPU requis).
 - **Modal de réglages complet** (profil, apparence, confidentialité).
 - **PWA installable** sur mobile.
+- **Vision pour les autres fournisseurs** (Anthropic, Gemini, OpenAI ont
+  tous des modèles vision) — pour l'instant seul Ollama est câblé, vérifié
+  réellement (image envoyée, couleur correctement identifiée par le modèle).
 
 Ces fonctionnalités sont plus exigeantes en ressources (téléchargement,
 calcul) que ce qui existe aujourd'hui : l'objectif reste que l'utilisateur

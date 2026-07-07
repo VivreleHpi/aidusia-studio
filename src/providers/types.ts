@@ -3,11 +3,17 @@ export type ChatRole = "user" | "assistant" | "system";
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  // Base64 brut (sans prefixe data:), pour les modeles vision. Support
+  // actuel : Ollama uniquement (verifie) - voir README pour le perimetre.
+  images?: string[];
 }
 
 export interface ProviderModel {
   id: string;
   label: string;
+  // true si ce modele sait analyser une image (verifie via l'API du
+  // fournisseur, jamais suppose). Absent = capacite inconnue/non verifiee.
+  visionCapable?: boolean;
 }
 
 export interface StreamChunk {

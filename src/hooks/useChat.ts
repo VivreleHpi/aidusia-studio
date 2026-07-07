@@ -24,6 +24,7 @@ export function useChat(onUpdated: () => void) {
       providerId: string,
       model: string,
       systemPrompt?: string,
+      images?: string[],
     ) => {
       setError(null);
       const conversation = await getConversation(conversationId);
@@ -34,6 +35,7 @@ export function useChat(onUpdated: () => void) {
         role: "user",
         content,
         createdAt: Date.now(),
+        images,
       };
       const assistantMessage: StoredMessage = {
         id: crypto.randomUUID(),
@@ -69,7 +71,7 @@ export function useChat(onUpdated: () => void) {
             signal: controller.signal,
             messages: updated.messages
               .slice(0, -1)
-              .map((m) => ({ role: m.role, content: m.content })),
+              .map((m) => ({ role: m.role, content: m.content, images: m.images })),
           },
           apiKey,
           ({ delta }) => {
