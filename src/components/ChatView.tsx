@@ -31,25 +31,30 @@ export function ChatView({ conversation, streaming, error, onSend, onStop }: Cha
     <div className="flex h-full flex-1 flex-col">
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {!conversation || conversation.messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-neutral-400">
+          <div className="flex h-full items-center justify-center text-muted-foreground">
             Envoyez un message pour commencer.
           </div>
         ) : (
           <div className="mx-auto flex max-w-2xl flex-col gap-4">
-            {conversation.messages.map((m) => (
-              <div
-                key={m.id}
-                className={`whitespace-pre-wrap rounded-lg px-4 py-2 text-sm ${
-                  m.role === "user"
-                    ? "ml-auto max-w-[80%] bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-                    : "mr-auto max-w-[80%] bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                }`}
-              >
-                {m.content || (streaming ? "…" : "")}
-              </div>
-            ))}
+            {conversation.messages.map((m, i) => {
+              const isLastAssistant =
+                m.role === "assistant" && i === conversation.messages.length - 1;
+              return (
+                <div
+                  key={m.id}
+                  className={`glass whitespace-pre-wrap rounded-lg px-4 py-2 text-sm ${
+                    m.role === "user"
+                      ? "ml-auto max-w-[80%] bg-primary text-primary-foreground"
+                      : "mr-auto max-w-[80%] bg-card text-card-foreground"
+                  }`}
+                >
+                  {m.content}
+                  {isLastAssistant && streaming && <span className="typing-cursor" />}
+                </div>
+              );
+            })}
             {error && (
-              <div className="mr-auto max-w-[80%] rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+              <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -58,7 +63,7 @@ export function ChatView({ conversation, streaming, error, onSend, onStop }: Cha
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+      <form onSubmit={handleSubmit} className="border-t border-border p-4">
         <div className="mx-auto flex max-w-2xl gap-2">
           <textarea
             value={draft}
@@ -71,13 +76,13 @@ export function ChatView({ conversation, streaming, error, onSend, onStop }: Cha
             }}
             rows={1}
             placeholder="Ecrivez un message…"
-            className="flex-1 resize-none rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {streaming ? (
             <button
               type="button"
               onClick={onStop}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90"
             >
               Arreter
             </button>
@@ -85,7 +90,7 @@ export function ChatView({ conversation, streaming, error, onSend, onStop }: Cha
             <button
               type="submit"
               disabled={!draft.trim()}
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
             >
               Envoyer
             </button>

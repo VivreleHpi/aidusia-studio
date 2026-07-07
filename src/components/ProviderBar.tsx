@@ -9,6 +9,9 @@ interface ProviderBarProps {
   onChangeProvider: (providerId: string, model: string) => void;
 }
 
+const selectClass =
+  "rounded-md border border-border bg-card px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring";
+
 export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBarProps) {
   const [models, setModels] = useState<ProviderModel[]>([]);
   const [keyDraft, setKeyDraft] = useState(getApiKey(providerId) ?? "");
@@ -32,11 +35,12 @@ export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBar
   }, [providerId]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-4 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card/60 px-4 py-2 text-sm backdrop-blur">
       <select
+        aria-label="Fournisseur IA"
         value={providerId}
         onChange={(e) => onChangeProvider(e.target.value, "")}
-        className="rounded-md border border-neutral-300 bg-white px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900"
+        className={selectClass}
       >
         {providers.map((p) => (
           <option key={p.id} value={p.id}>
@@ -46,9 +50,10 @@ export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBar
       </select>
 
       <select
+        aria-label="Modele"
         value={model}
         onChange={(e) => onChangeProvider(providerId, e.target.value)}
-        className="rounded-md border border-neutral-300 bg-white px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900"
+        className={selectClass}
         disabled={models.length === 0}
       >
         {models.map((m) => (
@@ -67,11 +72,11 @@ export function ProviderBar({ providerId, model, onChangeProvider }: ProviderBar
             setKeyDraft(e.target.value);
             setApiKey(providerId, e.target.value);
           }}
-          className="w-40 rounded-md border border-neutral-300 bg-white px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900"
+          className={`w-40 ${selectClass}`}
         />
       )}
 
-      {modelsError && <span className="text-red-500">{modelsError}</span>}
+      {modelsError && <span className="text-destructive">{modelsError}</span>}
     </div>
   );
 }

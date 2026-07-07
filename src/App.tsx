@@ -50,7 +50,7 @@ function App() {
   if (loading) return null;
 
   return (
-    <div className="flex h-screen bg-white dark:bg-neutral-950">
+    <div className="flex h-screen bg-background text-foreground">
       <Sidebar
         conversations={conversations}
         currentId={currentId}

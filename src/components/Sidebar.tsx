@@ -10,12 +10,12 @@ interface SidebarProps {
 
 export function Sidebar({ conversations, currentId, onSelect, onCreate, onDelete }: SidebarProps) {
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="p-3">
         <button
           type="button"
           onClick={onCreate}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
         >
           + Nouvelle conversation
         </button>
@@ -24,16 +24,16 @@ export function Sidebar({ conversations, currentId, onSelect, onCreate, onDelete
         {conversations.map((c) => (
           <div
             key={c.id}
-            className={`group mb-1 flex items-center rounded-md px-2 py-2 text-sm ${
+            className={`group mb-1 flex items-center rounded-md px-2 py-2 text-sm transition ${
               c.id === currentId
-                ? "bg-neutral-200 dark:bg-neutral-800"
-                : "hover:bg-neutral-100 dark:hover:bg-neutral-800/50"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
             }`}
           >
             <button
               type="button"
               onClick={() => onSelect(c.id)}
-              className="flex-1 truncate text-left text-neutral-800 dark:text-neutral-200"
+              className="flex-1 truncate text-left"
             >
               {c.title}
             </button>
@@ -41,14 +41,14 @@ export function Sidebar({ conversations, currentId, onSelect, onCreate, onDelete
               type="button"
               onClick={() => onDelete(c.id)}
               aria-label="Supprimer la conversation"
-              className="invisible ml-1 text-neutral-400 hover:text-red-500 group-hover:visible"
+              className="invisible ml-1 text-muted-foreground hover:text-destructive group-hover:visible"
             >
               ✕
             </button>
           </div>
         ))}
         {conversations.length === 0 && (
-          <p className="px-2 py-4 text-sm text-neutral-500">Aucune conversation.</p>
+          <p className="px-2 py-4 text-sm text-muted-foreground">Aucune conversation.</p>
         )}
       </nav>
     </aside>
