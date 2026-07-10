@@ -9,6 +9,7 @@ import {
   IconGear,
   IconHelp,
   IconMoon,
+  IconPanelLeft,
   IconPlug,
   IconSparkles,
   IconSun,
@@ -45,6 +46,7 @@ const STRINGS = {
     settings: "Paramètres",
     language: "Langue",
     themeToggle: "Basculer le thème",
+    collapseSidebar: "Rabattre le panneau",
   },
   en: {
     newConversation: "New conversation",
@@ -71,6 +73,7 @@ const STRINGS = {
     settings: "Settings",
     language: "Language",
     themeToggle: "Toggle theme",
+    collapseSidebar: "Collapse sidebar",
   },
 };
 
@@ -89,6 +92,8 @@ interface SidebarProps {
   onPurgeAll: () => void;
   open: boolean;
   onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -132,6 +137,8 @@ export function Sidebar({
   onPurgeAll,
   open,
   onClose,
+  collapsed,
+  onToggleCollapse,
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -178,9 +185,9 @@ export function Sidebar({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${collapsed ? "md:hidden" : "md:static md:z-auto md:w-64 md:translate-x-0"}`}
       >
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
         <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]" />
@@ -190,6 +197,15 @@ export function Sidebar({
             studio
           </span>
         </span>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label={s.collapseSidebar}
+          title={s.collapseSidebar}
+          className="ml-auto hidden h-7 w-7 place-items-center rounded-lg text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 md:grid"
+        >
+          <IconPanelLeft className="h-4 w-4" />
+        </button>
       </div>
 
       <div className="p-3 pt-1" data-tour="new-conversation">

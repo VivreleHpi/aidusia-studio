@@ -1,8 +1,12 @@
 # AIDUSIA Studio
 
+🇬🇧 [English version](./README.en.md)
+
 Testez vos IA — locales ou cloud — directement dans le navigateur. Rien ne
 transite par un serveur à nous, à une seule exception documentée (OpenAI et
 Ollama Cloud, ci-dessous).
+
+![Parcours complet d'AIDUSIA Studio](docs/demo.gif)
 
 ## Démarrage en 60 secondes
 
@@ -68,6 +72,9 @@ Ce qui suit n'est **pas encore livré** :
 - **IA locale dans le navigateur** (Gemma 4 via WebGPU, sans Ollama ni
   serveur) — nécessite de télécharger plusieurs Go de poids de modèle au
   premier usage. Pensé pour fonctionner sur mobile récent (WebGPU requis).
+  Voir [la réflexion détaillée sur l'IA locale mobile](docs/ia-locale-mobile.md),
+  y compris ce qui est possible dès aujourd'hui (Ollama du PC accessible
+  depuis le téléphone sur le même Wi-Fi).
 - **Modal de réglages complet** (profil, apparence, confidentialité).
 - **PWA installable** sur mobile.
 - **Vision pour les autres fournisseurs** (Anthropic, Gemini, OpenAI ont

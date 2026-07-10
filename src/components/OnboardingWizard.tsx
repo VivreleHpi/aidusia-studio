@@ -50,6 +50,7 @@ const STRINGS = {
     mobileOption2After: ", fonctionnalité à venir sur ce Studio.",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
+    language: "Langue",
   },
   en: {
     dialogLabel: "Welcome to AIDUSIA studio",
@@ -84,11 +85,12 @@ const STRINGS = {
     mobileOption2After: ", a feature coming soon to this Studio.",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
+    language: "Language",
   },
 } as const;
 
 export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizardProps) {
-  const { lang } = useLang();
+  const { lang, setLang } = useLang();
   const s = STRINGS[lang];
   const [ollama, setOllama] = useState<OllamaProbe | null>(null);
   const [webgpu, setWebgpu] = useState<WebGpuProbe | null>(null);
@@ -132,9 +134,41 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
         aria-label={s.dialogLabel}
         className="modal-in glass w-full max-w-lg rounded-lg bg-card p-6 text-card-foreground shadow-xl"
       >
-        <div className="mb-3 flex items-baseline gap-2">
-          <span className="text-3xl font-bold tracking-tight text-foreground">AIDUSIA</span>
-          <span className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">studio</span>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-foreground">AIDUSIA</span>
+            <span className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">studio</span>
+          </div>
+          <div
+            role="group"
+            aria-label={s.language}
+            className="flex items-center rounded-lg border border-border/60 p-0.5 text-[10px] font-medium"
+          >
+            <button
+              type="button"
+              onClick={() => setLang("fr")}
+              aria-pressed={lang === "fr" ? "true" : "false"}
+              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+                lang === "fr"
+                  ? "bg-accent/15 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              aria-pressed={lang === "en" ? "true" : "false"}
+              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+                lang === "en"
+                  ? "bg-accent/15 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              EN
+            </button>
+          </div>
         </div>
         <p className="mb-1 text-sm text-muted-foreground">{s.welcome}</p>
         <p className="mb-4 text-sm text-muted-foreground">{s.description}</p>

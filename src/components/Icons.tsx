@@ -278,3 +278,12 @@ export function IconMoon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconPanelLeft(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseLucide(props)}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+    </svg>
+  );
+}

@@ -10,6 +10,7 @@ import { GuidedTour } from "@/components/GuidedTour";
 import { McpPanel } from "@/components/McpPanel";
 import { shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
+import { IconPanelLeft } from "@/components/Icons";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import { getConversation, purgeAll, type Conversation } from "@/lib/db";
@@ -21,10 +22,12 @@ const STRINGS = {
     purgeConfirm:
       "Effacer définitivement toutes les conversations ? Cette action est irréversible.",
     toggleMenu: "Basculer le menu",
+    expandSidebar: "Ouvrir le panneau",
   },
   en: {
     purgeConfirm: "Permanently delete all conversations? This cannot be undone.",
     toggleMenu: "Toggle menu",
+    expandSidebar: "Open sidebar",
   },
 } as const;
 
@@ -51,6 +54,7 @@ function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { lang } = useLang();
   const s = STRINGS[lang];
 
@@ -121,8 +125,21 @@ function App() {
         onPurgeAll={() => void handlePurgeAll()}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label={s.expandSidebar}
+            title={s.expandSidebar}
+            className="absolute left-3 top-3 z-30 hidden h-8 w-8 place-items-center rounded-lg border border-border/60 bg-card/80 text-muted-foreground backdrop-blur transition duration-150 hover:text-foreground active:scale-95 md:grid"
+          >
+            <IconPanelLeft className="h-4 w-4" />
+          </button>
+        )}
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
           <button
             type="button"
