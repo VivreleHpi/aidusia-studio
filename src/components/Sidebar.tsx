@@ -27,6 +27,7 @@ const STRINGS = {
     clearSearch: "Effacer la recherche",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
+    deleteConfirm: (title: string) => `Supprimer « ${title} » ? Cette action est irréversible.`,
     noConversations: "Aucune conversation.",
     noResults: (q: string) => `Aucun résultat pour « ${q} ».`,
     buckets: {
@@ -54,6 +55,7 @@ const STRINGS = {
     clearSearch: "Clear search",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
+    deleteConfirm: (title: string) => `Delete "${title}"? This cannot be undone.`,
     noConversations: "No conversations yet.",
     noResults: (q: string) => `No results for "${q}".`,
     buckets: {
@@ -285,9 +287,12 @@ export function Sidebar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onDelete(c.id)}
+                  onClick={() => {
+                    if (window.confirm(s.deleteConfirm(c.title))) onDelete(c.id);
+                  }}
                   aria-label={s.deleteConversation}
-                  className="invisible ml-1 text-muted-foreground hover:text-destructive group-hover:visible"
+                  title={s.deleteConversation}
+                  className="invisible ml-1 rounded-md p-1 text-muted-foreground transition duration-150 hover:bg-destructive/10 hover:text-destructive group-hover:visible pointer-coarse:visible"
                 >
                   <IconX className="h-3.5 w-3.5" />
                 </button>
