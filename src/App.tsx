@@ -154,6 +154,7 @@ function App() {
             setModel(m);
           }}
           onOpenProviders={() => setProvidersOpen(true)}
+          onOpenFaq={() => setFaqOpen(true)}
           keysVersion={keysVersion}
         />
       </div>

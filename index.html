@@ -6,6 +6,20 @@
     <meta name="color-scheme" content="dark light" />
     <title>AIDUSIA Studio</title>
     <meta name="description" content="Testez vos IA locales et vos clés API dans le navigateur. Rien ne quitte votre machine." />
+    <script>
+      // Anti-flash : pose la classe de theme avant le premier rendu React.
+      (function () {
+        try {
+          var t = localStorage.getItem("aidusia_theme");
+          if (t !== "light" && t !== "dark") {
+            t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.classList.add(t);
+        } catch (e) {
+          /* stockage indisponible : la preference systeme CSS s'applique */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

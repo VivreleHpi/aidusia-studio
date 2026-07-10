@@ -27,8 +27,8 @@ lancement (assistant de démarrage), mais voici le résumé :
 
 - Une interface de chat qui parle **directement, depuis votre navigateur**, à :
   - **Ollama** en local sur votre machine ;
-  - **Anthropic, Google Gemini, Mistral, OpenRouter** avec votre propre clé
-    API (BYOK), en connexion directe navigateur → fournisseur ;
+  - **Anthropic, Google Gemini, Mistral, OpenRouter, Groq** avec votre propre
+    clé API (BYOK), en connexion directe navigateur → fournisseur ;
   - **OpenAI** et **Ollama Cloud**, via un petit proxy — voir "Pourquoi un
     proxy" plus bas.
 - Un **Gouverneur Matériel** qui dit la vérité sur ce que votre machine peut
@@ -41,15 +41,22 @@ lancement (assistant de démarrage), mais voici le résumé :
   il est fondamentalement mauvais sur l'**écriture manuscrite**, quel que
   soit le prétraitement appliqué — ce n'est pas un bug réglable, c'est la
   nature de cette technologie.
-- **Analyse d'image par vision** (bouton 🖼️, visible seulement quand le
-  modèle sélectionné a une vraie capacité vision détectée via l'API — Ollama
-  uniquement pour l'instant) : envoie l'image telle quelle au modèle au lieu
-  d'en extraire le texte. Bien meilleur que l'OCR pour une photo, un document
-  manuscrit ou une capture d'écran complexe.
+- **Analyse d'image par vision** (bouton d'image du composer, visible
+  seulement quand le modèle sélectionné a une vraie capacité vision détectée
+  via l'API — Ollama uniquement pour l'instant) : envoie l'image telle quelle
+  au modèle au lieu d'en extraire le texte. Bien meilleur que l'OCR pour une
+  photo, un document manuscrit ou une capture d'écran complexe.
 - **Dictée vocale** via l'API Web Speech du navigateur — voir l'avertissement
   de confidentialité ci-dessous, ce n'est **pas** garanti 100% local partout.
 - Seuls les modèles réellement renvoyés par l'API du fournisseur (avec votre
   clé) apparaissent dans la liste — jamais un catalogue figé en dur.
+- **Interface bilingue** français/anglais (bascule instantanée, persistée) et
+  **mode sombre / mode clair**.
+- **Connecteurs (MCP)** : branchez des serveurs d'outils HTTP distants (n8n
+  via son nœud « MCP Server Trigger », passerelles Gmail/Drive/X…) que le
+  modèle peut appeler pendant la conversation. Polices, icônes et logos sont
+  auto-hébergés — l'application ne fait **aucune requête externe** en dehors
+  des appels IA que vous déclenchez.
 - Conversations et clés stockées **uniquement dans votre navigateur**
   (IndexedDB / localStorage), jamais sur un serveur.
 - Zéro compte, zéro analytics, zéro cookie de suivi.
@@ -99,6 +106,7 @@ OpenRouter autorisent l'accès direct navigateur et sont donc appelés sans
 intermédiaire.
 
 Chaque proxy est :
+
 - **stateless** (aucune donnée écrite nulle part) ;
 - **sans log** de votre clé ni de vos messages ;
 - **open-source**, dans ce même dépôt (`api/openai/`, `api/ollama-cloud/`) —

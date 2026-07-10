@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/db";
 import { shortcutLabel } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import {
   IconBook,
   IconCompass,
   IconGear,
   IconHelp,
+  IconMoon,
   IconPlug,
   IconSparkles,
+  IconSun,
   IconTrash,
   IconWrench,
   IconX,
@@ -41,6 +44,7 @@ const STRINGS = {
     purgeAll: "Effacer toutes les conversations",
     settings: "Paramètres",
     language: "Langue",
+    themeToggle: "Basculer le thème",
   },
   en: {
     newConversation: "New conversation",
@@ -66,6 +70,7 @@ const STRINGS = {
     purgeAll: "Delete all conversations",
     settings: "Settings",
     language: "Language",
+    themeToggle: "Toggle theme",
   },
 };
 
@@ -132,6 +137,7 @@ export function Sidebar({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const { lang, setLang } = useLang();
+  const { theme, setTheme } = useTheme();
   const s = STRINGS[lang];
 
   useEffect(() => {
@@ -378,6 +384,15 @@ export function Sidebar({
               <IconGear className="h-3.5 w-3.5" />
             </span>
             {s.settings}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label={s.themeToggle}
+            title={s.themeToggle}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/60 text-muted-foreground transition duration-150 hover:text-foreground active:scale-95"
+          >
+            {theme === "dark" ? <IconSun className="h-3.5 w-3.5" /> : <IconMoon className="h-3.5 w-3.5" />}
           </button>
           <div
             role="group"

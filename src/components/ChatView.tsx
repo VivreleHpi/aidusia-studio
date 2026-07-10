@@ -31,10 +31,12 @@ import {
 /* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
 const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
 
+const REPO_URL = "https://github.com/VivreleHpi/aidusia-studio";
+
 const STRINGS = {
   fr: {
-    greeting: (hour: number) => (hour >= 18 || hour < 5 ? "Bonsoir." : "Bonjour."),
-    helpPrompt: "En quoi puis-je vous aider aujourd'hui ?",
+    greeting: (hour: number) => (hour >= 18 || hour < 5 ? "Bonsoir" : "Bonjour"),
+    helpPrompt: "en quoi puis-je vous aider aujourd'hui ?",
     chips: [
       { label: "Écrire", prompt: "Aide-moi à rédiger un email professionnel" },
       { label: "Apprendre", prompt: "Explique-moi un concept compliqué, simplement" },
@@ -74,8 +76,8 @@ const STRINGS = {
   },
   en: {
     greeting: (hour: number) =>
-      hour >= 18 || hour < 5 ? "Good evening." : hour < 12 ? "Good morning." : "Good afternoon.",
-    helpPrompt: "How can I help you today?",
+      hour >= 18 || hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : "Good afternoon",
+    helpPrompt: "how can I help you today?",
     chips: [
       { label: "Write", prompt: "Help me write a professional email" },
       { label: "Learn", prompt: "Explain a complex concept to me, simply" },
@@ -200,6 +202,7 @@ interface ChatViewProps {
   model: string;
   onChangeProvider: (providerId: string, model: string) => void;
   onOpenProviders: () => void;
+  onOpenFaq: () => void;
   keysVersion: number;
 }
 
@@ -213,6 +216,7 @@ export function ChatView({
   model,
   onChangeProvider,
   onOpenProviders,
+  onOpenFaq,
   keysVersion,
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
@@ -344,25 +348,43 @@ export function ChatView({
             <div className="flex h-full flex-col items-center px-4 text-center">
               <div className="rise-in flex flex-1 flex-col items-center justify-center gap-4">
                 <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.9)]" />
-                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-4xl font-semibold tracking-tight text-balance text-transparent sm:text-5xl">
-                  {s.greeting(new Date().getHours())}
+                <h1 className="flex items-baseline gap-3">
+                  <span className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
+                    AIDUSIA
+                  </span>
+                  <span className="text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground sm:text-base">
+                    studio
+                  </span>
                 </h1>
                 <p className="max-w-md text-base text-balance text-muted-foreground">
-                  {s.helpPrompt}
+                  {s.greeting(new Date().getHours())} — {s.helpPrompt}
                 </p>
                 <div
                   className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
                   style={{ animationDelay: "100ms" }}
                 >
-                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  <button
+                    type="button"
+                    onClick={onOpenFaq}
+                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
+                  >
                     <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
-                  </span>
-                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenProviders}
+                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
+                  >
                     <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
-                  </span>
-                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  </button>
+                  <a
+                    href={REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
+                  >
                     <IconBook className="h-3.5 w-3.5" /> {s.badgeOpenSource}
-                  </span>
+                  </a>
                 </div>
               </div>
 
