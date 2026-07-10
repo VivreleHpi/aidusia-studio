@@ -10,7 +10,6 @@ import { providers } from "@/providers";
 import { localeOf, useLang } from "@/lib/i18n";
 import { ModelMenu } from "@/components/ModelMenu";
 import {
-  IconArrowRight,
   IconArrowUp,
   IconBook,
   IconCheck,
@@ -18,25 +17,30 @@ import {
   IconCopy,
   IconImage,
   IconKey,
+  IconList,
   IconLock,
   IconMic,
   IconPaperclip,
+  IconPencil,
   IconPlug,
+  IconSparkles,
   IconSquare,
   IconX,
 } from "@/components/Icons";
 
+/* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
+const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
+
 const STRINGS = {
   fr: {
-    suggestions: [
-      "Explique-moi un concept compliqué, simplement",
-      "Aide-moi à rédiger un email professionnel",
-      "Résume ce texte en 3 points",
-      "Donne-moi des idées pour un projet créatif",
+    greeting: (hour: number) => (hour >= 18 || hour < 5 ? "Bonsoir." : "Bonjour."),
+    helpPrompt: "En quoi puis-je vous aider aujourd'hui ?",
+    chips: [
+      { label: "Écrire", prompt: "Aide-moi à rédiger un email professionnel" },
+      { label: "Apprendre", prompt: "Explique-moi un concept compliqué, simplement" },
+      { label: "Résumer", prompt: "Résume ce texte en 3 points" },
+      { label: "Créer", prompt: "Donne-moi des idées pour un projet créatif" },
     ],
-    heroTitle: "Testez une IA, en toute confiance.",
-    heroSubtitle:
-      "Votre clé, votre modèle, votre navigateur — rien ne transite par un serveur à nous.",
     badgeLocal: "100% local",
     badgeKeys: "Votre clé, vos règles",
     badgeOpenSource: "Open source",
@@ -69,14 +73,15 @@ const STRINGS = {
     jumpToBottom: "Revenir en bas",
   },
   en: {
-    suggestions: [
-      "Explain a complex concept to me, simply",
-      "Help me write a professional email",
-      "Summarize this text in 3 points",
-      "Give me ideas for a creative project",
+    greeting: (hour: number) =>
+      hour >= 18 || hour < 5 ? "Good evening." : hour < 12 ? "Good morning." : "Good afternoon.",
+    helpPrompt: "How can I help you today?",
+    chips: [
+      { label: "Write", prompt: "Help me write a professional email" },
+      { label: "Learn", prompt: "Explain a complex concept to me, simply" },
+      { label: "Summarize", prompt: "Summarize this text in 3 points" },
+      { label: "Create", prompt: "Give me ideas for a creative project" },
     ],
-    heroTitle: "Test an AI, with confidence.",
-    heroSubtitle: "Your key, your model, your browser — nothing passes through a server of ours.",
     badgeLocal: "100% local",
     badgeKeys: "Your key, your rules",
     badgeOpenSource: "Open source",
@@ -336,47 +341,49 @@ export function ChatView({
       <div className="relative flex-1 overflow-hidden">
         <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto px-6 py-4">
           {!conversation || conversation.messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-8 px-4 text-center">
-              <div className="rise-in flex flex-col items-center gap-4">
+            <div className="flex h-full flex-col items-center px-4 text-center">
+              <div className="rise-in flex flex-1 flex-col items-center justify-center gap-4">
                 <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.9)]" />
-                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-3xl font-semibold tracking-tight text-balance text-transparent sm:text-4xl">
-                  {s.heroTitle}
+                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-4xl font-semibold tracking-tight text-balance text-transparent sm:text-5xl">
+                  {s.greeting(new Date().getHours())}
                 </h1>
-                <p className="max-w-md text-sm text-balance text-muted-foreground">
-                  {s.heroSubtitle}
+                <p className="max-w-md text-base text-balance text-muted-foreground">
+                  {s.helpPrompt}
                 </p>
+                <div
+                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
+                  style={{ animationDelay: "100ms" }}
+                >
+                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                    <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
+                  </span>
+                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                    <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
+                  </span>
+                  <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                    <IconBook className="h-3.5 w-3.5" /> {s.badgeOpenSource}
+                  </span>
+                </div>
               </div>
 
               <div
-                className="rise-in flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
-                style={{ animationDelay: "100ms" }}
-              >
-                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
-                  <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
-                </span>
-                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
-                  <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
-                </span>
-                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
-                  <IconBook className="h-3.5 w-3.5" /> {s.badgeOpenSource}
-                </span>
-              </div>
-
-              <div
-                className="rise-in grid w-full max-w-lg grid-cols-1 gap-2.5 sm:grid-cols-2"
+                className="rise-in mb-3 flex flex-wrap items-center justify-center gap-2"
                 style={{ animationDelay: "200ms" }}
               >
-                {s.suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => applySuggestion(suggestion)}
-                    className="group glass flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-foreground transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
-                  >
-                    <span>{suggestion}</span>
-                    <IconArrowRight className="h-3.5 w-3.5 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:opacity-100" />
-                  </button>
-                ))}
+                {s.chips.map((chip, i) => {
+                  const ChipIcon = CHIP_ICONS[i];
+                  return (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => applySuggestion(chip.prompt)}
+                      className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-foreground transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
+                    >
+                      <ChipIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      {chip.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
