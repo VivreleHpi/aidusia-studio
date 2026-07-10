@@ -127,8 +127,11 @@ séparément. Les PR sont bienvenues.
 
 ## Licence
 
-Apache License 2.0 — voir [LICENSE](./LICENSE). Le nom « AIDUSIA » est une
-marque déposée ; la licence couvre le code, pas la marque.
+GNU AGPL v3 — voir [LICENSE](./LICENSE). Utilisez, modifiez et forkez
+librement — mais tout dérivé, **y compris hébergé en ligne (SaaS)**, doit
+publier son code source sous la même licence. C'est un choix délibéré : ce
+qui est ouvert doit le rester. Le nom « AIDUSIA » est une marque déposée ;
+la licence couvre le code, pas la marque.
 
 ## Développement local
 

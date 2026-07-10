@@ -7,6 +7,7 @@ import type { KeyTestResult } from "@/providers/types";
 import { HardwareGovernor } from "@/components/HardwareGovernor";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
+import { describeFetchError } from "@/lib/fetchError";
 
 const STRINGS = {
   fr: {
@@ -90,9 +91,15 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
     if (!provider) return;
     updateRow(providerId, { testing: true, result: null });
     const key = getApiKey(providerId) ?? "";
+    const baseUrl = providerId === "ollama" ? getOllamaBaseUrl() : undefined;
     const result = await provider.testKey(key).catch(
-      (err): KeyTestResult => ({ ok: false, reason: err instanceof Error ? err.message : String(err) }),
+      (err): KeyTestResult => ({ ok: false, reason: describeFetchError(err, provider.label, baseUrl) }),
     );
+    // Certains testKey attrapent eux-memes l'erreur et renvoient le message
+    // brut du navigateur dans reason : on le rend actionnable ici aussi.
+    if (!result.ok && result.reason && /failed to fetch|networkerror|load failed/i.test(result.reason)) {
+      result.reason = describeFetchError(new TypeError(result.reason), provider.label, baseUrl);
+    }
     updateRow(providerId, { testing: false, result });
   }
 
@@ -115,7 +122,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
   }
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center bg-background/60 p-6 backdrop-blur-sm">
+    <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center bg-background/60 p-3 backdrop-blur-sm sm:p-6">
       <div
         role="dialog"
         aria-modal="true"
@@ -159,14 +166,14 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                     : "bg-muted-foreground/30";
 
               const statusText = row.testing
-                ? "Test en cours…"
+                ? s.statusTesting
                 : row.result
                   ? row.result.ok
-                    ? "Joignable"
+                    ? s.statusReachable
                     : row.result.reason
                   : configured
-                    ? "Configuré"
-                    : "Non configuré";
+                    ? s.statusConfigured
+                    : s.statusNotConfigured;
 
               const statusTextClass =
                 !row.testing && row.result && !row.result.ok
@@ -175,7 +182,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
 
               return (
                 <div key={provider.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass}`} />
                       <span className="text-sm font-medium">{provider.label}</span>
@@ -187,7 +194,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                           title={PROVIDER_LINKS[provider.id].note}
                           className="text-xs text-primary hover:underline"
                         >
-                          {provider.requiresApiKey ? "Obtenir une clé ↗" : "Télécharger ↗"}
+                          {provider.requiresApiKey ? s.getKey : s.download}
                         </a>
                       )}
                     </div>
@@ -197,7 +204,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                         onClick={() => runTest(provider.id)}
                         className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                       >
-                        Tester
+                        {s.test}
                       </button>
                       {provider.requiresApiKey && (
                         <>
@@ -206,7 +213,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                             onClick={() => updateRow(provider.id, { editing: !row.editing })}
                             className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                           >
-                            Configurer
+                            {s.configure}
                           </button>
                           {configured && (
                             <button
@@ -214,7 +221,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                               onClick={() => removeKey(provider.id)}
                               className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
                             >
-                              Supprimer
+                              {s.remove}
                             </button>
                           )}
                         </>
@@ -222,7 +229,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                     </div>
                   </div>
 
-                  <p className={`mt-0.5 pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
+                  <p className={`mt-0.5 wrap-break-word pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
 
                   {row.editing && (
                     <div className="mt-2 flex gap-2 pl-4">
@@ -230,7 +237,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                         type="password"
                         value={row.draft}
                         onChange={(e) => updateRow(provider.id, { draft: e.target.value })}
-                        placeholder="Cle API"
+                        placeholder={s.keyPlaceholder}
                         className="flex-1 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       />
                       <button
@@ -238,7 +245,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                         onClick={() => saveKey(provider.id)}
                         className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition duration-150 active:scale-[0.98]"
                       >
-                        Enregistrer
+                        {s.save}
                       </button>
                     </div>
                   )}
@@ -248,7 +255,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between border-t border-border px-6 py-4 text-sm">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-6 py-4 text-sm">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -256,7 +263,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
               onChange={togglePersist}
               style={{ accentColor: "hsl(var(--primary))" }}
             />
-            Garder mes clés après fermeture du navigateur
+            {s.persistLabel}
           </label>
           <button
             type="button"
@@ -266,7 +273,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
             }}
             className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
           >
-            Tout effacer
+            {s.clearAll}
           </button>
         </div>
       </div>

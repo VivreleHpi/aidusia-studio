@@ -52,15 +52,37 @@ immédiate pour un utilisateur motivé.
 
 Attention : n'ouvrez jamais ce port au-delà de votre réseau local.
 
-## Voie 3 — Ollama sur le téléphone (Termux) : niche
+## Voie 3 — Ollama sur le téléphone (Termux) : ça marche dès aujourd'hui
 
-Ollama compile et tourne sous Termux sur Android (pas d'équivalent iOS).
-Réservé aux bidouilleurs ; aucune intégration à prévoir côté Studio autre
-que la possibilité — déjà présente — de changer l'URL d'Ollama.
+Android uniquement (pas d'équivalent iOS). Ollama est empaqueté dans le
+dépôt communautaire TUR de [Termux](https://termux.dev) :
+
+```bash
+pkg update && pkg upgrade
+pkg install tur-repo
+pkg install ollama
+ollama serve &
+ollama pull gemma3:1b        # ou qwen2.5:1.5b — visez 1-3B sur téléphone
+```
+
+Puis ouvrez le Studio **dans le navigateur du même téléphone** : l'URL
+Ollama par défaut (`http://localhost:11434`) pointe cette fois vers le bon
+appareil — le téléphone lui-même. Résultat : une IA 100% locale dans la
+poche, sans compte ni cloud, dès maintenant.
+
+Réalités à connaître : ~1 à 2 Go de poids à télécharger, 3-10 tokens/s
+selon le SoC, chauffe sur les longues réponses, et Android peut tuer le
+process Termux en arrière-plan (utilisez `termux-wake-lock`).
+
+**Et la licence ?** Rien ne change pour le Studio : Termux (GPLv3) et
+Ollama (MIT) sont des outils indépendants que l'utilisateur installe
+lui-même — notre code reste sous sa propre licence (AGPL-3.0), aucune
+contamination dans un sens comme dans l'autre.
 
 ## Recommandation
 
-- **Court terme** : documenter la voie 2 (FAQ + notice), zéro code.
+- **Court terme** : documenter les voies 2 et 3 (FAQ + notice), zéro code —
+  la voie 3 (Termux) donne déjà une IA 100% locale sur Android.
 - **Moyen terme** : implémenter la voie 1 derrière le Gouverneur Matériel,
   couplée à la PWA. C'est le différenciateur souverain : une IA qui tourne
-  dans la poche, sans compte, sans serveur, sans fuite.
+  dans la poche, sans compte, sans serveur, sans fuite — et sans Termux.

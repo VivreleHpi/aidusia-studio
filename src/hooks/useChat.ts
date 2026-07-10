@@ -3,6 +3,7 @@ import { getConversation, saveConversation, type Conversation, type StoredMessag
 import { getProvider } from "@/providers";
 import type { ToolCall, ToolDefinition } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
+import { describeFetchError } from "@/lib/fetchError";
 import { listMcpServers } from "@/lib/mcp/servers";
 import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/client";
 import type { McpServer } from "@/lib/mcp/types";
@@ -199,7 +200,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setError(err instanceof Error ? err.message : String(err));
+          setError(describeFetchError(err, "Le fournisseur sélectionné"));
         }
       } finally {
         setStreaming(false);

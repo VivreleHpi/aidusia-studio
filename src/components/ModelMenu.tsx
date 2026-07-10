@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { providers } from "@/providers";
 import type { ProviderModel } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
+import { describeFetchError } from "@/lib/fetchError";
+import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
 import { IconCheck, IconChevronDown, IconGear } from "@/components/Icons";
 
@@ -76,7 +78,15 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
         }
       })
       .catch((err) => {
-        if (!cancelled) setModelsError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {
+          setModelsError(
+            describeFetchError(
+              err,
+              provider.label,
+              provider.id === "ollama" ? getOllamaBaseUrl() : undefined,
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -61,6 +61,8 @@ export async function probeStorageQuotaGb(): Promise<number | null> {
   return quota ? Math.round((quota / 1024 ** 3) * 10) / 10 : null;
 }
 
+import { describeFetchError } from "@/lib/fetchError";
+
 export async function probeOllama(baseUrl: string): Promise<OllamaProbe> {
   try {
     const versionResponse = await fetch(`${baseUrl}/api/version`, { signal: AbortSignal.timeout(2000) });
@@ -86,7 +88,7 @@ export async function probeOllama(baseUrl: string): Promise<OllamaProbe> {
       reachable: false,
       version: null,
       loadedModels: [],
-      error: err instanceof Error ? err.message : String(err),
+      error: describeFetchError(err, "Ollama", baseUrl),
     };
   }
 }

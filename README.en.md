@@ -123,8 +123,11 @@ roadmap tracked separately. PRs are welcome.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](./LICENSE). The name "AIDUSIA" is a
-registered trademark; the license covers the code, not the trademark.
+GNU AGPL v3 — see [LICENSE](./LICENSE). Use, modify and fork freely — but
+any derivative, **including one hosted online (SaaS)**, must publish its
+source code under the same license. This is deliberate: what is open must
+stay open. The name "AIDUSIA" is a registered trademark; the license covers
+the code, not the trademark.
 
 ## Local development
 
