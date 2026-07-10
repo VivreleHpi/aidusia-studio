@@ -33,6 +33,7 @@ Points clés du script :
 
 - Bouton fournisseur/modèle du composer : `[data-tour="provider-bar"]` (ouvre le menu vers le haut ; « Gérer les fournisseurs » en pied de menu ouvre le panneau).
 - Panneau Fournisseurs : `[role="dialog"][aria-label="Fournisseurs"]`, fermeture via `button[aria-label="Fermer"]`.
+- Galerie Connecteurs (MCP) : menu Paramètres → « Connecteurs » → `[role="dialog"][aria-label="Connecteurs"]` ; 6 cartes (5 logos + personnalisé), un clic sur une carte ouvre le formulaire de connexion.
 - Le menu auto-sélectionne le premier modèle du fournisseur au montage (attendre `:has-text("<modele>")` sur le bouton avant d'interagir).
 
 ## Pièges

@@ -37,7 +37,7 @@ const STRINGS = {
     guide: "Notice d'utilisation",
     faq: "FAQ",
     providers: "Fournisseurs",
-    mcp: "Serveurs MCP",
+    mcp: "Connecteurs",
     purgeAll: "Effacer toutes les conversations",
     settings: "Paramètres",
     language: "Langue",
@@ -62,7 +62,7 @@ const STRINGS = {
     guide: "User guide",
     faq: "FAQ",
     providers: "Providers",
-    mcp: "MCP servers",
+    mcp: "Connectors",
     purgeAll: "Delete all conversations",
     settings: "Settings",
     language: "Language",
@@ -190,13 +190,13 @@ export function Sidebar({
         <button
           type="button"
           onClick={handleCreate}
-          className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-sidebar-foreground transition duration-150 hover:border-primary/40 hover:bg-accent/10 hover:text-foreground active:scale-[0.98]"
+          title={shortcutLabel("N")}
+          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground transition duration-150 hover:bg-accent/10 hover:text-foreground active:scale-[0.98]"
         >
-          <span className="text-base leading-none text-primary">+</span>
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-foreground/10 text-base leading-none text-foreground transition duration-150 group-hover:bg-primary/20 group-hover:text-primary">
+            +
+          </span>
           {s.newConversation}
-          <kbd className="ml-auto rounded border border-border/60 px-1 py-0.5 font-mono text-[10px] text-muted-foreground/70">
-            {shortcutLabel("N")}
-          </kbd>
         </button>
       </div>
 
