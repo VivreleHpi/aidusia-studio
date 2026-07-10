@@ -6,6 +6,7 @@ import { geminiProvider } from "./gemini";
 import { mistralProvider } from "./mistral";
 import { openaiProvider } from "./openai";
 import { openrouterProvider } from "./openrouter";
+import { groqProvider } from "./groq";
 
 export const providers: ChatProvider[] = [
   ollamaProvider,
@@ -15,6 +16,7 @@ export const providers: ChatProvider[] = [
   mistralProvider,
   openaiProvider,
   openrouterProvider,
+  groqProvider,
 ];
 
 export function getProvider(id: string): ChatProvider {

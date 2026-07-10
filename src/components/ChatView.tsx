@@ -1,9 +1,189 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
 import { extractTextFromImage } from "@/lib/ocr";
 import { blobToRawBase64 } from "@/lib/toBase64";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
+import { providers } from "@/providers";
+import { localeOf, useLang } from "@/lib/i18n";
+import { ModelMenu } from "@/components/ModelMenu";
+import {
+  IconArrowRight,
+  IconArrowUp,
+  IconBook,
+  IconCheck,
+  IconChevronDown,
+  IconCopy,
+  IconImage,
+  IconKey,
+  IconLock,
+  IconMic,
+  IconPaperclip,
+  IconPlug,
+  IconSquare,
+  IconX,
+} from "@/components/Icons";
+
+const STRINGS = {
+  fr: {
+    suggestions: [
+      "Explique-moi un concept compliqué, simplement",
+      "Aide-moi à rédiger un email professionnel",
+      "Résume ce texte en 3 points",
+      "Donne-moi des idées pour un projet créatif",
+    ],
+    heroTitle: "Testez une IA, en toute confiance.",
+    heroSubtitle:
+      "Votre clé, votre modèle, votre navigateur — rien ne transite par un serveur à nous.",
+    badgeLocal: "100% local",
+    badgeKeys: "Votre clé, vos règles",
+    badgeOpenSource: "Open source",
+    copyAnswer: "Copier la réponse",
+    toolResultFrom: "Résultat de",
+    toolFallback: "l'outil",
+    toolCallPrefix: "Appel de",
+    imageAttached: "Image jointe",
+    thinking: "En train de répondre",
+    ocrRunning: "OCR local en cours…",
+    ocrPrefix: "OCR",
+    imagePrefix: "Image",
+    dictationWarning:
+      "Écoute en cours… (dictée via le service vocal du navigateur, pas garanti 100% local — voir README)",
+    pendingImageInfo: "Image prête à être envoyée au modèle (analyse directe, pas d'OCR)",
+    removeImage: "Retirer l'image",
+    ocrPick: "Choisir une image pour l'OCR",
+    ocrButtonTitle:
+      "Extraire le texte d'une image (OCR local, texte IMPRIMÉ uniquement — mauvais sur l'écriture manuscrite)",
+    ocrButtonLabel: "Extraire le texte d'une image",
+    visionPick: "Choisir une image pour l'analyse vision",
+    visionButtonTitle:
+      "Envoyer une image au modèle pour analyse directe (mieux pour l'écriture manuscrite — Ollama uniquement pour l'instant)",
+    visionButtonLabel: "Analyser une image",
+    dictation: "Dictée vocale",
+    placeholder: "Écrivez un message…",
+    stop: "Arrêter la génération",
+    send: "Envoyer",
+    hint: "↵ envoyer · ⇧↵ retour à la ligne",
+    jumpToBottom: "Revenir en bas",
+  },
+  en: {
+    suggestions: [
+      "Explain a complex concept to me, simply",
+      "Help me write a professional email",
+      "Summarize this text in 3 points",
+      "Give me ideas for a creative project",
+    ],
+    heroTitle: "Test an AI, with confidence.",
+    heroSubtitle: "Your key, your model, your browser — nothing passes through a server of ours.",
+    badgeLocal: "100% local",
+    badgeKeys: "Your key, your rules",
+    badgeOpenSource: "Open source",
+    copyAnswer: "Copy response",
+    toolResultFrom: "Result from",
+    toolFallback: "the tool",
+    toolCallPrefix: "Calling",
+    imageAttached: "Image attached",
+    thinking: "Thinking",
+    ocrRunning: "Local OCR running…",
+    ocrPrefix: "OCR",
+    imagePrefix: "Image",
+    dictationWarning:
+      "Listening… (dictation uses the browser's speech service, not guaranteed 100% local — see README)",
+    pendingImageInfo: "Image ready to send to the model (direct analysis, no OCR)",
+    removeImage: "Remove image",
+    ocrPick: "Choose an image for OCR",
+    ocrButtonTitle:
+      "Extract text from an image (local OCR, PRINTED text only — poor on handwriting)",
+    ocrButtonLabel: "Extract text from an image",
+    visionPick: "Choose an image for vision analysis",
+    visionButtonTitle:
+      "Send an image to the model for direct analysis (better for handwriting — Ollama only for now)",
+    visionButtonLabel: "Analyze an image",
+    dictation: "Voice dictation",
+    placeholder: "Write a message…",
+    stop: "Stop generating",
+    send: "Send",
+    hint: "↵ send · ⇧↵ new line",
+    jumpToBottom: "Jump to bottom",
+  },
+} as const;
+
+function providerLabel(providerId?: string): string | null {
+  if (!providerId) return null;
+  return providers.find((p) => p.id === providerId)?.label ?? providerId;
+}
+
+const markdownComponents = {
+  p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => <li className="mb-0.5">{children}</li>,
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80">
+      {children}
+    </a>
+  ),
+  code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+    const isBlock = Boolean(className);
+    return isBlock ? (
+      <code className={`${className ?? ""} font-mono text-xs`}>{children}</code>
+    ) : (
+      <code className="rounded bg-foreground/10 px-1 py-0.5 font-mono text-xs">{children}</code>
+    );
+  },
+  pre: ({ children }: { children?: React.ReactNode }) => (
+    <pre className="mb-2 overflow-x-auto rounded-md bg-foreground/10 p-3 last:mb-0">{children}</pre>
+  ),
+};
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const { lang } = useLang();
+  const s = STRINGS[lang];
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      title={s.copyAnswer}
+      aria-label={s.copyAnswer}
+      className="rounded-md p-1 text-muted-foreground/70 opacity-0 transition hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
+    >
+      {copied ? (
+        <IconCheck className="h-3.5 w-3.5 text-success" />
+      ) : (
+        <IconCopy className="h-3.5 w-3.5" />
+      )}
+    </button>
+  );
+}
+
+function ToolResultBlock({ name, content }: { name?: string; content: string }) {
+  const { lang } = useLang();
+  const s = STRINGS[lang];
+  return (
+    <details className="message-in w-full rounded-md border border-border bg-background/40 px-3 py-1.5 text-xs text-muted-foreground">
+      <summary className="flex cursor-pointer items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+        <IconPlug className="h-3 w-3 shrink-0" />
+        <span className="truncate">
+          {s.toolResultFrom} <span className="font-mono">{name ?? s.toolFallback}</span>
+        </span>
+      </summary>
+      <pre className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap wrap-break-word font-mono text-[11px]">
+        {content}
+      </pre>
+    </details>
+  );
+}
 
 interface ChatViewProps {
   conversation: Conversation | null;
@@ -13,6 +193,9 @@ interface ChatViewProps {
   onStop: () => void;
   providerId: string;
   model: string;
+  onChangeProvider: (providerId: string, model: string) => void;
+  onOpenProviders: () => void;
+  keysVersion: number;
 }
 
 export function ChatView({
@@ -23,6 +206,9 @@ export function ChatView({
   onStop,
   providerId,
   model,
+  onChangeProvider,
+  onOpenProviders,
+  keysVersion,
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [ocrBusy, setOcrBusy] = useState(false);
@@ -30,23 +216,60 @@ export function ChatView({
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{ base64: string; previewUrl: string } | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const ocrInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const atBottomRef = useRef(true);
   const messageCount = conversation?.messages.length ?? 0;
   const lastContent = conversation?.messages.at(-1)?.content ?? "";
-  const dictation = useDictation("fr-FR");
+  const { lang } = useLang();
+  const s = STRINGS[lang];
+  const locale = localeOf(lang);
+  const dictation = useDictation(locale);
   const visionCapable = useVisionCapability(providerId, model);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messageCount, lastContent]);
+    atBottomRef.current = true;
+    setShowJumpToBottom(false);
+  }, [conversation?.id]);
+
+  // Ne suit le flux que si l'utilisateur est deja en bas : s'il remonte lire,
+  // on ne le ramene pas de force a chaque chunk.
+  useEffect(() => {
+    if (atBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: streaming ? "auto" : "smooth" });
+    }
+  }, [messageCount, lastContent, streaming]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 192)}px`;
+  }, [draft]);
 
   useEffect(() => {
     return () => {
       if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
     };
   }, [pendingImage]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    atBottomRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom && messageCount > 0);
+  }
+
+  function jumpToBottom() {
+    atBottomRef.current = true;
+    setShowJumpToBottom(false);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,7 +291,7 @@ export function ChatView({
     setOcrBusy(true);
     setOcrProgress(0);
     try {
-      const text = await extractTextFromImage(file, "fra", setOcrProgress);
+      const text = await extractTextFromImage(file, lang === "fr" ? "fra" : "eng", setOcrProgress);
       setDraft((prev) => (prev ? `${prev}\n\n${text}` : text));
     } catch (err) {
       setOcrError(err instanceof Error ? err.message : String(err));
@@ -90,6 +313,11 @@ export function ChatView({
     }
   }
 
+  function applySuggestion(text: string) {
+    setDraft(text);
+    textareaRef.current?.focus();
+  }
+
   function toggleDictation() {
     if (dictation.listening) {
       dictation.stop();
@@ -100,131 +328,180 @@ export function ChatView({
     }
   }
 
+  const composerButtonClass =
+    "grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 disabled:opacity-40";
+
   return (
     <div className="flex h-full flex-1 flex-col">
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {!conversation || conversation.messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            Envoyez un message pour commencer.
-          </div>
-        ) : (
-          <div className="mx-auto flex max-w-2xl flex-col gap-4">
-            {conversation.messages.map((m, i) => {
-              const isLastAssistant =
-                m.role === "assistant" && i === conversation.messages.length - 1;
-              return (
-                <div
-                  key={m.id}
-                  className={`glass whitespace-pre-wrap rounded-lg px-4 py-2 text-sm ${
-                    m.role === "user"
-                      ? "ml-auto max-w-[80%] bg-primary text-primary-foreground"
-                      : "mr-auto max-w-[80%] bg-card text-card-foreground"
-                  }`}
-                >
-                  {m.images && m.images.length > 0 && (
-                    <p className="mb-1 text-xs opacity-70">🖼️ Image jointe</p>
-                  )}
-                  {m.content}
-                  {isLastAssistant && streaming && <span className="typing-cursor" />}
-                </div>
-              );
-            })}
-            {error && (
-              <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
-                {error}
+      <div className="relative flex-1 overflow-hidden">
+        <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto px-6 py-4">
+          {!conversation || conversation.messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-8 px-4 text-center">
+              <div className="rise-in flex flex-col items-center gap-4">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.9)]" />
+                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-3xl font-semibold tracking-tight text-balance text-transparent sm:text-4xl">
+                  {s.heroTitle}
+                </h1>
+                <p className="max-w-md text-sm text-balance text-muted-foreground">
+                  {s.heroSubtitle}
+                </p>
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
+
+              <div
+                className="rise-in flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
+                style={{ animationDelay: "100ms" }}
+              >
+                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
+                </span>
+                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
+                </span>
+                <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
+                  <IconBook className="h-3.5 w-3.5" /> {s.badgeOpenSource}
+                </span>
+              </div>
+
+              <div
+                className="rise-in grid w-full max-w-lg grid-cols-1 gap-2.5 sm:grid-cols-2"
+                style={{ animationDelay: "200ms" }}
+              >
+                {s.suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => applySuggestion(suggestion)}
+                    className="group glass flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-foreground transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
+                  >
+                    <span>{suggestion}</span>
+                    <IconArrowRight className="h-3.5 w-3.5 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:opacity-100" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto flex max-w-3xl flex-col gap-5">
+              {conversation.messages.map((m, i) => {
+                if (m.role === "tool") {
+                  return <ToolResultBlock key={m.id} name={m.toolName} content={m.content} />;
+                }
+                const isLastAssistant =
+                  m.role === "assistant" && i === conversation.messages.length - 1;
+                const label = m.role === "assistant" ? providerLabel(m.providerId) : null;
+                const calledTools = m.role === "assistant" ? m.toolCalls : undefined;
+                if (m.role === "user") {
+                  return (
+                    <div
+                      key={m.id}
+                      className="message-in ml-auto max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground"
+                      title={new Date(m.createdAt).toLocaleString(locale)}
+                    >
+                      {m.images && m.images.length > 0 && (
+                        <p className="mb-1 flex items-center gap-1 text-xs opacity-70">
+                          <IconImage className="h-3.5 w-3.5" /> {s.imageAttached}
+                        </p>
+                      )}
+                      {m.content}
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={m.id}
+                    className="message-in group w-full text-[15px] leading-relaxed text-foreground"
+                    title={new Date(m.createdAt).toLocaleString(locale)}
+                  >
+                    {calledTools && calledTools.length > 0 && (
+                      <p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <IconPlug className="h-3 w-3" />
+                        {s.toolCallPrefix} {calledTools.map((tc) => `\`${tc.name}\``).join(", ")}
+                      </p>
+                    )}
+                    {m.content ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        {m.content}
+                      </ReactMarkdown>
+                    ) : isLastAssistant && streaming ? (
+                      <span className="flex items-center gap-1 py-1" aria-label={s.thinking}>
+                        <span className="thinking-dot" />
+                        <span className="thinking-dot" />
+                        <span className="thinking-dot" />
+                      </span>
+                    ) : null}
+                    {isLastAssistant && streaming && m.content && <span className="typing-cursor" />}
+                    {label && (m.content || !streaming) && (
+                      <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                        <span className="h-1 w-1 rounded-full bg-primary/60" />
+                        <span>{label}</span>
+                        {m.model && <span className="font-mono opacity-80">· {m.model}</span>}
+                        {m.content && !streaming && (
+                          <span className="ml-auto">
+                            <CopyButton text={m.content} />
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {error && (
+                <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+          )}
+        </div>
+
+        {showJumpToBottom && (
+          <button
+            type="button"
+            onClick={jumpToBottom}
+            aria-label={s.jumpToBottom}
+            title={s.jumpToBottom}
+            className="glass absolute bottom-4 left-1/2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full text-muted-foreground shadow-lg transition duration-150 hover:text-foreground active:scale-95"
+          >
+            <IconChevronDown className="h-4 w-4" />
+          </button>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-border p-4">
-        <div className="mx-auto flex max-w-2xl flex-col gap-2">
+      <form onSubmit={handleSubmit} className="px-4 pb-3 pt-2" data-tour="chat-input">
+        <div className="mx-auto flex max-w-3xl flex-col gap-2">
           {ocrBusy && (
-            <p className="text-xs text-muted-foreground">
-              OCR local en cours… {Math.round(ocrProgress * 100)}%
+            <p className="px-2 text-xs text-muted-foreground">
+              {s.ocrRunning} {Math.round(ocrProgress * 100)}%
             </p>
           )}
-          {ocrError && <p className="text-xs text-destructive">OCR : {ocrError}</p>}
-          {visionError && <p className="text-xs text-destructive">Image : {visionError}</p>}
+          {ocrError && <p className="px-2 text-xs text-destructive">{s.ocrPrefix} : {ocrError}</p>}
+          {visionError && (
+            <p className="px-2 text-xs text-destructive">{s.imagePrefix} : {visionError}</p>
+          )}
           {dictation.listening && (
-            <p className="text-xs text-warning">
-              Écoute en cours… (dictée via le service vocal du navigateur, pas
-              garanti 100% local — voir README)
-            </p>
+            <p className="px-2 text-xs text-warning">{s.dictationWarning}</p>
           )}
           {pendingImage && (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-background/40 p-2 text-xs">
-              <img src={pendingImage.previewUrl} alt="" className="h-10 w-10 rounded object-cover" />
-              <span className="flex-1 text-muted-foreground">
-                Image prête à être envoyée au modèle (analyse directe, pas d'OCR)
-              </span>
+            <div className="glass flex items-center gap-2 rounded-xl p-2 text-xs">
+              <img src={pendingImage.previewUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+              <span className="flex-1 text-muted-foreground">{s.pendingImageInfo}</span>
               <button
                 type="button"
                 onClick={() => {
                   URL.revokeObjectURL(pendingImage.previewUrl);
                   setPendingImage(null);
                 }}
-                className="text-muted-foreground hover:text-destructive"
+                aria-label={s.removeImage}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-destructive"
               >
-                ✕
+                <IconX className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <input
-              ref={ocrInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleOcrFileSelected}
-            />
-            <button
-              type="button"
-              onClick={() => ocrInputRef.current?.click()}
-              disabled={ocrBusy}
-              title="Extraire le texte d'une image (OCR local, texte IMPRIMÉ uniquement — mauvais sur l'écriture manuscrite)"
-              aria-label="Extraire le texte d'une image"
-              className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent/10 disabled:opacity-40"
-            >
-              📎
-            </button>
-            {visionCapable && (
-              <>
-                <input
-                  ref={visionInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleVisionFileSelected}
-                />
-                <button
-                  type="button"
-                  onClick={() => visionInputRef.current?.click()}
-                  title="Envoyer une image au modèle pour analyse directe (mieux pour l'écriture manuscrite — Ollama uniquement pour l'instant)"
-                  aria-label="Analyser une image"
-                  className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent/10"
-                >
-                  🖼️
-                </button>
-              </>
-            )}
-            {dictation.supported && (
-              <button
-                type="button"
-                onClick={toggleDictation}
-                title="Dictée vocale"
-                aria-label="Dictée vocale"
-                className={`rounded-md border px-3 py-2 text-sm hover:bg-accent/10 ${
-                  dictation.listening ? "border-warning bg-warning/10" : "border-border"
-                }`}
-              >
-                🎙️
-              </button>
-            )}
+          <div className="glass flex flex-col rounded-2xl p-2 shadow-lg shadow-black/5 transition duration-150 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/40">
             <textarea
+              ref={textareaRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -234,27 +511,99 @@ export function ChatView({
                 }
               }}
               rows={1}
-              placeholder="Ecrivez un message…"
-              className="flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder={s.placeholder}
+              className="max-h-48 w-full resize-none bg-transparent px-2 pb-2.5 pt-2 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             />
-            {streaming ? (
+            <div className="flex items-center gap-1">
+              <input
+                ref={ocrInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                aria-label={s.ocrPick}
+                onChange={handleOcrFileSelected}
+              />
               <button
                 type="button"
-                onClick={onStop}
-                className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90"
+                onClick={() => ocrInputRef.current?.click()}
+                disabled={ocrBusy}
+                title={s.ocrButtonTitle}
+                aria-label={s.ocrButtonLabel}
+                className={composerButtonClass}
               >
-                Arreter
+                <IconPaperclip className="h-4 w-4" />
               </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!draft.trim() && !pendingImage}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
-              >
-                Envoyer
-              </button>
-            )}
+              {visionCapable && (
+                <>
+                  <input
+                    ref={visionInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    aria-label={s.visionPick}
+                    onChange={handleVisionFileSelected}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => visionInputRef.current?.click()}
+                    title={s.visionButtonTitle}
+                    aria-label={s.visionButtonLabel}
+                    className={composerButtonClass}
+                  >
+                    <IconImage className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+              {dictation.supported && (
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  title={s.dictation}
+                  aria-label={s.dictation}
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition duration-150 active:scale-95 ${
+                    dictation.listening
+                      ? "bg-warning/15 text-warning"
+                      : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                  }`}
+                >
+                  <IconMic className={`h-4 w-4 ${dictation.listening ? "animate-pulse" : ""}`} />
+                </button>
+              )}
+              <div className="ml-auto flex min-w-0 items-center gap-1.5">
+                <ModelMenu
+                  key={keysVersion}
+                  providerId={providerId}
+                  model={model}
+                  onChangeProvider={onChangeProvider}
+                  onOpenProviders={onOpenProviders}
+                />
+                {streaming ? (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    title={s.stop}
+                    aria-label={s.stop}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground transition duration-150 hover:opacity-90 active:scale-95"
+                  >
+                    <IconSquare className="h-3 w-3" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!draft.trim() && !pendingImage}
+                    aria-label={s.send}
+                    title={s.send}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition duration-150 hover:opacity-90 active:scale-95 disabled:opacity-30"
+                  >
+                    <IconArrowUp className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
+          <p className="hidden text-center text-[11px] text-muted-foreground/50 sm:block">
+            {s.hint}
+          </p>
         </div>
       </form>
     </div>

@@ -1,4 +1,5 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
 
 // ollama.com ne renvoie pas de header CORS sur ses vraies reponses (verifie
 // empiriquement, comme OpenAI) -> passe par le proxy Edge same-origin.
@@ -42,13 +43,7 @@ export const ollamaCloudProvider: ChatProvider = {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Ollama-Key": apiKey },
       signal: params.signal,
-      body: JSON.stringify({
-        model: params.model,
-        stream: true,
-        messages: params.systemPrompt
-          ? [{ role: "system", content: params.systemPrompt }, ...params.messages]
-          : params.messages,
-      }),
+      body: JSON.stringify(buildOpenAiCompatibleBody(params, true)),
     });
     if (!response.ok || !response.body) {
       throw new Error(`Ollama Cloud a repondu ${response.status}`);
@@ -64,8 +59,19 @@ export const ollamaCloudProvider: ChatProvider = {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.trim()) continue;
-        const json = JSON.parse(line) as { message?: { content?: string } };
-        if (json.message?.content) onChunk({ delta: json.message.content });
+        const json = JSON.parse(line) as {
+          message?: {
+            content?: string;
+            tool_calls?: { function: { name: string; arguments: unknown } }[];
+          };
+        };
+        if (json.message?.content) onChunk({ type: "text", delta: json.message.content });
+        for (const tc of json.message?.tool_calls ?? []) {
+          onChunk({
+            type: "tool_call",
+            call: { id: crypto.randomUUID(), name: tc.function.name, args: tc.function.arguments },
+          });
+        }
       }
     }
   },

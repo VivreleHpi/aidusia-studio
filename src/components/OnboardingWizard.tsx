@@ -8,6 +8,7 @@ import {
   ollamaOriginsCommand,
 } from "@/lib/deviceDetect";
 import { probeOllama, probeWebGpu, type OllamaProbe, type WebGpuProbe } from "@/lib/hardwareGovernor";
+import { useLang } from "@/lib/i18n";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 
 interface OnboardingWizardProps {
@@ -15,7 +16,80 @@ interface OnboardingWizardProps {
   onOpenProviders: () => void;
 }
 
+const STRINGS = {
+  fr: {
+    dialogLabel: "Bienvenue dans AIDUSIA studio",
+    welcome: "Bienvenue — votre clé, votre modèle, votre navigateur.",
+    description:
+      "Testez des IA locales ou cloud, sans rien envoyer sur un serveur (sauf les proxys OpenAI/Ollama Cloud, stateless — voir README).",
+    checking: "Vérification de votre environnement…",
+    ollamaDetectedTitle: (version: string) => `Ollama détecté (v${version})`,
+    ollamaDetectedBody: "Tout est prêt — vous pouvez discuter avec vos modèles locaux dès maintenant.",
+    installIntroBeforeStrong: "Pour utiliser une IA ",
+    installIntroStrong: "locale et gratuite",
+    installIntroAfterStrong: ", installez Ollama (2 minutes) :",
+    downloadButton: "Télécharger Ollama",
+    localOriginNoteBefore:
+      "Vous utilisez le Studio en local : aucune configuration supplémentaire n'est nécessaire, Ollama autorise localhost par défaut. Installez-le, lancez-le, puis cliquez sur \"",
+    localOriginNoteAfter: "\".",
+    remoteOriginNote:
+      "Ce site est déployé sur un vrai domaine : Ollama doit explicitement autoriser cette origine. Lancez cette commande au lieu de double-cliquer sur Ollama :",
+    copy: "Copier",
+    copied: "Copié !",
+    retry: "Réessayer",
+    cloudAlternativeBefore: "Ou passez directement au cloud : configurez une clé API dans \"",
+    cloudAlternativeMid: "\" — aucun téléchargement requis.",
+    providersLabel: "Fournisseurs",
+    mobileIntro: "Ollama ne s'installe pas sur mobile. Deux options sur ce téléphone :",
+    mobileOption1Label: "Le plus simple",
+    mobileOption1Body: " : une clé API cloud (Anthropic, Gemini, Mistral, OpenRouter…), aucun téléchargement.",
+    mobileOption2Label: "IA locale dans le navigateur",
+    mobileOption2Mid: " (Gemma 4, WebGPU) — ",
+    webgpuSupported: "votre téléphone est compatible",
+    webgpuNotSupported: "pas encore disponible sur cet appareil",
+    mobileOption2After: ", fonctionnalité à venir sur ce Studio.",
+    configureCloudKey: "Configurer une clé cloud",
+    start: "Commencer",
+  },
+  en: {
+    dialogLabel: "Welcome to AIDUSIA studio",
+    welcome: "Welcome — your key, your model, your browser.",
+    description:
+      "Try local or cloud AI models without sending anything to a server (except the OpenAI/Ollama Cloud proxies, which are stateless — see README).",
+    checking: "Checking your environment…",
+    ollamaDetectedTitle: (version: string) => `Ollama detected (v${version})`,
+    ollamaDetectedBody: "Everything is ready — you can chat with your local models right now.",
+    installIntroBeforeStrong: "To use a ",
+    installIntroStrong: "local, free AI",
+    installIntroAfterStrong: ", install Ollama (2 minutes):",
+    downloadButton: "Download Ollama",
+    localOriginNoteBefore:
+      "You're using the Studio locally: no extra configuration is needed, Ollama allows localhost by default. Install it, launch it, then click \"",
+    localOriginNoteAfter: "\".",
+    remoteOriginNote:
+      "This site is deployed on a real domain: Ollama must explicitly allow this origin. Run this command instead of double-clicking Ollama:",
+    copy: "Copy",
+    copied: "Copied!",
+    retry: "Retry",
+    cloudAlternativeBefore: "Or skip straight to the cloud: set up an API key in \"",
+    cloudAlternativeMid: "\" — no download required.",
+    providersLabel: "Providers",
+    mobileIntro: "Ollama can't be installed on mobile. Two options on this phone:",
+    mobileOption1Label: "The simplest",
+    mobileOption1Body: ": a cloud API key (Anthropic, Gemini, Mistral, OpenRouter…), no download.",
+    mobileOption2Label: "Local AI in the browser",
+    mobileOption2Mid: " (Gemma 4, WebGPU) — ",
+    webgpuSupported: "your phone is compatible",
+    webgpuNotSupported: "not yet available on this device",
+    mobileOption2After: ", a feature coming soon to this Studio.",
+    configureCloudKey: "Set up a cloud key",
+    start: "Get started",
+  },
+} as const;
+
 export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizardProps) {
+  const { lang } = useLang();
+  const s = STRINGS[lang];
   const [ollama, setOllama] = useState<OllamaProbe | null>(null);
   const [webgpu, setWebgpu] = useState<WebGpuProbe | null>(null);
   const [checking, setChecking] = useState(true);
@@ -51,30 +125,35 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
-      <div className="glass w-full max-w-lg rounded-lg bg-card p-6 text-card-foreground shadow-xl">
-        <h2 className="mb-1 text-lg font-semibold">Bienvenue dans AIDUSIA Studio</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Testez des IA locales ou cloud, sans rien envoyer sur un serveur (sauf
-          les proxys OpenAI/Ollama Cloud, stateless — voir README).
-        </p>
+    <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-6 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={s.dialogLabel}
+        className="modal-in glass w-full max-w-lg rounded-lg bg-card p-6 text-card-foreground shadow-xl"
+      >
+        <div className="mb-3 flex items-baseline gap-2">
+          <span className="text-3xl font-bold tracking-tight text-foreground">AIDUSIA</span>
+          <span className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">studio</span>
+        </div>
+        <p className="mb-1 text-sm text-muted-foreground">{s.welcome}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{s.description}</p>
 
-        {checking && <p className="text-sm text-muted-foreground">Vérification de votre environnement…</p>}
+        {checking && <p className="text-sm text-muted-foreground">{s.checking}</p>}
 
         {!checking && !mobile && ollama?.reachable && (
           <div className="rounded-md border border-success/30 bg-success/10 p-3 text-sm">
-            <p className="mb-1 font-medium text-success">✓ Ollama détecté (v{ollama.version})</p>
-            <p className="text-muted-foreground">
-              Tout est prêt — vous pouvez discuter avec vos modèles locaux dès maintenant.
-            </p>
+            <p className="mb-1 font-medium text-success">✓ {s.ollamaDetectedTitle(ollama.version ?? "?")}</p>
+            <p className="text-muted-foreground">{s.ollamaDetectedBody}</p>
           </div>
         )}
 
         {!checking && !mobile && !ollama?.reachable && (
           <div className="space-y-3 text-sm">
             <p>
-              Pour utiliser une IA <strong>locale et gratuite</strong>, installez Ollama
-              (2 minutes) :
+              {s.installIntroBeforeStrong}
+              <strong>{s.installIntroStrong}</strong>
+              {s.installIntroAfterStrong}
             </p>
             <a
               href={ollamaDownloadUrl(os)}
@@ -82,24 +161,20 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
               rel="noreferrer"
               className="inline-block rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Télécharger Ollama {os !== "inconnu" ? `(${os})` : ""}
+              {s.downloadButton} {os !== "inconnu" ? `(${os})` : ""}
             </a>
 
             {localOrigin ? (
               <p className="text-xs text-muted-foreground">
-                Vous utilisez le Studio en local : aucune configuration
-                supplémentaire n'est nécessaire, Ollama autorise localhost par
-                défaut. Installez-le, lancez-le, puis cliquez sur "Réessayer".
+                {s.localOriginNoteBefore}
+                {s.retry}
+                {s.localOriginNoteAfter}
               </p>
             ) : (
               <>
-                <p className="text-xs text-muted-foreground">
-                  Ce site est déployé sur un vrai domaine : Ollama doit
-                  explicitement autoriser cette origine. Lancez cette commande
-                  au lieu de double-cliquer sur Ollama :
-                </p>
+                <p className="text-xs text-muted-foreground">{s.remoteOriginNote}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 overflow-x-auto rounded-md bg-background/60 px-2 py-1 font-mono text-xs">
+                  <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-background/60 px-2 py-1 font-mono text-xs">
                     {command}
                   </code>
                   <button
@@ -107,7 +182,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
                     onClick={copyCommand}
                     className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/10"
                   >
-                    {copied ? "Copié !" : "Copier"}
+                    {copied ? s.copied : s.copy}
                   </button>
                 </div>
               </>
@@ -118,33 +193,30 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
               onClick={() => void runProbes()}
               className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent/10"
             >
-              Réessayer
+              {s.retry}
             </button>
 
             <p className="text-xs text-muted-foreground">
-              Ou passez directement au cloud : configurez une clé API dans
-              "Fournisseurs" — aucun téléchargement requis.
+              {s.cloudAlternativeBefore}
+              {s.providersLabel}
+              {s.cloudAlternativeMid}
             </p>
           </div>
         )}
 
         {!checking && mobile && (
           <div className="space-y-3 text-sm">
-            <p>
-              Ollama ne s'installe pas sur mobile. Deux options sur ce
-              téléphone :
-            </p>
+            <p>{s.mobileIntro}</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
               <li>
-                <strong className="text-foreground">Le plus simple</strong> : une clé
-                API cloud (Anthropic, Gemini, Mistral, OpenRouter…), aucun
-                téléchargement.
+                <strong className="text-foreground">{s.mobileOption1Label}</strong>
+                {s.mobileOption1Body}
               </li>
               <li>
-                <strong className="text-foreground">IA locale dans le navigateur</strong>{" "}
-                (Gemma 4, WebGPU) —{" "}
-                {webgpu?.supported ? "votre téléphone est compatible" : "pas encore disponible sur cet appareil"}
-                , fonctionnalité à venir sur ce Studio.
+                <strong className="text-foreground">{s.mobileOption2Label}</strong>
+                {s.mobileOption2Mid}
+                {webgpu?.supported ? s.webgpuSupported : s.webgpuNotSupported}
+                {s.mobileOption2After}
               </li>
             </ul>
           </div>
@@ -159,14 +231,14 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
             }}
             className="text-xs text-muted-foreground hover:underline"
           >
-            Configurer une clé cloud
+            {s.configureCloudKey}
           </button>
           <button
             type="button"
             onClick={finish}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
-            Commencer
+            {s.start}
           </button>
         </div>
       </div>

@@ -2,18 +2,26 @@ import { useEffect, useState } from "react";
 import { providers } from "@/providers";
 import type { ProviderModel } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
+import { ModelPicker } from "@/components/ModelPicker";
 
 interface ProviderBarProps {
   providerId: string;
   model: string;
   onChangeProvider: (providerId: string, model: string) => void;
   onOpenProviders: () => void;
+  onToggleSidebar: () => void;
 }
 
 const selectClass =
-  "rounded-md border border-border bg-card px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring";
+  "select-chevron appearance-none rounded-md border border-border bg-card pl-2 pr-6 py-1 text-foreground transition hover:border-ring/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-40";
 
-export function ProviderBar({ providerId, model, onChangeProvider, onOpenProviders }: ProviderBarProps) {
+export function ProviderBar({
+  providerId,
+  model,
+  onChangeProvider,
+  onOpenProviders,
+  onToggleSidebar,
+}: ProviderBarProps) {
   const [models, setModels] = useState<ProviderModel[]>([]);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
@@ -35,7 +43,21 @@ export function ProviderBar({ providerId, model, onChangeProvider, onOpenProvide
   }, [providerId]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card/60 px-4 py-2 text-sm backdrop-blur">
+    <div
+      className="flex flex-wrap items-center gap-2 border-b border-border bg-card/60 px-4 py-2 text-sm backdrop-blur"
+      data-tour="provider-bar"
+    >
+      <button
+        type="button"
+        onClick={onToggleSidebar}
+        aria-label="Basculer le menu"
+        className="rounded-md border border-border p-1.5 text-foreground hover:bg-accent/10 md:hidden"
+      >
+        <svg viewBox="0 0 18 18" fill="none" className="h-4 w-4">
+          <path d="M2.5 5h13M2.5 9h13M2.5 13h13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+
       <select
         aria-label="Fournisseur IA"
         value={providerId}
@@ -49,19 +71,12 @@ export function ProviderBar({ providerId, model, onChangeProvider, onOpenProvide
         ))}
       </select>
 
-      <select
-        aria-label="Modele"
+      <ModelPicker
+        models={models}
         value={model}
-        onChange={(e) => onChangeProvider(providerId, e.target.value)}
-        className={selectClass}
+        onChange={(id) => onChangeProvider(providerId, id)}
         disabled={models.length === 0}
-      >
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
-          </option>
-        ))}
-      </select>
+      />
 
       {missingKey && (
         <button

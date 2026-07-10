@@ -1,4 +1,4 @@
-export type ChatRole = "user" | "assistant" | "system";
+export type ChatRole = "user" | "assistant" | "system" | "tool";
 
 export interface ChatMessage {
   role: ChatRole;
@@ -6,6 +6,14 @@ export interface ChatMessage {
   // Base64 brut (sans prefixe data:), pour les modeles vision. Support
   // actuel : Ollama uniquement (verifie) - voir README pour le perimetre.
   images?: string[];
+  // Present uniquement sur role "tool" : resultat d'un appel d'outil MCP,
+  // associe a l'appel qui l'a declenche (voir useChat.ts).
+  toolCallId?: string;
+  toolName?: string;
+  // Present uniquement sur un message "assistant" qui a demande des appels
+  // d'outils - necessaire pour rejouer l'historique vers le fournisseur
+  // (chaque message "tool" qui suit doit correspondre a un appel ici).
+  toolCalls?: ToolCall[];
 }
 
 export interface ProviderModel {
@@ -16,15 +24,30 @@ export interface ProviderModel {
   visionCapable?: boolean;
 }
 
-export interface StreamChunk {
-  delta: string;
+// Outil MCP traduit dans un format neutre - chaque provider le retraduit
+// dans son propre schema de function-calling (voir chaque providers/*.ts).
+export interface ToolDefinition {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
 }
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  args: unknown;
+}
+
+export type StreamChunk =
+  | { type: "text"; delta: string }
+  | { type: "tool_call"; call: ToolCall };
 
 export interface ChatStreamParams {
   model: string;
   messages: ChatMessage[];
   systemPrompt?: string;
   signal?: AbortSignal;
+  tools?: ToolDefinition[];
 }
 
 export type KeyTestResult =

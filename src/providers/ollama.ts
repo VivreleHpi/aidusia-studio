@@ -1,4 +1,5 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
 
@@ -58,13 +59,15 @@ export const ollamaProvider: ChatProvider = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: params.signal,
-      body: JSON.stringify({
-        model: params.model,
-        stream: true,
-        messages: params.systemPrompt
-          ? [{ role: "system", content: params.systemPrompt }, ...params.messages]
-          : params.messages,
-      }),
+      body: JSON.stringify(buildOpenAiCompatibleBody(params, true)),
+    }).catch((err: unknown) => {
+      // "Failed to fetch" brut n'aide personne ; on garde l'abandon volontaire
+      // (bouton Arreter) intact pour que useChat le reconnaisse.
+      if (err instanceof Error && err.name === "AbortError") throw err;
+      throw new Error(
+        `Ollama injoignable sur ${baseUrl}. Verifiez qu'Ollama tourne et que ` +
+          `OLLAMA_ORIGINS autorise cette origine (voir Reglages > Fournisseurs).`,
+      );
     });
     if (!response.ok || !response.body) {
       throw new Error(`Ollama a repondu ${response.status}`);
@@ -80,9 +83,23 @@ export const ollamaProvider: ChatProvider = {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.trim()) continue;
-        const json = JSON.parse(line) as { message?: { content?: string }; done?: boolean };
+        const json = JSON.parse(line) as {
+          message?: {
+            content?: string;
+            tool_calls?: { function: { name: string; arguments: unknown } }[];
+          };
+          done?: boolean;
+        };
         if (json.message?.content) {
-          onChunk({ delta: json.message.content });
+          onChunk({ type: "text", delta: json.message.content });
+        }
+        // Ollama renvoie les tool_calls complets (arguments deja un objet
+        // JSON, jamais fragmentes) - pas d'accumulation necessaire.
+        for (const tc of json.message?.tool_calls ?? []) {
+          onChunk({
+            type: "tool_call",
+            call: { id: crypto.randomUUID(), name: tc.function.name, args: tc.function.arguments },
+          });
         }
       }
     }

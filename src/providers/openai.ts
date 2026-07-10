@@ -1,4 +1,5 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
 // OpenAI bloque volontairement les requetes CORS directes depuis un navigateur
 // (verifie empiriquement : aucun header Access-Control-Allow-Origin sur la
@@ -57,36 +58,12 @@ export const openaiProvider: ChatProvider = {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-OpenAI-Key": apiKey },
       signal: params.signal,
-      body: JSON.stringify({
-        model: params.model,
-        stream: true,
-        messages: params.systemPrompt
-          ? [{ role: "system", content: params.systemPrompt }, ...params.messages]
-          : params.messages,
-      }),
+      body: JSON.stringify(buildOpenAiCompatibleBody(params)),
     });
     if (!response.ok || !response.body) {
       const body = await response.text().catch(() => "");
       throw new Error(`Proxy OpenAI a repondu ${response.status}: ${body}`);
     }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split("\n\n");
-      buffer = events.pop() ?? "";
-      for (const event of events) {
-        const dataLine = event.split("\n").find((l) => l.startsWith("data:"));
-        if (!dataLine) continue;
-        const payload = dataLine.slice(5).trim();
-        if (payload === "[DONE]") continue;
-        const json = JSON.parse(payload);
-        const delta = json.choices?.[0]?.delta?.content;
-        if (delta) onChunk({ delta });
-      }
-    }
+    await readOpenAiCompatibleStream(response, onChunk);
   },
 };

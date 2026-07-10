@@ -11,8 +11,12 @@
     "leak-scan": "node scripts/leak-scan.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

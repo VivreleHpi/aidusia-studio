@@ -44,6 +44,12 @@ export function ollamaOriginsCommand(os: DetectedOs): string {
   }
 }
 
+// Affiche le raccourci dans la convention de la plateforme reelle : le
+// symbole pomme n'a de sens que sur macOS, Windows/Linux utilisent "Ctrl+".
+export function shortcutLabel(key: string): string {
+  return detectOs() === "macos" ? `⌘${key}` : `Ctrl+${key}`;
+}
+
 export function ollamaDownloadUrl(os: DetectedOs): string {
   switch (os) {
     case "windows":

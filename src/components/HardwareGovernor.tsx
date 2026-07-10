@@ -8,6 +8,7 @@ import {
   type OllamaProbe,
   type WebGpuProbe,
 } from "@/lib/hardwareGovernor";
+import { useLang } from "@/lib/i18n";
 
 const verdictStyle: Record<string, string> = {
   optimal: "text-success",
@@ -16,12 +17,58 @@ const verdictStyle: Record<string, string> = {
   inconnu: "text-muted-foreground",
 };
 
-const verdictLabel: Record<string, string> = {
-  optimal: "OPTIMAL",
-  degrade: "DÉGRADÉ",
-  indisponible: "INDISPONIBLE",
-  inconnu: "INCONNU",
-};
+const STRINGS = {
+  fr: {
+    verdictLabel: {
+      optimal: "OPTIMAL",
+      degrade: "DÉGRADÉ",
+      indisponible: "INDISPONIBLE",
+      inconnu: "INCONNU",
+    } as Record<string, string>,
+    title: "Gouverneur Matériel",
+    intro:
+      "Estimations navigateur — le navigateur ne lit pas la VRAM réelle, seul Ollama la connaît vraiment (deuxième bloc).",
+    webgpuLine: "IA locale dans le navigateur (WebGPU)",
+    webgpuHelp:
+      "Essayez une version récente de Chrome, Edge ou Safari 26+, et vérifiez que l'accélération matérielle est activée dans les réglages du navigateur. Cela ne bloque rien aujourd'hui (Ollama et le cloud restent disponibles) — ce sera nécessaire pour l'IA locale dans le navigateur (Gemma 4), à venir sur ce Studio.",
+    memory: "Mémoire (estimation)",
+    memoryUnknown: "non exposée par ce navigateur",
+    gb: "Go",
+    cpuCores: "Cœurs CPU",
+    disk: "Espace disque disponible",
+    connection: "Connexion",
+    ollamaLocal: "Ollama local",
+    reachable: (version: string) => `JOIGNABLE (v${version})`,
+    unreachable: "INJOIGNABLE",
+    noLoadedModels: "Aucun modèle chargé en mémoire actuellement.",
+    vram: "VRAM réelle",
+  },
+  en: {
+    verdictLabel: {
+      optimal: "OPTIMAL",
+      degrade: "DEGRADED",
+      indisponible: "UNAVAILABLE",
+      inconnu: "UNKNOWN",
+    } as Record<string, string>,
+    title: "Hardware Governor",
+    intro:
+      "Browser estimates — the browser can't read actual VRAM; only Ollama truly knows it (second block).",
+    webgpuLine: "Local AI in the browser (WebGPU)",
+    webgpuHelp:
+      "Try a recent version of Chrome, Edge or Safari 26+, and check that hardware acceleration is enabled in the browser settings. Nothing is blocked today (Ollama and the cloud remain available) — it will be required for local in-browser AI (Gemma 4), coming to this Studio.",
+    memory: "Memory (estimate)",
+    memoryUnknown: "not exposed by this browser",
+    gb: "GB",
+    cpuCores: "CPU cores",
+    disk: "Available disk space",
+    connection: "Connection",
+    ollamaLocal: "Local Ollama",
+    reachable: (version: string) => `REACHABLE (v${version})`,
+    unreachable: "UNREACHABLE",
+    noLoadedModels: "No model currently loaded in memory.",
+    vram: "actual VRAM",
+  },
+} as const;
 
 interface HardwareGovernorProps {
   ollamaBaseUrl: string;
@@ -32,6 +79,8 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
   const [hardware, setHardware] = useState<HardwareProbe | null>(null);
   const [storageGb, setStorageGb] = useState<number | null>(null);
   const [ollama, setOllama] = useState<OllamaProbe | null>(null);
+  const { lang } = useLang();
+  const s = STRINGS[lang];
 
   useEffect(() => {
     setHardware(probeHardware());
@@ -42,59 +91,50 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
 
   return (
     <div className="rounded-md border border-border bg-background/40 p-4">
-      <h3 className="mb-1 text-sm font-semibold">Gouverneur Matériel</h3>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Estimations navigateur — le navigateur ne lit pas la VRAM réelle, seul
-        Ollama la connaît vraiment (deuxième bloc).
-      </p>
+      <h3 className="mb-1 text-sm font-semibold">{s.title}</h3>
+      <p className="mb-3 text-xs text-muted-foreground">{s.intro}</p>
 
       <div className="mb-3 flex items-center justify-between text-sm">
-        <span>IA locale dans le navigateur (WebGPU)</span>
+        <span>{s.webgpuLine}</span>
         <span className={`font-mono text-xs ${webgpu ? verdictStyle[webgpu.verdict] : "text-muted-foreground"}`}>
-          {webgpu ? verdictLabel[webgpu.verdict] : "…"}
+          {webgpu ? s.verdictLabel[webgpu.verdict] : "…"}
         </span>
       </div>
       {webgpu && <p className="mb-1 text-xs text-muted-foreground">{webgpu.detail}</p>}
       {webgpu && !webgpu.supported && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Essayez une version récente de Chrome, Edge ou Safari 26+, et
-          vérifiez que l'accélération matérielle est activée dans les
-          réglages du navigateur. Cela ne bloque rien aujourd'hui (Ollama et
-          le cloud restent disponibles) — ce sera nécessaire pour l'IA locale
-          dans le navigateur (Gemma 4), à venir sur ce Studio.
-        </p>
+        <p className="mb-3 text-xs text-muted-foreground">{s.webgpuHelp}</p>
       )}
 
       <dl className="mb-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div>
-          <dt className="opacity-70">Mémoire (estimation)</dt>
+          <dt className="opacity-70">{s.memory}</dt>
           <dd className="font-mono text-foreground">
-            {hardware?.deviceMemoryGb ? `≥ ${hardware.deviceMemoryGb} Go` : "non exposée par ce navigateur"}
+            {hardware?.deviceMemoryGb ? `≥ ${hardware.deviceMemoryGb} ${s.gb}` : s.memoryUnknown}
           </dd>
         </div>
         <div>
-          <dt className="opacity-70">Cœurs CPU</dt>
+          <dt className="opacity-70">{s.cpuCores}</dt>
           <dd className="font-mono text-foreground">{hardware?.cpuCores ?? "?"}</dd>
         </div>
         <div>
-          <dt className="opacity-70">Espace disque disponible</dt>
-          <dd className="font-mono text-foreground">{storageGb ? `~${storageGb} Go` : "…"}</dd>
+          <dt className="opacity-70">{s.disk}</dt>
+          <dd className="font-mono text-foreground">{storageGb ? `~${storageGb} ${s.gb}` : "…"}</dd>
         </div>
         <div>
-          <dt className="opacity-70">Connexion</dt>
+          <dt className="opacity-70">{s.connection}</dt>
           <dd className="font-mono text-foreground">{hardware?.connectionType ?? "?"}</dd>
         </div>
       </dl>
 
       <div className="border-t border-border pt-3">
         <div className="flex items-center justify-between text-sm">
-          <span>Ollama local</span>
+          <span>{s.ollamaLocal}</span>
           {ollama === null ? (
             <span className="text-xs text-muted-foreground">…</span>
           ) : ollama.reachable ? (
-            <span className="font-mono text-xs text-success">JOIGNABLE (v{ollama.version})</span>
+            <span className="font-mono text-xs text-success">{s.reachable(ollama.version ?? "?")}</span>
           ) : (
-            <span className="font-mono text-xs text-destructive">INJOIGNABLE</span>
+            <span className="font-mono text-xs text-destructive">{s.unreachable}</span>
           )}
         </div>
         {ollama && !ollama.reachable && (
@@ -103,9 +143,9 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
         {ollama?.reachable && (
           <p className="mt-1 text-xs text-muted-foreground">
             {ollama.loadedModels.length === 0
-              ? "Aucun modèle chargé en mémoire actuellement."
+              ? s.noLoadedModels
               : ollama.loadedModels
-                  .map((m) => `${m.name} (${m.sizeVramGb} Go VRAM réelle)`)
+                  .map((m) => `${m.name} (${m.sizeVramGb} ${s.gb} ${s.vram})`)
                   .join(", ")}
           </p>
         )}

@@ -1,16 +1,23 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
-const API_BASE = "https://api.mistral.ai/v1";
+// API compatible OpenAI. Contrairement a OpenAI et Ollama Cloud, Groq renvoie
+// un header Access-Control-Allow-Origin: * sur la vraie reponse (verifie
+// empiriquement, pas seulement sur le preflight OPTIONS) : appel direct
+// navigateur -> fournisseur, sans proxy.
+const API_BASE = "https://api.groq.com/openai/v1";
 
-interface MistralModel {
+// Modeles audio/moderation exposes par la meme API mais qui ne repondent pas
+// a /chat/completions comme un modele de conversation classique.
+const NON_CHAT_PATTERNS = ["whisper", "tts", "guard"];
+
+interface GroqModel {
   id: string;
-  name?: string;
 }
 
-export const mistralProvider: ChatProvider = {
-  id: "mistral",
-  label: "Mistral",
+export const groqProvider: ChatProvider = {
+  id: "groq",
+  label: "Groq",
   requiresApiKey: true,
 
   // Vrai appel GET /v1/models : seuls les modeles reellement accessibles
@@ -20,9 +27,11 @@ export const mistralProvider: ChatProvider = {
     const response = await fetch(`${API_BASE}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
-    if (!response.ok) throw new Error(`Mistral a repondu ${response.status}`);
-    const data = (await response.json()) as { data: MistralModel[] };
-    return data.data.map((m) => ({ id: m.id, label: m.name ?? m.id }));
+    if (!response.ok) throw new Error(`Groq a repondu ${response.status}`);
+    const data = (await response.json()) as { data: GroqModel[] };
+    return data.data
+      .filter((m) => !NON_CHAT_PATTERNS.some((p) => m.id.toLowerCase().includes(p)))
+      .map((m) => ({ id: m.id, label: m.id }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {
@@ -39,7 +48,7 @@ export const mistralProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API Mistral manquante");
+    if (!apiKey) throw new Error("Cle API Groq manquante");
     const response = await fetch(`${API_BASE}/chat/completions`, {
       method: "POST",
       headers: {
@@ -51,7 +60,7 @@ export const mistralProvider: ChatProvider = {
     });
     if (!response.ok || !response.body) {
       const body = await response.text().catch(() => "");
-      throw new Error(`Mistral a repondu ${response.status}: ${body}`);
+      throw new Error(`Groq a repondu ${response.status}: ${body}`);
     }
     await readOpenAiCompatibleStream(response, onChunk);
   },

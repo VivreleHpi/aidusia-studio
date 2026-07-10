@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 import { getConversation, saveConversation, type Conversation, type StoredMessage } from "@/lib/db";
 import { getProvider } from "@/providers";
+import type { ToolCall, ToolDefinition } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
+import { listMcpServers } from "@/lib/mcp/servers";
+import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/client";
+import type { McpServer } from "@/lib/mcp/types";
 
 function titleFromFirstMessage(content: string): string {
   const trimmed = content.trim().slice(0, 60);
@@ -17,6 +21,37 @@ function titleFromFirstMessage(content: string): string {
 // rien" sur une longue reponse). IndexedDB ne sert plus qu'a la persistance,
 // en arriere-plan, throttlee - jamais comme source du rendu live.
 const PERSIST_INTERVAL_MS = 500;
+
+// Nombre max d'aller-retours modele <-> outil pour une seule reponse - filet
+// de securite si un modele boucle sur des appels d'outils sans jamais
+// conclure par une reponse texte.
+const MAX_TOOL_HOPS = 4;
+
+// Index {nom d'outil -> serveur qui l'expose}, construit une fois par envoi
+// de message (pas par hop) - au prix d'un tools/list par serveur configure.
+// Best-effort : un serveur injoignable est ignore, pas fatal pour l'envoi.
+async function buildToolIndex(
+  servers: McpServer[],
+): Promise<Map<string, { server: McpServer; tool: ToolDefinition }>> {
+  const index = new Map<string, { server: McpServer; tool: ToolDefinition }>();
+  await Promise.all(
+    servers.map(async (server) => {
+      try {
+        await initializeMcp(server);
+        const tools = await listTools(server);
+        for (const tool of tools) {
+          index.set(tool.name, {
+            server,
+            tool: { name: tool.name, description: tool.description, inputSchema: tool.inputSchema },
+          });
+        }
+      } catch (err) {
+        console.warn(`Serveur MCP "${server.name}" injoignable :`, err);
+      }
+    }),
+  );
+  return index;
+}
 
 export function useChat(onUpdated: (conversation: Conversation) => void, onListChanged: () => void) {
   const [streaming, setStreaming] = useState(false);
@@ -47,7 +82,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         createdAt: Date.now(),
         images,
       };
-      const assistantMessage: StoredMessage = {
+      let assistantMessage: StoredMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: "",
@@ -73,33 +108,95 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       abortRef.current = controller;
       setStreaming(true);
 
-      let accumulated = "";
       let lastPersist = 0;
+      function persistThrottled() {
+        const now = Date.now();
+        if (now - lastPersist > PERSIST_INTERVAL_MS) {
+          lastPersist = now;
+          void saveConversation({ ...updated, updatedAt: now });
+        }
+      }
+
       try {
-        await provider.chatStream(
-          {
-            model,
-            systemPrompt,
-            signal: controller.signal,
-            messages: updated.messages
-              .slice(0, -1)
-              .map((m) => ({ role: m.role, content: m.content, images: m.images })),
-          },
-          apiKey,
-          ({ delta }) => {
-            accumulated += delta;
-            assistantMessage.content = accumulated;
-            // Rendu immediat, en memoire - aucune lecture IndexedDB.
-            onUpdated(updated);
-            // Persistance throttlee : la version finale est de toute facon
-            // ecrite dans le `finally` ci-dessous.
-            const now = Date.now();
-            if (now - lastPersist > PERSIST_INTERVAL_MS) {
-              lastPersist = now;
-              void saveConversation({ ...updated, updatedAt: now });
+        const mcpServers = listMcpServers();
+        const toolIndex = mcpServers.length > 0 ? await buildToolIndex(mcpServers) : new Map();
+        const toolDefs = [...toolIndex.values()].map((entry) => entry.tool);
+
+        for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
+          let accumulated = "";
+          const toolCalls: ToolCall[] = [];
+
+          await provider.chatStream(
+            {
+              model,
+              systemPrompt,
+              signal: controller.signal,
+              tools: toolDefs.length > 0 ? toolDefs : undefined,
+              messages: updated.messages.slice(0, -1).map((m) => ({
+                role: m.role,
+                content: m.content,
+                images: m.images,
+                toolCallId: m.toolCallId,
+                toolName: m.toolName,
+                toolCalls: m.toolCalls,
+              })),
+            },
+            apiKey,
+            (chunk) => {
+              if (chunk.type === "text") {
+                accumulated += chunk.delta;
+                assistantMessage.content = accumulated;
+              } else {
+                toolCalls.push(chunk.call);
+              }
+              // Rendu immediat, en memoire - aucune lecture IndexedDB.
+              onUpdated(updated);
+              // Persistance throttlee : la version finale est de toute facon
+              // ecrite dans le `finally` ci-dessous.
+              persistThrottled();
+            },
+          );
+
+          if (toolCalls.length === 0) break; // reponse finale, texte seul
+
+          assistantMessage.toolCalls = toolCalls;
+
+          for (const call of toolCalls) {
+            const entry = toolIndex.get(call.name);
+            let resultText: string;
+            if (!entry) {
+              resultText = `Outil "${call.name}" introuvable (aucun serveur MCP configure ne l'expose).`;
+            } else {
+              try {
+                const result = await callTool(entry.server, call.name, call.args);
+                resultText = result.content || (result.isError ? "Erreur sans detail." : "(reponse vide)");
+              } catch (err) {
+                resultText = `Erreur : ${err instanceof Error ? err.message : String(err)}`;
+              }
             }
-          },
-        );
+            const toolMessage: StoredMessage = {
+              id: crypto.randomUUID(),
+              role: "tool",
+              content: resultText,
+              toolCallId: call.id,
+              toolName: call.name,
+              createdAt: Date.now(),
+            };
+            updated.messages.push(toolMessage);
+          }
+
+          assistantMessage = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "",
+            createdAt: Date.now(),
+            providerId,
+            model,
+          };
+          updated.messages.push(assistantMessage);
+          onUpdated(updated);
+          persistThrottled();
+        }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           setError(err instanceof Error ? err.message : String(err));
