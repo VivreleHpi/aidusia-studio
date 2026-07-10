@@ -347,7 +347,6 @@ export function ChatView({
           {!conversation || conversation.messages.length === 0 ? (
             <div className="flex h-full flex-col items-center px-4 text-center">
               <div className="rise-in flex flex-1 flex-col items-center justify-center gap-4">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.9)]" />
                 <h1 className="flex items-baseline gap-3">
                   <span className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
                     AIDUSIA
