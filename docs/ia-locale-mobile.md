@@ -9,8 +9,26 @@ l'utilisateur, sans backend, en restant fidèle à la promesse du Studio
 Le fournisseur « Navigateur (local) » est disponible dans le menu modèle :
 Llama 3.2 1B, Qwen 2.5 1.5B et Gemma 2 2B quantisés (web-llm/MLC), poids
 téléchargés une fois depuis HuggingFace à la demande puis mis en cache.
-La suite ci-dessous décrit le raisonnement et ce qui reste à livrer
-(téléchargement guidé par le Gouverneur, reprise, PWA).
+
+**Provenance des modèles :** ce sont de vrais modèles ouverts — Llama 3.2
+(Meta), Qwen 2.5 (Alibaba), Gemma 2 (Google) — compressés en q4 par le projet
+open source [MLC-AI](https://github.com/mlc-ai) et hébergés sur HuggingFace.
+Le Studio ne les modifie pas et n'en héberge aucun : le navigateur les récupère
+directement, une seule fois, puis les sert depuis le Cache Storage.
+
+**Déjà livré au-delà de l'inférence :**
+
+- **Bascule f16 → f32 automatique** : les GPU sans `shader-f16` (beaucoup de
+  mobiles) reçoivent la variante q4f32 du même modèle au lieu d'échouer en
+  silence à la compilation.
+- **Gestion du stockage** (Fournisseurs → Navigateur (local) → Modèles) :
+  statut téléchargé / en mémoire, taille réelle, suppression par modèle,
+  jauge d'occupation, et `storage.persist()` pour éviter l'éviction.
+- **Reprise auto** : si le moteur perd son modèle (onglet gelé par Android,
+  device GPU repris), la génération relance le moteur et réessaie une fois
+  sans déranger l'utilisateur.
+- **Mode hors-ligne (PWA)** : service worker + manifest installable. Une fois
+  l'app ouverte et un modèle téléchargé, tout fonctionne sans réseau.
 
 **Comment :** un moteur d'inférence WASM/WebGPU côté page — les deux options
 sérieuses sont [web-llm (MLC)](https://github.com/mlc-ai/web-llm) et
@@ -87,6 +105,7 @@ contamination dans un sens comme dans l'autre.
 
 - **Court terme** : documenter les voies 2 et 3 (FAQ + notice), zéro code —
   la voie 3 (Termux) donne déjà une IA 100% locale sur Android.
-- **Moyen terme** : implémenter la voie 1 derrière le Gouverneur Matériel,
-  couplée à la PWA. C'est le différenciateur souverain : une IA qui tourne
-  dans la poche, sans compte, sans serveur, sans fuite — et sans Termux.
+- **Livré** : la voie 1 derrière le Gouverneur Matériel, couplée à la PWA
+  hors-ligne et à la gestion du stockage. C'est le différenciateur souverain :
+  une IA qui tourne dans la poche, sans compte, sans serveur, sans fuite —
+  et sans Termux.

@@ -33,7 +33,19 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "Qu'est-ce qu'Ollama, et pourquoi l'utiliser ?",
-        a: "Ollama fait tourner des modèles d'IA en local sur votre machine, gratuitement, sans compte ni clé API. Installez-le, lancez-le, et ce Studio le détecte automatiquement. C'est l'option la plus privée : rien ne quitte votre ordinateur.",
+        a: "Ollama fait tourner des modèles d'IA en local sur votre machine, gratuitement, sans compte ni clé API. Installez-le, lancez-le, et ce Studio le détecte automatiquement. C'est l'option la plus privée : rien ne quitte votre ordinateur. Ollama demande une application de bureau : c'est donc une solution pour ordinateur. Sur téléphone, utilisez plutôt « Navigateur (local) ».",
+      },
+      {
+        q: "L'IA locale « Navigateur » : d'où viennent les modèles et où tournent-ils ?",
+        a: "Le fournisseur « Navigateur (local) » exécute de vrais modèles ouverts — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) et Gemma 2 (Google) — directement dans votre navigateur via WebGPU. Ils sont compressés par le projet open source MLC-AI et téléchargés une seule fois depuis HuggingFace (0,7 à 1,4 Go selon le modèle), puis mis en cache. Ensuite, tout se passe sur votre appareil : aucune requête vers un serveur, aucune clé, et ça marche sur PC comme sur mobile (Chrome/Edge 121+ sur Android, Safari 26 sur iOS). Vous pouvez voir l'état du téléchargement, la place occupée et supprimer un modèle dans Fournisseurs → Navigateur (local) → Modèles.",
+      },
+      {
+        q: "L'application fonctionne-t-elle sans connexion internet ?",
+        a: "Oui, en grande partie. Une fois le site ouvert une première fois, son interface est mise en cache et se relance sans réseau. Et si vous avez téléchargé un modèle « Navigateur (local) », il répond entièrement hors connexion — idéal en avion ou en zone blanche. Seuls les fournisseurs cloud (Anthropic, Groq, etc.) et Ollama ont évidemment besoin du réseau pour joindre leur serveur.",
+      },
+      {
+        q: "Mon téléphone est saturé : comment libérer de la place ?",
+        a: "Ouvrez Fournisseurs → Navigateur (local) → Modèles : chaque modèle téléchargé affiche sa taille et un bouton « Supprimer ». C'est la bonne façon de faire — évitez « effacer les données du site » depuis les réglages du navigateur, qui supprimerait aussi vos conversations et vos clés. Vous pouvez aussi « Protéger » le stockage pour empêcher le navigateur d'évincer un modèle quand l'espace manque.",
       },
       {
         q: "Pourquoi l'OCR ne lit pas correctement mon écriture manuscrite ?",
@@ -80,7 +92,19 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "What is Ollama, and why use it?",
-        a: "Ollama runs AI models locally on your machine, for free, with no account or API key needed. Install it, launch it, and this Studio detects it automatically. It's the most private option: nothing ever leaves your computer.",
+        a: "Ollama runs AI models locally on your machine, for free, with no account or API key needed. Install it, launch it, and this Studio detects it automatically. It's the most private option: nothing ever leaves your computer. Ollama needs a desktop app, so it's a computer-only solution. On a phone, use \"Browser (local)\" instead.",
+      },
+      {
+        q: "The \"Browser\" local AI: where do the models come from and where do they run?",
+        a: "The \"Browser (local)\" provider runs real open models — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) and Gemma 2 (Google) — directly in your browser via WebGPU. They're compressed by the open-source MLC-AI project and downloaded once from HuggingFace (0.7 to 1.4 GB depending on the model), then cached. After that, everything happens on your device: no request to any server, no key, and it works on PC and mobile alike (Chrome/Edge 121+ on Android, Safari 26 on iOS). You can see download status, space used, and delete a model under Providers → Browser (local) → Models.",
+      },
+      {
+        q: "Does the app work without an internet connection?",
+        a: "Yes, largely. Once you've opened the site once, its interface is cached and relaunches with no network. And if you've downloaded a \"Browser (local)\" model, it answers entirely offline — perfect on a plane or in a dead zone. Only cloud providers (Anthropic, Groq, etc.) and Ollama obviously need the network to reach their server.",
+      },
+      {
+        q: "My phone is full: how do I free up space?",
+        a: "Open Providers → Browser (local) → Models: each downloaded model shows its size and a \"Delete\" button. That's the right way — avoid \"clear site data\" from the browser settings, which would also erase your conversations and keys. You can also \"Protect\" storage to stop the browser from evicting a model when space runs low.",
       },
       {
         q: "Why doesn't OCR read my handwriting correctly?",

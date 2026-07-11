@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import { LangProvider } from './lib/i18n.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
+import { registerServiceWorker } from './lib/offline.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -16,3 +17,5 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+registerServiceWorker()

@@ -23,6 +23,14 @@ const MODELS: ProviderModel[] = [
   { id: "gemma-2-2b-it-q4f16_1-MLC", label: "Gemma 2 2B — qualité (~1,4 Go)" },
 ];
 
+// Tailles approximatives du telechargement selon la variante servie a cet
+// appareil (f16 si le GPU expose shader-f16, sinon f32 — voir supportsF16).
+const MODEL_SIZES_GB: Record<string, { f16: number; f32: number }> = {
+  "Llama-3.2-1B-Instruct-q4f16_1-MLC": { f16: 0.7, f32: 1.1 },
+  "Qwen2.5-1.5B-Instruct-q4f16_1-MLC": { f16: 1.0, f32: 1.5 },
+  "gemma-2-2b-it-q4f16_1-MLC": { f16: 1.4, f32: 2.0 },
+};
+
 const WEBGPU_MISSING =
   "WebGPU indisponible sur ce navigateur. Il faut Chrome/Edge 121+ (y compris Android) " +
   "ou Safari 26 (iOS/macOS), avec l'accélération matérielle activée — voir le Gouverneur " +
@@ -57,7 +65,9 @@ type Engine = import("@mlc-ai/web-llm").MLCEngineInterface;
 
 let engine: Engine | null = null;
 let engineModel: string | null = null;
-let enginePromise: Promise<Engine> | null = null;
+// Serialise init/reload/destruction : deux envois rapproches (ou un envoi
+// pendant un changement de modele) ne doivent jamais creer deux moteurs.
+let engineOp: Promise<Engine> | null = null;
 let f16Supported: boolean | null = null;
 
 /* Beaucoup de GPU mobiles (et quelques desktops) n'exposent pas shader-f16 :
@@ -76,50 +86,155 @@ async function supportsF16(): Promise<boolean> {
   return f16Supported;
 }
 
+function f32VariantOf(modelId: string): string {
+  return modelId.replace("q4f16_1", "q4f32_1");
+}
+
 async function resolveModelId(modelId: string): Promise<string> {
   if (await supportsF16()) return modelId;
-  return modelId.replace("q4f16_1", "q4f32_1");
+  return f32VariantOf(modelId);
 }
 
 function emitProgress(detail: LocalAiProgress) {
   window.dispatchEvent(new CustomEvent<LocalAiProgress>(LOCAL_AI_PROGRESS_EVENT, { detail }));
 }
 
-async function getEngine(model: string): Promise<Engine> {
-  const actualModel = await resolveModelId(model);
+/* Libere le moteur meme s'il est deja mort (device GPU perdu) : l'objectif
+   est de remettre les singletons a zero pour que le prochain getEngine
+   reparte d'un etat propre. */
+async function destroyEngine(): Promise<void> {
+  const old = engine;
+  engine = null;
+  engineModel = null;
+  try {
+    await old?.unload();
+  } catch {
+    // device deja perdu : rien a liberer
+  }
+}
+
+async function loadEngine(actualModel: string): Promise<Engine> {
+  if (engine && engineModel === actualModel) return engine;
   if (engine) {
-    if (engineModel !== actualModel) {
-      emitProgress({ text: "", progress: 0 });
+    emitProgress({ text: "", progress: 0 });
+    try {
       await engine.reload(actualModel);
       engineModel = actualModel;
       emitProgress({ text: "", progress: 1 });
+      return engine;
+    } catch {
+      // reload rate (souvent memoire GPU) : web-llm laisse alors un moteur
+      // SANS modele charge — toute generation suivante echouerait avec
+      // "Model not loaded". On detruit ce zombie et on recree de zero.
+      await destroyEngine();
     }
-    return engine;
   }
-  if (enginePromise && engineModel === actualModel) return enginePromise;
+  const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
+  const created = await CreateMLCEngine(actualModel, {
+    initProgressCallback: (report) => {
+      emitProgress({ text: report.text, progress: report.progress });
+    },
+  });
+  engine = created;
   engineModel = actualModel;
-  enginePromise = (async () => {
-    const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
-    const created = await CreateMLCEngine(actualModel, {
-      initProgressCallback: (report) => {
-        emitProgress({ text: report.text, progress: report.progress });
-      },
-    });
-    engine = created;
-    // La compilation GPU peut reussir sans jamais emettre progress=1.
-    emitProgress({ text: "", progress: 1 });
-    return created;
+  // La compilation GPU peut reussir sans jamais emettre progress=1.
+  emitProgress({ text: "", progress: 1 });
+  return created;
+}
+
+async function getEngine(model: string): Promise<Engine> {
+  const actualModel = await resolveModelId(model);
+  const previous = engineOp;
+  const op = (async () => {
+    try {
+      await previous;
+    } catch {
+      // l'echec precedent a deja ete signale a son appelant
+    }
+    return loadEngine(actualModel);
   })();
+  engineOp = op;
   try {
-    return await enginePromise;
+    return await op;
   } catch (err) {
-    engine = null;
-    engineModel = null;
-    enginePromise = null;
+    await destroyEngine();
     emitProgress({ text: "", progress: 1 });
     throw err;
   }
 }
+
+function wrapGenerationError(detail: string): Error {
+  return new Error(
+    "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
+      "déchargé par le système). Essayez le modèle le plus léger (Llama 3.2 1B) ou " +
+      `rechargez la page. Détail : ${detail}`,
+  );
+}
+
+/* ---- Gestion du stockage (panneau Fournisseurs) ---------------------- */
+
+export interface LocalModelStatus {
+  id: string;
+  label: string;
+  // present dans le Cache Storage du navigateur (telechargement deja fait)
+  cached: boolean;
+  // variante reellement en cache (f32 = GPU sans shader-f16)
+  variant: "f16" | "f32" | null;
+  // taille approx. (Go) de la variante en cache, ou de celle qui serait
+  // telechargee sur CET appareil
+  sizeGb: number;
+  // actuellement charge en memoire GPU, pret a repondre sans attente
+  loaded: boolean;
+}
+
+export async function getLocalModelsStatus(): Promise<LocalModelStatus[]> {
+  const { hasModelInCache } = await import("@mlc-ai/web-llm");
+  const deviceF16 = await supportsF16();
+  return Promise.all(
+    MODELS.map(async (m) => {
+      const f32Id = f32VariantOf(m.id);
+      const sizes = MODEL_SIZES_GB[m.id];
+      // Le sondage du cache ne doit jamais faire disparaitre un modele de la
+      // liste : en cas d'echec on le montre simplement comme non telecharge.
+      let hasF16 = false;
+      let hasF32 = false;
+      try {
+        [hasF16, hasF32] = await Promise.all([hasModelInCache(m.id), hasModelInCache(f32Id)]);
+      } catch {
+        /* cache illisible : statut "non telecharge" par defaut */
+      }
+      const variant = hasF16 ? ("f16" as const) : hasF32 ? ("f32" as const) : null;
+      return {
+        id: m.id,
+        label: m.label,
+        cached: hasF16 || hasF32,
+        variant,
+        sizeGb:
+          variant === "f16" ? sizes.f16
+          : variant === "f32" ? sizes.f32
+          : deviceF16 ? sizes.f16
+          : sizes.f32,
+        loaded: engine !== null && (engineModel === m.id || engineModel === f32Id),
+      };
+    }),
+  );
+}
+
+export async function deleteLocalModel(modelId: string): Promise<void> {
+  const f32Id = f32VariantOf(modelId);
+  // Si ce modele est celui en memoire, le decharger d'abord — sinon le cache
+  // se reconstituerait partiellement et l'etat afficherait n'importe quoi.
+  if (engineModel === modelId || engineModel === f32Id) await destroyEngine();
+  const { deleteModelAllInfoInCache } = await import("@mlc-ai/web-llm");
+  await deleteModelAllInfoInCache(modelId);
+  await deleteModelAllInfoInCache(f32Id);
+}
+
+export function getLoadedLocalModel(): string | null {
+  return engine ? engineModel : null;
+}
+
+/* ----------------------------------------------------------------------- */
 
 export const browserLocalProvider: ChatProvider = {
   id: "browser",
@@ -128,7 +243,19 @@ export const browserLocalProvider: ChatProvider = {
 
   async listModels(): Promise<ProviderModel[]> {
     if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
-    return MODELS;
+    // Statut "deja sur l'appareil" best-effort : si le cache est illisible,
+    // la liste reste utilisable sans ce marquage.
+    try {
+      const { hasModelInCache } = await import("@mlc-ai/web-llm");
+      return await Promise.all(
+        MODELS.map(async (m) => ({
+          ...m,
+          downloaded: (await hasModelInCache(m.id)) || (await hasModelInCache(f32VariantOf(m.id))),
+        })),
+      );
+    } catch {
+      return MODELS;
+    }
   },
 
   async testKey(): Promise<KeyTestResult> {
@@ -176,20 +303,39 @@ export const browserLocalProvider: ChatProvider = {
       void eng.interruptGenerate();
     };
     params.signal?.addEventListener("abort", abort, { once: true });
-    try {
+
+    let emitted = false;
+    const generate = async () => {
       const stream = await eng.chat.completions.create({ messages, stream: true });
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content;
-        if (delta) onChunk({ type: "text", delta });
+        if (delta) {
+          emitted = true;
+          onChunk({ type: "text", delta });
+        }
       }
+    };
+
+    try {
+      await generate();
     } catch (err) {
       if (params.signal?.aborted) return;
       const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
-          `déchargé par le système). Essayez le modèle le plus léger (Llama 3.2 1B) ou ` +
-          `rechargez la page. Détail : ${detail}`,
-      );
+      // "Model not loaded" / device lost : le moteur a perdu son modele
+      // (onglet gele par Android, memoire GPU reprise par le systeme,
+      // changement de modele rate). Les poids sont deja en cache : on
+      // reconstruit le moteur et on reessaie UNE fois, sans deranger
+      // l'utilisateur — mais seulement si rien n'a encore ete emis.
+      const modelUnloaded = /model not loaded|device.*(lost|destroyed)|instance.*destroyed/i.test(detail);
+      if (!modelUnloaded || emitted) throw wrapGenerationError(detail);
+      await destroyEngine();
+      try {
+        eng = await getEngine(params.model);
+        await generate();
+      } catch (retryErr) {
+        if (params.signal?.aborted) return;
+        throw wrapGenerationError(retryErr instanceof Error ? retryErr.message : String(retryErr));
+      }
     } finally {
       params.signal?.removeEventListener("abort", abort);
     }

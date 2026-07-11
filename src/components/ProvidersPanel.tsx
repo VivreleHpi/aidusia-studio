@@ -5,8 +5,10 @@ import { clearAllApiKeys, clearApiKey, getApiKey, isPersistEnabled, setApiKey, s
 import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import type { KeyTestResult } from "@/providers/types";
 import { HardwareGovernor } from "@/components/HardwareGovernor";
+import { LocalAiManager } from "@/components/LocalAiManager";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
+import { providerTagline } from "@/lib/providerTaglines";
 import { describeFetchError } from "@/lib/fetchError";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 
@@ -19,6 +21,7 @@ const STRINGS = {
       "Vos clés restent dans ce navigateur — jamais sur un serveur (sauf les proxys OpenAI et Ollama Cloud, stateless, voir README). Le statut ci-dessous reflète un vrai appel au fournisseur, pas juste la présence d'une clé.",
     test: "Tester",
     configure: "Configurer",
+    models: "Modèles",
     remove: "Supprimer",
     save: "Enregistrer",
     statusTesting: "Test en cours…",
@@ -45,6 +48,7 @@ const STRINGS = {
       "Your keys stay in this browser — never on a server (except the stateless OpenAI and Ollama Cloud proxies, see the README). The status below reflects an actual call to the provider, not just the presence of a key.",
     test: "Test",
     configure: "Configure",
+    models: "Models",
     remove: "Remove",
     save: "Save",
     statusTesting: "Testing…",
@@ -93,6 +97,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
     Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])),
   );
   const [persist, setPersist] = useState(isPersistEnabled());
+  const [localAiOpen, setLocalAiOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -272,6 +277,15 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                       >
                         {s.test}
                       </button>
+                      {provider.id === "browser" && (
+                        <button
+                          type="button"
+                          onClick={() => setLocalAiOpen((v) => !v)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                        >
+                          {s.models}
+                        </button>
+                      )}
                       {(provider.requiresApiKey || provider.id === "ollama") && (
                         <button
                           type="button"
@@ -293,7 +307,14 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                     </div>
                   </div>
 
+                  {providerTagline(provider.id, lang) && (
+                    <p className="mt-0.5 pl-4 text-xs text-muted-foreground/70">
+                      {providerTagline(provider.id, lang)}
+                    </p>
+                  )}
                   <p className={`mt-0.5 wrap-break-word pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
+
+                  {provider.id === "browser" && localAiOpen && <LocalAiManager />}
 
                   {row.editing && (
                     <div className="mt-2 flex gap-2 pl-4">

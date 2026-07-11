@@ -22,6 +22,9 @@ export interface ProviderModel {
   // true si ce modele sait analyser une image (verifie via l'API du
   // fournisseur, jamais suppose). Absent = capacite inconnue/non verifiee.
   visionCapable?: boolean;
+  // true si les poids du modele sont deja telecharges sur cet appareil
+  // (IA locale navigateur uniquement). Absent = sans objet pour ce provider.
+  downloaded?: boolean;
 }
 
 // Outil MCP traduit dans un format neutre - chaque provider le retraduit

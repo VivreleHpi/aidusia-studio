@@ -5,6 +5,7 @@ import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
+import { providerTagline } from "@/lib/providerTaglines";
 import { IconCheck, IconChevronDown, IconGear } from "@/components/Icons";
 
 const STRINGS = {
@@ -21,6 +22,7 @@ const STRINGS = {
     searchPlaceholder: (count: number) => `Rechercher parmi ${count} modèles…`,
     noResults: "Aucun résultat.",
     manageProviders: "Gérer les fournisseurs",
+    onDevice: "sur l'appareil",
   },
   en: {
     buttonLabel: "Choose provider and model",
@@ -35,6 +37,7 @@ const STRINGS = {
     searchPlaceholder: (count: number) => `Search ${count} models…`,
     noResults: "No results.",
     manageProviders: "Manage providers",
+    onDevice: "on device",
   },
 } as const;
 
@@ -180,6 +183,11 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
                 );
               })}
               </div>
+              {providerTagline(providerId, lang) && (
+                <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                  {providerTagline(providerId, lang)}
+                </p>
+              )}
             </div>
 
             <div className="border-t border-border p-1.5">
@@ -243,9 +251,14 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
                             : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
                       >
-                        <span className="truncate">{m.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{m.label}</span>
+                        {m.downloaded && (
+                          <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
+                            ✓ {s.onDevice}
+                          </span>
+                        )}
                         {m.id === model && (
-                          <IconCheck className="ml-auto h-3.5 w-3.5 shrink-0 text-primary" />
+                          <IconCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
                         )}
                       </button>
                     ))}
