@@ -133,14 +133,25 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               systemPrompt,
               signal: controller.signal,
               tools: toolDefs.length > 0 ? toolDefs : undefined,
-              messages: updated.messages.slice(0, -1).map((m) => ({
-                role: m.role,
-                content: m.content,
-                images: m.images,
-                toolCallId: m.toolCallId,
-                toolName: m.toolName,
-                toolCalls: m.toolCalls,
-              })),
+              // Les assistants vides (laisses par une generation echouee ou
+              // interrompue) font rejeter la requete par Mistral & co
+              // ("Assistant message must have either content or tool_calls").
+              messages: updated.messages
+                .slice(0, -1)
+                .filter(
+                  (m) =>
+                    m.role !== "assistant" ||
+                    Boolean(m.content) ||
+                    (m.toolCalls?.length ?? 0) > 0,
+                )
+                .map((m) => ({
+                  role: m.role,
+                  content: m.content,
+                  images: m.images,
+                  toolCallId: m.toolCallId,
+                  toolName: m.toolName,
+                  toolCalls: m.toolCalls,
+                })),
             },
             apiKey,
             (chunk) => {
@@ -205,7 +216,16 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       } finally {
         setStreaming(false);
         abortRef.current = null;
-        const finalConversation = { ...updated, updatedAt: Date.now() };
+        // Ne jamais persister un assistant reste vide (echec/interruption) -
+        // et purger ceux que d'anciennes versions ont laisses.
+        const finalConversation = {
+          ...updated,
+          messages: updated.messages.filter(
+            (m) =>
+              m.role !== "assistant" || Boolean(m.content) || (m.toolCalls?.length ?? 0) > 0,
+          ),
+          updatedAt: Date.now(),
+        };
         await saveConversation(finalConversation);
         onUpdated(finalConversation);
         onListChanged();

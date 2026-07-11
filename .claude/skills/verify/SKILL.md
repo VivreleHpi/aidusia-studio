@@ -38,6 +38,9 @@ Points clés du script :
 
 ## Pièges
 
+- **La CSP de vercel.json ne s'applique qu'en production** — `vite preview` ne la sert pas. Tout nouveau domaine appelé (fournisseur, CDN de modèles…) doit être vérifié CONTRE https://aidusia-studio.vercel.app (script scratchpad prod-check : fetch depuis le contexte page + écouteur `securitypolicyviolation`). Un fournisseur qui marche en local peut être mort en prod uniquement à cause de connect-src.
+- Les scripts inline d'index.html sont bloqués par la CSP (`script-src 'self'`) : tout bootstrap doit vivre dans public/*.js.
+
 - **i18n** : l'app détecte la langue du navigateur (`aidusia_lang` en localStorage, sinon `navigator.language`). En Playwright, passer `locale: "fr-FR"` au contexte sinon tout s'affiche en anglais et les sélecteurs français échouent. Bascule via les boutons FR/EN du pied de sidebar (`getByRole("button", { name: "EN", exact: true })`).
 
 - `document.querySelector(".overflow-y-auto")` attrape la liste de la **sidebar**, pas la zone de messages. Cibler celle qui contient `.message-in`.

@@ -58,31 +58,56 @@ type Engine = import("@mlc-ai/web-llm").MLCEngineInterface;
 let engine: Engine | null = null;
 let engineModel: string | null = null;
 let enginePromise: Promise<Engine> | null = null;
+let f16Supported: boolean | null = null;
+
+/* Beaucoup de GPU mobiles (et quelques desktops) n'exposent pas shader-f16 :
+   les variantes q4f16 telechargent puis echouent a la compilation, sans
+   message utile. On bascule alors sur les variantes q4f32 du meme modele
+   (memes poids logiques, ~30% plus lourdes en VRAM). */
+async function supportsF16(): Promise<boolean> {
+  if (f16Supported !== null) return f16Supported;
+  try {
+    const gpu = (navigator as unknown as { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
+    const adapter = await gpu?.requestAdapter();
+    f16Supported = adapter?.features?.has("shader-f16") ?? false;
+  } catch {
+    f16Supported = false;
+  }
+  return f16Supported;
+}
+
+async function resolveModelId(modelId: string): Promise<string> {
+  if (await supportsF16()) return modelId;
+  return modelId.replace("q4f16_1", "q4f32_1");
+}
 
 function emitProgress(detail: LocalAiProgress) {
   window.dispatchEvent(new CustomEvent<LocalAiProgress>(LOCAL_AI_PROGRESS_EVENT, { detail }));
 }
 
 async function getEngine(model: string): Promise<Engine> {
+  const actualModel = await resolveModelId(model);
   if (engine) {
-    if (engineModel !== model) {
+    if (engineModel !== actualModel) {
       emitProgress({ text: "", progress: 0 });
-      await engine.reload(model);
-      engineModel = model;
+      await engine.reload(actualModel);
+      engineModel = actualModel;
       emitProgress({ text: "", progress: 1 });
     }
     return engine;
   }
-  if (enginePromise && engineModel === model) return enginePromise;
-  engineModel = model;
+  if (enginePromise && engineModel === actualModel) return enginePromise;
+  engineModel = actualModel;
   enginePromise = (async () => {
     const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
-    const created = await CreateMLCEngine(model, {
+    const created = await CreateMLCEngine(actualModel, {
       initProgressCallback: (report) => {
         emitProgress({ text: report.text, progress: report.progress });
       },
     });
     engine = created;
+    // La compilation GPU peut reussir sans jamais emettre progress=1.
+    emitProgress({ text: "", progress: 1 });
     return created;
   })();
   try {
@@ -157,6 +182,14 @@ export const browserLocalProvider: ChatProvider = {
         const delta = chunk.choices[0]?.delta?.content;
         if (delta) onChunk({ type: "text", delta });
       }
+    } catch (err) {
+      if (params.signal?.aborted) return;
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
+          `déchargé par le système). Essayez le modèle le plus léger (Llama 3.2 1B) ou ` +
+          `rechargez la page. Détail : ${detail}`,
+      );
     } finally {
       params.signal?.removeEventListener("abort", abort);
     }
