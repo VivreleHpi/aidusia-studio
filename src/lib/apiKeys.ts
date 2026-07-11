@@ -1,19 +1,20 @@
-// Cles API : en memoire de session par defaut (sessionStorage), persistees
-// dans localStorage uniquement si l'utilisateur active l'option Confidentialite.
-// Jamais envoyees ailleurs qu'au fournisseur choisi (ou au proxy same-origin
-// pour OpenAI). Jamais journalisees.
+// Cles API : persistees dans localStorage PAR DEFAUT (les navigateurs mobiles
+// tuent les onglets en arriere-plan - une cle en session seule y disparait
+// sans explication), desactivable dans le panneau Fournisseurs pour un mode
+// session-only. Jamais envoyees ailleurs qu'au fournisseur choisi (ou au
+// proxy same-origin pour OpenAI). Jamais journalisees.
 const PERSIST_FLAG_KEY = "aidusia_persist_keys";
 const KEY_PREFIX = "aidusia_key_";
 
 export function isPersistEnabled(): boolean {
-  return localStorage.getItem(PERSIST_FLAG_KEY) === "true";
+  return localStorage.getItem(PERSIST_FLAG_KEY) !== "false";
 }
 
 export function setPersistEnabled(enabled: boolean) {
   if (enabled) {
     localStorage.setItem(PERSIST_FLAG_KEY, "true");
   } else {
-    localStorage.removeItem(PERSIST_FLAG_KEY);
+    localStorage.setItem(PERSIST_FLAG_KEY, "false");
     // Migration cle -> memoire de session uniquement : purge le stockage durable.
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith(KEY_PREFIX)) localStorage.removeItem(key);

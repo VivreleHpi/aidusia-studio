@@ -28,6 +28,31 @@ const WEBGPU_MISSING =
   "ou Safari 26 (iOS/macOS), avec l'accélération matérielle activée — voir le Gouverneur " +
   "Matériel dans le panneau Fournisseurs.";
 
+/* Le remede depend du navigateur : dire exactement quoi faire vaut mieux
+   qu'un constat generique. */
+function webgpuMissingMessage(): string {
+  const ua = navigator.userAgent;
+  if (/SamsungBrowser/i.test(ua)) {
+    return (
+      "Samsung Internet ne supporte pas encore WebGPU : ouvrez le Studio dans Chrome " +
+      "sur ce téléphone pour utiliser l'IA locale."
+    );
+  }
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return (
+      "L'IA locale dans le navigateur exige Safari 26 (iOS 26) ou plus récent. " +
+      "Mettez iOS à jour, puis rouvrez le Studio dans Safari."
+    );
+  }
+  if (/Firefox/i.test(ua)) {
+    return (
+      "WebGPU n'est pas encore activé dans Firefox : ouvrez le Studio dans Chrome " +
+      "ou Edge pour utiliser l'IA locale."
+    );
+  }
+  return WEBGPU_MISSING;
+}
+
 type Engine = import("@mlc-ai/web-llm").MLCEngineInterface;
 
 let engine: Engine | null = null;
@@ -77,14 +102,20 @@ export const browserLocalProvider: ChatProvider = {
   requiresApiKey: false,
 
   async listModels(): Promise<ProviderModel[]> {
-    if (!("gpu" in navigator)) throw new Error(WEBGPU_MISSING);
+    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
     return MODELS;
   },
 
   async testKey(): Promise<KeyTestResult> {
     const probe = await probeWebGpu();
     if (!probe.supported) {
-      return { ok: false, reason: probe.detail === "WebGPU non expose par ce navigateur" ? WEBGPU_MISSING : probe.detail };
+      return {
+        ok: false,
+        reason:
+          probe.detail === "WebGPU non expose par ce navigateur"
+            ? webgpuMissingMessage()
+            : probe.detail,
+      };
     }
     return { ok: true };
   },
@@ -94,8 +125,17 @@ export const browserLocalProvider: ChatProvider = {
     _apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!("gpu" in navigator)) throw new Error(WEBGPU_MISSING);
-    const eng = await getEngine(params.model);
+    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
+    let eng: Engine;
+    try {
+      eng = await getEngine(params.model);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        "Impossible d'initialiser l'IA locale sur cet appareil (téléchargement " +
+          `interrompu, adaptateur WebGPU refusé ou mémoire insuffisante). Détail : ${detail}`,
+      );
+    }
 
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
     if (params.systemPrompt) messages.push({ role: "system", content: params.systemPrompt });

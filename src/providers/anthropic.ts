@@ -1,3 +1,4 @@
+import { missingKeyError } from "./types";
 import type { ChatMessage, ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 
 const API_BASE = "https://api.anthropic.com/v1";
@@ -81,7 +82,7 @@ export const anthropicProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API Anthropic manquante");
+    if (!apiKey) throw missingKeyError("Anthropic");
     const response = await fetch(`${API_BASE}/messages`, {
       method: "POST",
       headers: headers(apiKey),

@@ -54,6 +54,18 @@ export type KeyTestResult =
   | { ok: true }
   | { ok: false; reason: string };
 
+/* Cle absente : sur mobile c'est presque toujours parce que les cles ne se
+   synchronisent pas entre appareils (choix souverain, pas de serveur) — le
+   message doit l'expliquer et pointer vers la solution. */
+export function missingKeyError(providerLabel: string): Error {
+  return new Error(
+    `Clé API ${providerLabel} manquante sur cet appareil. Les clés restent locales à ` +
+      `chaque navigateur (jamais sur un serveur) : saisissez-la dans le panneau ` +
+      `Fournisseurs, ou transférez vos réglages depuis votre autre appareil via ` +
+      `Exporter / Importer.`,
+  );
+}
+
 // Contrat commun a tous les fournisseurs (cloud direct-navigateur, cloud via
 // proxy, ou local). Aucune implementation ne doit stocker la cle ailleurs
 // qu'en memoire/localStorage cote appelant - ce module ne persiste rien.

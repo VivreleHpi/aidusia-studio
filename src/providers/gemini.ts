@@ -1,3 +1,4 @@
+import { missingKeyError } from "./types";
 import type { ChatMessage, ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -66,7 +67,7 @@ export const geminiProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API Gemini manquante");
+    if (!apiKey) throw missingKeyError("Gemini");
     const url = `${API_BASE}/models/${params.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
     const response = await fetch(url, {
       method: "POST",

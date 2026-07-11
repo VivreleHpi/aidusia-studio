@@ -1,3 +1,4 @@
+import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
 
@@ -38,7 +39,7 @@ export const ollamaCloudProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle Ollama Cloud manquante");
+    if (!apiKey) throw missingKeyError("Ollama Cloud");
     const response = await fetch(`${PROXY_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Ollama-Key": apiKey },

@@ -1,3 +1,4 @@
+import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
@@ -56,7 +57,7 @@ export const groqProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API Groq manquante");
+    if (!apiKey) throw missingKeyError("Groq");
     const response = await fetch(`${API_BASE}/chat/completions`, {
       method: "POST",
       headers: {

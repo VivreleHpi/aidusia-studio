@@ -1,3 +1,4 @@
+import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
@@ -53,7 +54,7 @@ export const openaiProvider: ChatProvider = {
     apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
-    if (!apiKey) throw new Error("Cle API OpenAI manquante");
+    if (!apiKey) throw missingKeyError("OpenAI");
     const response = await fetch(`${PROXY_BASE}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-OpenAI-Key": apiKey },
