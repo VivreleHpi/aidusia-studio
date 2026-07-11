@@ -27,6 +27,9 @@ export const groqProvider: ChatProvider = {
     const response = await fetch(`${API_BASE}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
+    if (response.status === 401) {
+      throw new Error("Clé Groq invalide ou expirée — vérifiez-la dans le panneau Fournisseurs.");
+    }
     if (!response.ok) throw new Error(`Groq a repondu ${response.status}`);
     const data = (await response.json()) as { data: GroqModel[] };
     return data.data
@@ -38,8 +41,13 @@ export const groqProvider: ChatProvider = {
     const response = await fetch(`${API_BASE}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
-    if (response.status === 401) return { ok: false, reason: "Cle invalide" };
-    if (!response.ok) return { ok: false, reason: `Erreur ${response.status}` };
+    if (response.status === 401) {
+      return { ok: false, reason: "Clé invalide ou expirée — recopiez-la depuis console.groq.com/keys." };
+    }
+    if (response.status === 429) {
+      return { ok: false, reason: "Quota atteint (429) — la clé est valide, réessayez dans quelques instants." };
+    }
+    if (!response.ok) return { ok: false, reason: `Groq a répondu ${response.status}` };
     return { ok: true };
   },
 
@@ -59,6 +67,12 @@ export const groqProvider: ChatProvider = {
       body: JSON.stringify(buildOpenAiCompatibleBody(params)),
     });
     if (!response.ok || !response.body) {
+      if (response.status === 401) {
+        throw new Error("Clé Groq invalide ou expirée — vérifiez-la dans le panneau Fournisseurs.");
+      }
+      if (response.status === 429) {
+        throw new Error("Quota Groq atteint (429) — réessayez dans quelques instants.");
+      }
       const body = await response.text().catch(() => "");
       throw new Error(`Groq a repondu ${response.status}: ${body}`);
     }

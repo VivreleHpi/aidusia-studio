@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { providers } from "@/providers";
-import { getOllamaBaseUrl } from "@/providers/ollama";
+import { getOllamaBaseUrl, setOllamaBaseUrl } from "@/providers/ollama";
 import { clearAllApiKeys, clearApiKey, getApiKey, isPersistEnabled, setApiKey, setPersistEnabled } from "@/lib/apiKeys";
 import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import type { KeyTestResult } from "@/providers/types";
@@ -25,6 +25,7 @@ const STRINGS = {
     statusConfigured: "Configuré",
     statusNotConfigured: "Non configuré",
     keyPlaceholder: "Clé API",
+    ollamaUrlPlaceholder: "URL d'Ollama (ex. http://192.168.1.20:11434)",
     getKey: "Obtenir une clé ↗",
     download: "Télécharger ↗",
     persistLabel: "Garder mes clés après fermeture du navigateur",
@@ -45,6 +46,7 @@ const STRINGS = {
     statusConfigured: "Configured",
     statusNotConfigured: "Not configured",
     keyPlaceholder: "API key",
+    ollamaUrlPlaceholder: "Ollama URL (e.g. http://192.168.1.20:11434)",
     getKey: "Get a key ↗",
     download: "Download ↗",
     persistLabel: "Keep my keys after closing the browser",
@@ -60,7 +62,13 @@ interface ProviderRowState {
 }
 
 function initialRowState(providerId: string): ProviderRowState {
-  return { draft: getApiKey(providerId) ?? "", editing: false, testing: false, result: null };
+  return {
+    // Pour Ollama, le champ configurable est son URL, pas une cle.
+    draft: providerId === "ollama" ? getOllamaBaseUrl() : (getApiKey(providerId) ?? ""),
+    editing: false,
+    testing: false,
+    result: null,
+  };
 }
 
 interface ProvidersPanelProps {
@@ -105,7 +113,11 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
 
   function saveKey(providerId: string) {
     const draft = rows[providerId].draft.trim();
-    setApiKey(providerId, draft);
+    if (providerId === "ollama") {
+      setOllamaBaseUrl(draft || "http://localhost:11434");
+    } else {
+      setApiKey(providerId, draft);
+    }
     updateRow(providerId, { editing: false });
     void runTest(providerId);
   }
@@ -206,25 +218,21 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                       >
                         {s.test}
                       </button>
-                      {provider.requiresApiKey && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => updateRow(provider.id, { editing: !row.editing })}
-                            className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
-                          >
-                            {s.configure}
-                          </button>
-                          {configured && (
-                            <button
-                              type="button"
-                              onClick={() => removeKey(provider.id)}
-                              className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
-                            >
-                              {s.remove}
-                            </button>
-                          )}
-                        </>
+                      <button
+                        type="button"
+                        onClick={() => updateRow(provider.id, { editing: !row.editing })}
+                        className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                      >
+                        {s.configure}
+                      </button>
+                      {provider.requiresApiKey && configured && (
+                        <button
+                          type="button"
+                          onClick={() => removeKey(provider.id)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+                        >
+                          {s.remove}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -234,10 +242,10 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                   {row.editing && (
                     <div className="mt-2 flex gap-2 pl-4">
                       <input
-                        type="password"
+                        type={provider.requiresApiKey ? "password" : "text"}
                         value={row.draft}
                         onChange={(e) => updateRow(provider.id, { draft: e.target.value })}
-                        placeholder={s.keyPlaceholder}
+                        placeholder={provider.requiresApiKey ? s.keyPlaceholder : s.ollamaUrlPlaceholder}
                         className="flex-1 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       />
                       <button

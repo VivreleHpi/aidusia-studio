@@ -73,6 +73,7 @@ const STRINGS = {
     send: "Envoyer",
     hint: "↵ envoyer · ⇧↵ retour à la ligne",
     jumpToBottom: "Revenir en bas",
+    openProviders: "Ouvrir les réglages fournisseurs",
   },
   en: {
     greeting: (hour: number) =>
@@ -114,6 +115,7 @@ const STRINGS = {
     send: "Send",
     hint: "↵ send · ⇧↵ new line",
     jumpToBottom: "Jump to bottom",
+    openProviders: "Open provider settings",
   },
 } as const;
 
@@ -473,8 +475,15 @@ export function ChatView({
                 );
               })}
               {error && (
-                <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
-                  {error}
+                <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+                  <p className="wrap-break-word">{error}</p>
+                  <button
+                    type="button"
+                    onClick={onOpenProviders}
+                    className="mt-2 rounded-md border border-destructive/40 px-2.5 py-1 text-xs transition duration-150 hover:bg-destructive/15 active:scale-[0.98]"
+                  >
+                    {s.openProviders}
+                  </button>
                 </div>
               )}
               <div ref={bottomRef} />

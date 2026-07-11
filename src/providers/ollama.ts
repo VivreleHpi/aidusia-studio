@@ -1,7 +1,39 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
+import { detectOs, isLocalOrigin, ollamaOriginsCommand } from "@/lib/deviceDetect";
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
+
+/* Message contextuel : la cause d'un Ollama injoignable n'est pas la meme
+   selon qu'on est en local, sur un domaine deploye, ou sur un autre appareil
+   que celui qui heberge Ollama. */
+export function ollamaUnreachableMessage(baseUrl: string): string {
+  const targetIsLocalhost = /localhost|127\.0\.0\.1/.test(baseUrl);
+  if (isLocalOrigin()) {
+    return (
+      `Ollama injoignable sur ${baseUrl}. Vérifiez qu'il est installé et lancé ` +
+      `(ollama serve) — en local, aucune configuration n'est nécessaire. ` +
+      `Pas encore installé ? ollama.com/download`
+    );
+  }
+  const origin = window.location.origin;
+  if (targetIsLocalhost) {
+    return (
+      `Ollama injoignable depuis ${origin}. Deux causes possibles : ` +
+      `1) Ollama tourne sur CE PC mais n'autorise pas ce site — relancez-le avec : ` +
+      `${ollamaOriginsCommand(detectOs())} · ` +
+      `2) vous êtes sur un téléphone ou un autre appareil — « localhost » désigne ` +
+      `cet appareil-là : cliquez sur « Configurer » (panneau Fournisseurs) pour saisir ` +
+      `l'adresse du PC (ex. http://192.168.1.20:11434), et lancez Ollama avec ` +
+      `OLLAMA_HOST=0.0.0.0 en plus d'OLLAMA_ORIGINS=${origin}.`
+    );
+  }
+  return (
+    `Ollama injoignable sur ${baseUrl} depuis ${origin}. Vérifiez que l'appareil qui ` +
+    `héberge Ollama est allumé, sur le même réseau, et qu'Ollama y est lancé avec ` +
+    `OLLAMA_HOST=0.0.0.0 et OLLAMA_ORIGINS=${origin}.`
+  );
+}
 
 export function getOllamaBaseUrl(): string {
   return localStorage.getItem("aidusia_ollama_url") || DEFAULT_BASE_URL;
@@ -33,19 +65,19 @@ export const ollamaProvider: ChatProvider = {
         visionCapable: m.capabilities?.includes("vision") ?? false,
       }));
     } catch {
-      throw new Error(
-        `Ollama injoignable sur ${baseUrl}. Verifiez qu'Ollama tourne et que ` +
-          `OLLAMA_ORIGINS autorise cette origine (voir Reglages > Fournisseurs).`,
-      );
+      throw new Error(ollamaUnreachableMessage(baseUrl));
     }
   },
 
   async testKey(): Promise<KeyTestResult> {
+    const baseUrl = getBaseUrl();
     try {
-      await fetchTags(getBaseUrl());
+      await fetchTags(baseUrl);
       return { ok: true };
     } catch (err) {
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      const raw = err instanceof Error ? err.message : String(err);
+      // "Ollama a repondu 4xx" = il tourne mais refuse ; sinon, injoignable.
+      return { ok: false, reason: /repondu/.test(raw) ? raw : ollamaUnreachableMessage(baseUrl) };
     }
   },
 
@@ -64,10 +96,7 @@ export const ollamaProvider: ChatProvider = {
       // "Failed to fetch" brut n'aide personne ; on garde l'abandon volontaire
       // (bouton Arreter) intact pour que useChat le reconnaisse.
       if (err instanceof Error && err.name === "AbortError") throw err;
-      throw new Error(
-        `Ollama injoignable sur ${baseUrl}. Verifiez qu'Ollama tourne et que ` +
-          `OLLAMA_ORIGINS autorise cette origine (voir Reglages > Fournisseurs).`,
-      );
+      throw new Error(ollamaUnreachableMessage(baseUrl));
     });
     if (!response.ok || !response.body) {
       throw new Error(`Ollama a repondu ${response.status}`);

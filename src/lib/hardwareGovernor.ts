@@ -61,7 +61,7 @@ export async function probeStorageQuotaGb(): Promise<number | null> {
   return quota ? Math.round((quota / 1024 ** 3) * 10) / 10 : null;
 }
 
-import { describeFetchError } from "@/lib/fetchError";
+import { ollamaUnreachableMessage } from "@/providers/ollama";
 
 export async function probeOllama(baseUrl: string): Promise<OllamaProbe> {
   try {
@@ -88,7 +88,9 @@ export async function probeOllama(baseUrl: string): Promise<OllamaProbe> {
       reachable: false,
       version: null,
       loadedModels: [],
-      error: describeFetchError(err, "Ollama", baseUrl),
+      error: err instanceof Error && /HTTP \d/.test(err.message)
+        ? err.message
+        : ollamaUnreachableMessage(baseUrl),
     };
   }
 }
