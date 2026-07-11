@@ -4,9 +4,13 @@ Objectif : faire tourner une IA **réellement locale** sur le téléphone de
 l'utilisateur, sans backend, en restant fidèle à la promesse du Studio
 (rien ne transite par un serveur à nous).
 
-## Voie 1 — IA dans le navigateur (WebGPU) : la cible
+## Voie 1 — IA dans le navigateur (WebGPU) : la cible — **v1 livrée**
 
-C'est la voie déjà inscrite sur la feuille de route (Gemma via WebGPU).
+Le fournisseur « Navigateur (local) » est disponible dans le menu modèle :
+Llama 3.2 1B, Qwen 2.5 1.5B et Gemma 2 2B quantisés (web-llm/MLC), poids
+téléchargés une fois depuis HuggingFace à la demande puis mis en cache.
+La suite ci-dessous décrit le raisonnement et ce qui reste à livrer
+(téléchargement guidé par le Gouverneur, reprise, PWA).
 
 **Comment :** un moteur d'inférence WASM/WebGPU côté page — les deux options
 sérieuses sont [web-llm (MLC)](https://github.com/mlc-ai/web-llm) et

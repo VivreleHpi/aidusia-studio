@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { providers } from "@/providers";
 import { getOllamaBaseUrl, setOllamaBaseUrl } from "@/providers/ollama";
 import { clearAllApiKeys, clearApiKey, getApiKey, isPersistEnabled, setApiKey, setPersistEnabled } from "@/lib/apiKeys";
@@ -8,6 +8,7 @@ import { HardwareGovernor } from "@/components/HardwareGovernor";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
 import { describeFetchError } from "@/lib/fetchError";
+import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 
 const STRINGS = {
   fr: {
@@ -30,6 +31,11 @@ const STRINGS = {
     download: "Télécharger ↗",
     persistLabel: "Garder mes clés après fermeture du navigateur",
     clearAll: "Tout effacer",
+    exportSettings: "Exporter",
+    importSettings: "Importer",
+    exportPromptPassphrase: "Choisissez une phrase secrète pour chiffrer le fichier :",
+    importPromptPassphrase: "Entrez la phrase secrète utilisée pour chiffrer ce fichier :",
+    importSuccess: "Réglages importés avec succès.",
   },
   en: {
     dialogLabel: "Providers",
@@ -51,6 +57,11 @@ const STRINGS = {
     download: "Download ↗",
     persistLabel: "Keep my keys after closing the browser",
     clearAll: "Clear all",
+    exportSettings: "Export",
+    importSettings: "Import",
+    exportPromptPassphrase: "Choose a passphrase to encrypt the file:",
+    importPromptPassphrase: "Enter the passphrase used to encrypt this file:",
+    importSuccess: "Settings imported successfully.",
   },
 } as const;
 
@@ -82,6 +93,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
     Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])),
   );
   const [persist, setPersist] = useState(isPersistEnabled());
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Ollama ne demande pas de cle : on teste sa joignabilite reelle au montage.
@@ -131,6 +143,48 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
     const next = !persist;
     setPersistEnabled(next);
     setPersist(next);
+  }
+
+  function reloadRows() {
+    setRows(Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])));
+    setPersist(isPersistEnabled());
+  }
+
+  async function handleExport() {
+    const passphrase = window.prompt(s.exportPromptPassphrase);
+    if (!passphrase) return;
+    try {
+      const blob = await exportSettings(passphrase);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "aidusia-reglages.aidusia";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function handleImportClick() {
+    importInputRef.current?.click();
+  }
+
+  async function handleImportFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset immediatement : permet de re-selectionner le meme fichier apres
+    // un echec (sinon onChange ne se redeclenche pas pour un chemin identique).
+    e.target.value = "";
+    if (!file) return;
+    const passphrase = window.prompt(s.importPromptPassphrase);
+    if (!passphrase) return;
+    try {
+      await importSettings(file, passphrase);
+      reloadRows();
+      window.alert(s.importSuccess);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err));
+    }
   }
 
   return (
@@ -218,13 +272,15 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                       >
                         {s.test}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => updateRow(provider.id, { editing: !row.editing })}
-                        className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
-                      >
-                        {s.configure}
-                      </button>
+                      {(provider.requiresApiKey || provider.id === "ollama") && (
+                        <button
+                          type="button"
+                          onClick={() => updateRow(provider.id, { editing: !row.editing })}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                        >
+                          {s.configure}
+                        </button>
+                      )}
                       {provider.requiresApiKey && configured && (
                         <button
                           type="button"
@@ -273,16 +329,39 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
             />
             {s.persistLabel}
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              clearAllApiKeys();
-              setRows(Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])));
-            }}
-            className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
-          >
-            {s.clearAll}
-          </button>
+          <div className="flex items-center gap-1">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".aidusia,application/json"
+              className="hidden"
+              onChange={handleImportFileChange}
+            />
+            <button
+              type="button"
+              onClick={handleExport}
+              className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+            >
+              {s.exportSettings}
+            </button>
+            <button
+              type="button"
+              onClick={handleImportClick}
+              className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+            >
+              {s.importSettings}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearAllApiKeys();
+                reloadRows();
+              }}
+              className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+            >
+              {s.clearAll}
+            </button>
+          </div>
         </div>
       </div>
     </div>

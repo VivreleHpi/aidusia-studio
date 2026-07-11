@@ -7,6 +7,7 @@ import { blobToRawBase64 } from "@/lib/toBase64";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
 import { providers } from "@/providers";
+import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/browserLocal";
 import { localeOf, useLang } from "@/lib/i18n";
 import { ModelMenu } from "@/components/ModelMenu";
 import {
@@ -74,6 +75,7 @@ const STRINGS = {
     hint: "↵ envoyer · ⇧↵ retour à la ligne",
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
+    localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
   },
   en: {
     greeting: (hour: number) =>
@@ -116,6 +118,7 @@ const STRINGS = {
     hint: "↵ send · ⇧↵ new line",
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
+    localAiLoading: "Preparing the local model (downloaded once, then cached)…",
   },
 } as const;
 
@@ -228,6 +231,7 @@ export function ChatView({
   const [pendingImage, setPendingImage] = useState<{ base64: string; previewUrl: string } | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [localAi, setLocalAi] = useState<LocalAiProgress | null>(null);
   const ocrInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -267,6 +271,17 @@ export function ChatView({
       if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
     };
   }, [pendingImage]);
+
+  // Progression du fournisseur « Navigateur (local) » : telechargement puis
+  // chargement du modele en memoire GPU, diffusee par evenement global.
+  useEffect(() => {
+    function onProgress(e: Event) {
+      const detail = (e as CustomEvent<LocalAiProgress>).detail;
+      setLocalAi(detail.progress >= 1 ? null : detail);
+    }
+    window.addEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);
+  }, []);
 
   function handleScroll() {
     const el = scrollRef.current;
@@ -509,6 +524,11 @@ export function ChatView({
           {ocrBusy && (
             <p className="px-2 text-xs text-muted-foreground">
               {s.ocrRunning} {Math.round(ocrProgress * 100)}%
+            </p>
+          )}
+          {localAi && (
+            <p className="px-2 text-xs text-muted-foreground">
+              {s.localAiLoading} {Math.round(localAi.progress * 100)}%
             </p>
           )}
           {ocrError && <p className="px-2 text-xs text-destructive">{s.ocrPrefix} : {ocrError}</p>}

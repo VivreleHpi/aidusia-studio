@@ -31,6 +31,10 @@ launch (onboarding wizard), but here's the summary:
 
 - A chat interface that talks **directly, from your browser**, to:
   - **Ollama** running locally on your machine;
+  - **local AI in the browser** (WebGPU, "Navigateur (local)" provider):
+    quantized Llama 3.2 1B, Qwen 2.5 1.5B or Gemma 2 2B, downloaded once
+    from HuggingFace **at your request** then cached — also works on mobile
+    (Chrome Android 121+, Safari 26), nothing to install;
   - **Anthropic, Google Gemini, Mistral, OpenRouter, Groq** with your own
     API key (BYOK), in a direct browser → provider connection;
   - **OpenAI** and **Ollama Cloud**, via a small proxy — see "Why a proxy"
@@ -59,7 +63,11 @@ launch (onboarding wizard), but here's the summary:
 - **Connectors (MCP)**: plug in remote HTTP tool servers (n8n via its "MCP
   Server Trigger" node, Gmail/Drive/X gateways…) that the model can call
   during the conversation. Fonts, icons, and logos are self-hosted — the
-  app makes **no external requests** beyond the AI calls you trigger.
+  app makes **no external requests** beyond the AI calls you trigger (and
+  local model downloads from HuggingFace, only at your request).
+- **Encrypted settings export/import** (AES-GCM + passphrase): move your
+  keys and preferences from one device to another as a file, without them
+  ever touching a server.
 - Conversations and keys stored **only in your browser** (IndexedDB /
   localStorage), never on a server.
 - Zero account, zero analytics, zero tracking cookie.
@@ -68,9 +76,12 @@ launch (onboarding wizard), but here's the summary:
 
 The following is **not shipped yet**:
 
-- **Local AI in the browser** (Gemma 4 via WebGPU, no Ollama or server
-  needed) — requires downloading several GB of model weights on first use.
-  Designed to work on recent mobile devices (WebGPU required).
+- **Local AI in the browser — v1 shipped** ("Navigateur (local)" provider,
+  see above). Still to come: bigger models gated by the Hardware Governor's
+  verdict, download resume, and a PWA for cache persistence. See
+  [the detailed mobile local-AI write-up](docs/ia-locale-mobile.md) (French),
+  including today's alternatives (PC-hosted Ollama over local Wi-Fi, Termux
+  on Android).
 - **Full settings modal** (profile, appearance, privacy).
 - **Installable PWA** on mobile.
 - **Vision for the other providers** (Anthropic, Gemini, and OpenAI all

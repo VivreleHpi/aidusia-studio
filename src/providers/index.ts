@@ -1,5 +1,6 @@
 import type { ChatProvider } from "./types";
 import { ollamaProvider } from "./ollama";
+import { browserLocalProvider } from "./browserLocal";
 import { ollamaCloudProvider } from "./ollamaCloud";
 import { anthropicProvider } from "./anthropic";
 import { geminiProvider } from "./gemini";
@@ -10,6 +11,7 @@ import { groqProvider } from "./groq";
 
 export const providers: ChatProvider[] = [
   ollamaProvider,
+  browserLocalProvider,
   ollamaCloudProvider,
   anthropicProvider,
   geminiProvider,

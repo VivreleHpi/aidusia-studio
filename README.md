@@ -31,6 +31,11 @@ lancement (assistant de démarrage), mais voici le résumé :
 
 - Une interface de chat qui parle **directement, depuis votre navigateur**, à :
   - **Ollama** en local sur votre machine ;
+  - une **IA locale dans le navigateur** (WebGPU, fournisseur « Navigateur
+    (local) ») : Llama 3.2 1B, Qwen 2.5 1.5B ou Gemma 2 2B quantisés,
+    téléchargés une fois depuis HuggingFace **à votre demande** puis mis en
+    cache — fonctionne aussi sur mobile (Chrome Android 121+, Safari 26),
+    aucun logiciel à installer ;
   - **Anthropic, Google Gemini, Mistral, OpenRouter, Groq** avec votre propre
     clé API (BYOK), en connexion directe navigateur → fournisseur ;
   - **OpenAI** et **Ollama Cloud**, via un petit proxy — voir "Pourquoi un
@@ -60,7 +65,11 @@ lancement (assistant de démarrage), mais voici le résumé :
   via son nœud « MCP Server Trigger », passerelles Gmail/Drive/X…) que le
   modèle peut appeler pendant la conversation. Polices, icônes et logos sont
   auto-hébergés — l'application ne fait **aucune requête externe** en dehors
-  des appels IA que vous déclenchez.
+  des appels IA que vous déclenchez (et du téléchargement des modèles
+  locaux depuis HuggingFace, uniquement à votre demande).
+- **Export/import chiffré des réglages** (AES-GCM + phrase secrète) :
+  transférez vos clés et préférences d'un appareil à l'autre par fichier,
+  sans qu'elles ne touchent jamais un serveur.
 - Conversations et clés stockées **uniquement dans votre navigateur**
   (IndexedDB / localStorage), jamais sur un serveur.
 - Zéro compte, zéro analytics, zéro cookie de suivi.
@@ -69,12 +78,13 @@ lancement (assistant de démarrage), mais voici le résumé :
 
 Ce qui suit n'est **pas encore livré** :
 
-- **IA locale dans le navigateur** (Gemma 4 via WebGPU, sans Ollama ni
-  serveur) — nécessite de télécharger plusieurs Go de poids de modèle au
-  premier usage. Pensé pour fonctionner sur mobile récent (WebGPU requis).
-  Voir [la réflexion détaillée sur l'IA locale mobile](docs/ia-locale-mobile.md),
-  y compris ce qui est possible dès aujourd'hui (Ollama du PC accessible
-  depuis le téléphone sur le même Wi-Fi).
+- **IA locale dans le navigateur — v1 livrée** (fournisseur « Navigateur
+  (local) », voir plus haut). Reste à venir : modèles plus gros derrière le
+  verdict du Gouverneur Matériel, reprise de téléchargement, et PWA pour la
+  persistance du cache. Voir
+  [la réflexion détaillée sur l'IA locale mobile](docs/ia-locale-mobile.md),
+  y compris les alternatives (Ollama du PC en Wi-Fi local, Termux sur
+  Android).
 - **Modal de réglages complet** (profil, apparence, confidentialité).
 - **PWA installable** sur mobile.
 - **Vision pour les autres fournisseurs** (Anthropic, Gemini, OpenAI ont
