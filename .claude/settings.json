@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node -e \"import\\('@mlc-ai/web-llm'\\).then\\(m => { const ids = m.prebuiltAppConfig.model_list.map\\(x => x.model_id\\); console.log\\('Llama-3.2-1B-Instruct-q4f16_1-MLC =>', ids.includes\\('Llama-3.2-1B-Instruct-q4f16_1-MLC'\\)\\); console.log\\('Qwen2.5-1.5B-Instruct-q4f16_1-MLC =>', ids.includes\\('Qwen2.5-1.5B-Instruct-q4f16_1-MLC'\\)\\); console.log\\('gemma-2-2b-it-q4f16_1-MLC =>', ids.includes\\('gemma-2-2b-it-q4f16_1-MLC'\\)\\); console.log\\('--- candidats proches ---'\\); console.log\\(ids.filter\\(i => /llama-3\\\\.2|qwen2\\\\.5-1\\\\.5|gemma-2-2b/i.test\\(i\\)\\).join\\('\\\\n'\\)\\); }\\)\")",
+      "PowerShell(node -e \"import\\('@mlc-ai/web-llm'\\).then\\(m => { const wanted = ['Llama-3.2-1B-Instruct-q4f16_1-MLC','Qwen2.5-1.5B-Instruct-q4f16_1-MLC','gemma-2-2b-it-q4f16_1-MLC']; for \\(const x of m.prebuiltAppConfig.model_list.filter\\(x => wanted.includes\\(x.model_id\\)\\)\\) { console.log\\(x.model_id\\); console.log\\('  poids :', new URL\\(x.model\\).host\\); console.log\\('  lib   :', new URL\\(x.model_lib\\).host\\); } }\\)\")"
+    ]
+  }
+}

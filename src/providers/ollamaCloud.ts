@@ -47,6 +47,12 @@ export const ollamaCloudProvider: ChatProvider = {
       body: JSON.stringify(buildOpenAiCompatibleBody(params, true)),
     });
     if (!response.ok || !response.body) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(
+          "Clé Ollama Cloud invalide ou expirée — vérifiez-la dans le panneau Fournisseurs " +
+            "(le listing des modèles est public : seul l'envoi d'un message vérifie vraiment la clé).",
+        );
+      }
       throw new Error(`Ollama Cloud a repondu ${response.status}`);
     }
     const reader = response.body.getReader();

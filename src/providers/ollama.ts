@@ -22,16 +22,17 @@ export function ollamaUnreachableMessage(baseUrl: string): string {
       `Ollama injoignable depuis ${origin}. Deux causes possibles : ` +
       `1) Ollama tourne sur CE PC mais n'autorise pas ce site — relancez-le avec : ` +
       `${ollamaOriginsCommand(detectOs())} · ` +
-      `2) vous êtes sur un téléphone ou un autre appareil — « localhost » désigne ` +
-      `cet appareil-là : cliquez sur « Configurer » (panneau Fournisseurs) pour saisir ` +
-      `l'adresse du PC (ex. http://192.168.1.20:11434), et lancez Ollama avec ` +
-      `OLLAMA_HOST=0.0.0.0 en plus d'OLLAMA_ORIGINS=${origin}.`
+      `2) vous êtes sur un téléphone — utilisez plutôt le fournisseur ` +
+      `« Navigateur (local) » (IA directement dans le navigateur, rien à installer), ` +
+      `ou Termux sur Android (voir docs/ia-locale-mobile.md).`
     );
   }
   return (
     `Ollama injoignable sur ${baseUrl} depuis ${origin}. Vérifiez que l'appareil qui ` +
     `héberge Ollama est allumé, sur le même réseau, et qu'Ollama y est lancé avec ` +
-    `OLLAMA_HOST=0.0.0.0 et OLLAMA_ORIGINS=${origin}.`
+    `OLLAMA_HOST=0.0.0.0 et OLLAMA_ORIGINS=${origin}. Attention : depuis un site en ` +
+    `https, le navigateur bloque les adresses http locales (mixed content) — cette ` +
+    `option ne marche que si le Studio est servi en local/http ou Ollama derrière https.`
   );
 }
 
