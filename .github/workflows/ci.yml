@@ -22,11 +22,27 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Smoke tests
+        run: npm run smoke
+
       - name: Typecheck + build
         run: npm run build
 
       - name: Leak-scan (sources)
-        run: node scripts/leak-scan.mjs
+        run: npm run leak-scan
 
-      - name: Leak-scan (bundle dist/)
-        run: node scripts/leak-scan.mjs
+  accessibility-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Accessibility E2E
+        run: npm run e2e:desktop

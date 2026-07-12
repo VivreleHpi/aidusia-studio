@@ -1,3 +1,4 @@
+/* oxlint-disable react/only-export-components -- provider and locale helpers form one public API */
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type Lang = "fr" | "en";

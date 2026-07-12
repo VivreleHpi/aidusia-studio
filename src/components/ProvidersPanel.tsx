@@ -11,6 +11,7 @@ import { useLang } from "@/lib/i18n";
 import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
 import { describeFetchError } from "@/lib/fetchError";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 const STRINGS = {
   fr: {
@@ -99,6 +100,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
   const [persist, setPersist] = useState(isPersistEnabled());
   const [localAiOpen, setLocalAiOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   useEffect(() => {
     // Ollama ne demande pas de cle : on teste sa joignabilite reelle au montage
@@ -196,6 +198,8 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center bg-background/60 p-3 backdrop-blur-sm sm:p-6">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}
@@ -259,7 +263,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                   <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${off.disabled ? "bg-muted-foreground/20" : statusDotClass}`} />
-                      <span className={`text-sm font-medium ${off.disabled ? "text-muted-foreground/50" : ""}`}>{displayName}</span>
+                      <span className={`text-sm font-medium ${off.disabled ? "text-muted-foreground" : ""}`}>{displayName}</span>
                       {!off.disabled && PROVIDER_LINKS[provider.id] && (
                         <a
                           href={PROVIDER_LINKS[provider.id].keyUrl}
@@ -318,7 +322,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                     </p>
                   )}
                   {off.disabled ? (
-                    <p className="mt-0.5 wrap-break-word pl-4 text-xs text-muted-foreground/50">{off.reason}</p>
+                    <p className="mt-0.5 wrap-break-word pl-4 text-xs text-muted-foreground">{off.reason}</p>
                   ) : (
                     <p className={`mt-0.5 wrap-break-word pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
                   )}

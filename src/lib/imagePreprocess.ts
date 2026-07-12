@@ -4,10 +4,19 @@
 // d'un texte extrait illisible. Toutes les etapes tournent en Canvas 2D,
 // 100% dans le navigateur, aucune donnee ne sort jamais.
 const MIN_TARGET_WIDTH = 1600;
+const MAX_OCR_EDGE = 4096;
+const MAX_OCR_PIXELS = 20_000_000;
 
 async function decodeToCanvas(file: Blob): Promise<HTMLCanvasElement> {
   const bitmap = await createImageBitmap(file);
-  const scale = bitmap.width < MIN_TARGET_WIDTH ? MIN_TARGET_WIDTH / bitmap.width : 1;
+  if (!bitmap.width || !bitmap.height || bitmap.width * bitmap.height > MAX_OCR_PIXELS) {
+    bitmap.close();
+    throw new Error("Image trop grande pour l’OCR (20 millions de pixels maximum)");
+  }
+  const upscale = bitmap.width < MIN_TARGET_WIDTH ? MIN_TARGET_WIDTH / bitmap.width : 1;
+  const edgeCap = MAX_OCR_EDGE / Math.max(bitmap.width, bitmap.height);
+  const pixelCap = Math.sqrt(MAX_OCR_PIXELS / (bitmap.width * bitmap.height));
+  const scale = Math.min(upscale, edgeCap, pixelCap);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);

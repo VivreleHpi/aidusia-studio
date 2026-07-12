@@ -10,6 +10,7 @@ import {
 import { probeOllama, probeWebGpu, type OllamaProbe, type WebGpuProbe } from "@/lib/hardwareGovernor";
 import { useLang } from "@/lib/i18n";
 import { getOllamaBaseUrl } from "@/providers/ollama";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface OnboardingWizardProps {
   onFinish: () => void;
@@ -21,7 +22,7 @@ const STRINGS = {
     dialogLabel: "Bienvenue dans AIDUSIA studio",
     welcome: "Bienvenue — votre clé, votre modèle, votre navigateur.",
     description:
-      "Testez des IA locales ou cloud, sans rien envoyer sur un serveur (sauf les proxys OpenAI/Ollama Cloud, stateless — voir README).",
+      "Testez des IA locales ou cloud depuis votre navigateur. Les données restent locales sauf lorsque vous choisissez un fournisseur cloud, un connecteur MCP ou la dictée du navigateur — voir README.",
     checking: "Vérification de votre environnement…",
     ollamaDetectedTitle: (version: string) => `Ollama détecté (v${version})`,
     ollamaDetectedBody: "Tout est prêt — vous pouvez discuter avec vos modèles locaux dès maintenant.",
@@ -56,7 +57,7 @@ const STRINGS = {
     dialogLabel: "Welcome to AIDUSIA studio",
     welcome: "Welcome — your key, your model, your browser.",
     description:
-      "Try local or cloud AI models without sending anything to a server (except the OpenAI/Ollama Cloud proxies, which are stateless — see README).",
+      "Try local or cloud AI models from your browser. Data stays local unless you choose a cloud provider, an MCP connector, or browser dictation — see README.",
     checking: "Checking your environment…",
     ollamaDetectedTitle: (version: string) => `Ollama detected (v${version})`,
     ollamaDetectedBody: "Everything is ready — you can chat with your local models right now.",
@@ -96,6 +97,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
   const [webgpu, setWebgpu] = useState<WebGpuProbe | null>(null);
   const [checking, setChecking] = useState(true);
   const [copied, setCopied] = useState(false);
+  const dialogRef = useDialogFocus<HTMLDivElement>();
 
   const mobile = isMobile();
   const os = detectOs();
@@ -129,6 +131,8 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-6 backdrop-blur-sm">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}

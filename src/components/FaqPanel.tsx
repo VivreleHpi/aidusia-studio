@@ -1,4 +1,5 @@
 import { useLang, type Lang } from "../lib/i18n";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface FaqPanelProps {
   onClose: () => void;
@@ -133,10 +134,13 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
 export function FaqPanel({ onClose }: FaqPanelProps) {
   const { lang } = useLang();
   const s = STRINGS[lang];
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/60 p-6 backdrop-blur-sm">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}

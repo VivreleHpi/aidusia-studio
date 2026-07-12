@@ -4,6 +4,7 @@ import { initialize, listTools } from "@/lib/mcp/client";
 import type { McpServer, McpTool } from "@/lib/mcp/types";
 import { useLang } from "@/lib/i18n";
 import { IconPlug, IconX } from "@/components/Icons";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import {
   LogoFacebook,
   LogoGmail,
@@ -32,7 +33,7 @@ const STRINGS = {
     title: "Connecteurs",
     close: "Fermer",
     intro:
-      "Connectez le Studio à des services et des serveurs d'outils (MCP) que l'IA peut appeler pendant la conversation.",
+      "Connectez le Studio à des services et des serveurs d'outils (MCP). Chaque action demandera votre autorisation avant d'être envoyée.",
     popular: "Populaire",
     connected: "Connecté",
     customName: "Connecteur personnalisé",
@@ -67,6 +68,7 @@ const STRINGS = {
     urlPlaceholder: "URL MCP — https://…",
     tokenPlaceholder: "Jeton d'authentification (optionnel)",
     unreachable: "Serveur injoignable",
+    invalidUrl: "Utilisez une URL HTTP ou HTTPS valide.",
     connecting: "Connexion…",
     add: "Connecter",
     cancel: "Annuler",
@@ -81,7 +83,7 @@ const STRINGS = {
     title: "Connectors",
     close: "Close",
     intro:
-      "Connect the Studio to services and tool servers (MCP) that the AI can call during a conversation.",
+      "Connect the Studio to services and tool servers (MCP). Every action requires your approval before it is sent.",
     popular: "Popular",
     connected: "Connected",
     customName: "Custom connector",
@@ -116,6 +118,7 @@ const STRINGS = {
     urlPlaceholder: "MCP URL — https://…",
     tokenPlaceholder: "Authentication token (optional)",
     unreachable: "Server unreachable",
+    invalidUrl: "Use a valid HTTP or HTTPS URL.",
     connecting: "Connecting…",
     add: "Connect",
     cancel: "Cancel",
@@ -157,6 +160,7 @@ export function McpPanel({ onClose }: McpPanelProps) {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const { lang } = useLang();
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
   const s = STRINGS[lang];
 
   useEffect(() => {
@@ -182,11 +186,19 @@ export function McpPanel({ onClose }: McpPanelProps) {
 
   async function handleAdd() {
     if (!name.trim() || !url.trim()) return;
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url.trim());
+      if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") throw new Error();
+    } catch {
+      setAddError(s.invalidUrl);
+      return;
+    }
     setAdding(true);
     setAddError(null);
     const server = addMcpServer({
       name: name.trim(),
-      url: url.trim(),
+      url: parsedUrl.toString(),
       headers: token.trim() ? { Authorization: `Bearer ${token.trim()}` } : undefined,
     });
     const result = await probe(server);
@@ -211,6 +223,8 @@ export function McpPanel({ onClose }: McpPanelProps) {
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/60 p-6 backdrop-blur-sm">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}

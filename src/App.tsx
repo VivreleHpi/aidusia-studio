@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar, FOCUS_SEARCH_EVENT } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
@@ -57,6 +57,7 @@ function App() {
   const [mcpOpen, setMcpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const { lang } = useLang();
   const s = STRINGS[lang];
 
@@ -108,20 +109,33 @@ function App() {
     await refresh();
   }
 
+  function openAbout() {
+    modalReturnFocusRef.current = document.querySelector<HTMLElement>("[data-tour='settings-menu']");
+    setAboutOpen(true);
+  }
+
+  function closeAbout() {
+    setAboutOpen(false);
+    requestAnimationFrame(() => modalReturnFocusRef.current?.focus());
+  }
+
   if (loading) return null;
+
+  const hasModal = providersOpen || onboarding || aboutOpen || faqOpen || guideOpen || tourOpen || mcpOpen;
 
   return (
     // h-dvh (et non h-screen/100vh) : sur mobile, la barre d'adresse dynamique
     // fait varier la hauteur visible ; dvh colle exactement au viewport pour
     // que le bandeau reste en haut et le composer en bas, toujours visibles.
     <div className="flex h-dvh min-h-0 bg-background text-foreground">
+      <div id="application-shell" className="contents" inert={hasModal ? true : undefined}>
       <Sidebar
         conversations={conversations}
         currentId={currentId}
         onSelect={setCurrentId}
         onCreate={createConversation}
         onDelete={removeConversation}
-        onOpenAbout={() => setAboutOpen(true)}
+        onOpenAbout={openAbout}
         onOpenFaq={() => setFaqOpen(true)}
         onOpenGuide={() => setGuideOpen(true)}
         onStartTour={() => setTourOpen(true)}
@@ -133,7 +147,7 @@ function App() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
-      <div className="relative flex min-w-0 flex-1 flex-col">
+      <main className="relative flex min-w-0 flex-1 flex-col">
         {sidebarCollapsed && (
           <button
             type="button"
@@ -179,6 +193,7 @@ function App() {
           onOpenFaq={() => setFaqOpen(true)}
           keysVersion={keysVersion}
         />
+      </main>
       </div>
       {providersOpen && (
         <ProvidersPanel
@@ -194,7 +209,7 @@ function App() {
           onOpenProviders={() => setProvidersOpen(true)}
         />
       )}
-      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {aboutOpen && <AboutModal onClose={closeAbout} />}
       {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
       {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
       {tourOpen && <GuidedTour onFinish={() => setTourOpen(false)} />}

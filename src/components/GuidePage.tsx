@@ -2,6 +2,7 @@ import { providers } from "@/providers";
 import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import { useLang } from "@/lib/i18n";
 import { IconX } from "@/components/Icons";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface GuidePageProps {
   onClose: () => void;
@@ -87,10 +88,13 @@ const STRINGS = {
 export function GuidePage({ onClose }: GuidePageProps) {
   const { lang } = useLang();
   const s = STRINGS[lang];
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/60 p-6 backdrop-blur-sm">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}

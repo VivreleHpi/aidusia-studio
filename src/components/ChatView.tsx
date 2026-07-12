@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
 import { extractTextFromImage } from "@/lib/ocr";
-import { blobToRawBase64 } from "@/lib/toBase64";
+import { prepareVisionImage, validateImageFile } from "@/lib/imageSafety";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
 import { providers } from "@/providers";
@@ -51,7 +51,7 @@ const STRINGS = {
       { label: "Résumer", prompt: "Résume ce texte en 3 points" },
       { label: "Créer", prompt: "Donne-moi des idées pour un projet créatif" },
     ],
-    badgeLocal: "100% local",
+    badgeLocal: "Stockage local",
     badgeKeys: "Votre clé, vos règles",
     badgeOpenSource: "Open source",
     copyAnswer: "Copier la réponse",
@@ -99,7 +99,7 @@ const STRINGS = {
       { label: "Summarize", prompt: "Summarize this text in 3 points" },
       { label: "Create", prompt: "Give me ideas for a creative project" },
     ],
-    badgeLocal: "100% local",
+    badgeLocal: "Local storage",
     badgeKeys: "Your key, your rules",
     badgeOpenSource: "Open source",
     copyAnswer: "Copy response",
@@ -346,6 +346,7 @@ export function ChatView({
     setOcrBusy(true);
     setOcrProgress(0);
     try {
+      validateImageFile(file, lang);
       const text = await extractTextFromImage(file, lang === "fr" ? "fra" : "eng", setOcrProgress);
       setDraft((prev) => (prev ? `${prev}\n\n${text}` : text));
     } catch (err) {
@@ -361,8 +362,8 @@ export function ChatView({
     if (!file) return;
     setVisionError(null);
     try {
-      const base64 = await blobToRawBase64(file);
-      setPendingImage({ base64, previewUrl: URL.createObjectURL(file) });
+      if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+      setPendingImage(await prepareVisionImage(file, lang));
     } catch (err) {
       setVisionError(err instanceof Error ? err.message : String(err));
     }
@@ -400,7 +401,7 @@ export function ChatView({
                   {s.welcome(new Date().getHours())} {s.helpPrompt}
                 </p>
                 <div
-                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
+                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-foreground"
                   style={{ animationDelay: "100ms" }}
                 >
                   <button
@@ -612,7 +613,7 @@ export function ChatView({
               <input
                 ref={ocrInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
                 className="hidden"
                 aria-label={s.ocrPick}
                 onChange={handleOcrFileSelected}
@@ -632,7 +633,7 @@ export function ChatView({
                   <input
                     ref={visionInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
                     className="hidden"
                     aria-label={s.visionPick}
                     onChange={handleVisionFileSelected}
@@ -696,7 +697,7 @@ export function ChatView({
               </div>
             </div>
           </div>
-          <p className="hidden text-center text-[11px] text-muted-foreground/50 sm:block">
+          <p className="hidden text-center text-[11px] text-muted-foreground sm:block">
             {s.hint}
           </p>
         </div>

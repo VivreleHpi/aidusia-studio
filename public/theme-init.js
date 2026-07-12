@@ -8,7 +8,7 @@
       t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
     document.documentElement.classList.add(t);
-  } catch (e) {
+  } catch {
     /* stockage indisponible : la preference systeme CSS s'applique */
   }
 })();

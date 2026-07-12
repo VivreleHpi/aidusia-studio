@@ -107,21 +107,21 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
 
       <dl className="mb-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div>
-          <dt className="opacity-70">{s.memory}</dt>
+          <dt>{s.memory}</dt>
           <dd className="font-mono text-foreground">
             {hardware?.deviceMemoryGb ? `≥ ${hardware.deviceMemoryGb} ${s.gb}` : s.memoryUnknown}
           </dd>
         </div>
         <div>
-          <dt className="opacity-70">{s.cpuCores}</dt>
+          <dt>{s.cpuCores}</dt>
           <dd className="font-mono text-foreground">{hardware?.cpuCores ?? "?"}</dd>
         </div>
         <div>
-          <dt className="opacity-70">{s.disk}</dt>
+          <dt>{s.disk}</dt>
           <dd className="font-mono text-foreground">{storageGb ? `~${storageGb} ${s.gb}` : "…"}</dd>
         </div>
         <div>
-          <dt className="opacity-70">{s.connection}</dt>
+          <dt>{s.connection}</dt>
           <dd className="font-mono text-foreground">{hardware?.connectionType ?? "?"}</dd>
         </div>
       </dl>

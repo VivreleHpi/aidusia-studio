@@ -1,5 +1,6 @@
 import { IconBook, IconEyeOff, IconKey, IconLock, IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface AboutModalProps {
   onClose: () => void;
@@ -69,10 +70,13 @@ const TRUST_ICONS = [IconLock, IconKey, IconBook, IconEyeOff];
 export function AboutModal({ onClose }: AboutModalProps) {
   const { lang } = useLang();
   const s = STRINGS[lang];
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/60 p-6 backdrop-blur-sm">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}

@@ -16,8 +16,12 @@ const THEME_STORAGE_KEY = "aidusia_theme";
 // 310 000 itérations : recommandation OWASP 2023 pour PBKDF2-SHA256, un bon
 // compromis entre résistance au brute-force et latence acceptable côté UI.
 const PBKDF2_ITERATIONS = 310_000;
+const MIN_PBKDF2_ITERATIONS = 100_000;
+const MAX_PBKDF2_ITERATIONS = 1_000_000;
 const SALT_BYTES = 16;
 const IV_BYTES = 12; // taille standard du nonce AES-GCM
+const MAX_IMPORT_BYTES = 1024 * 1024;
+const MAX_SECRET_LENGTH = 20_000;
 
 const WRONG_PASSPHRASE_MESSAGE = "Phrase secrète incorrecte ou fichier corrompu.";
 
@@ -49,10 +53,46 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 function fromBase64(b64: string): Uint8Array {
+  if (!b64 || b64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
+    throw new Error("Invalid base64");
+  }
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validatePayload(value: unknown): ExportedSettingsV1 {
+  if (!isRecord(value) || value.version !== 1 || typeof value.persist !== "boolean") {
+    throw new Error("Invalid payload");
+  }
+  if (
+    typeof value.exportedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.exportedAt)) ||
+    typeof value.ollamaUrl !== "string" ||
+    value.ollamaUrl.length > 2048 ||
+    !isRecord(value.keys)
+  ) {
+    throw new Error("Invalid payload");
+  }
+  const url = new URL(value.ollamaUrl);
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Invalid URL");
+  if (value.lang !== null && value.lang !== "fr" && value.lang !== "en") throw new Error("Invalid language");
+  if (value.theme !== null && value.theme !== "light" && value.theme !== "dark") {
+    throw new Error("Invalid theme");
+  }
+
+  const allowedProviders = new Set(providers.map((provider) => provider.id));
+  for (const [providerId, secret] of Object.entries(value.keys)) {
+    if (!allowedProviders.has(providerId) || typeof secret !== "string" || secret.length > MAX_SECRET_LENGTH) {
+      throw new Error("Invalid key entry");
+    }
+  }
+  return value as unknown as ExportedSettingsV1;
 }
 
 // Dérive une clé AES-GCM 256 bits à partir de la phrase secrète. La clé
@@ -105,6 +145,9 @@ export async function exportSettings(passphrase: string): Promise<Blob> {
 }
 
 export async function importSettings(file: File, passphrase: string): Promise<void> {
+  if (file.size === 0 || file.size > MAX_IMPORT_BYTES) {
+    throw new Error(WRONG_PASSPHRASE_MESSAGE);
+  }
   let envelope: EncryptedFile;
   try {
     envelope = JSON.parse(await file.text());
@@ -113,8 +156,11 @@ export async function importSettings(file: File, passphrase: string): Promise<vo
   }
   if (
     !envelope ||
+    envelope.v !== 1 ||
     envelope.kdf !== "PBKDF2" ||
-    typeof envelope.iter !== "number" ||
+    !Number.isInteger(envelope.iter) ||
+    envelope.iter < MIN_PBKDF2_ITERATIONS ||
+    envelope.iter > MAX_PBKDF2_ITERATIONS ||
     typeof envelope.salt !== "string" ||
     typeof envelope.iv !== "string" ||
     typeof envelope.data !== "string"
@@ -130,13 +176,17 @@ export async function importSettings(file: File, passphrase: string): Promise<vo
   try {
     const salt = fromBase64(envelope.salt);
     const iv = fromBase64(envelope.iv);
+    const ciphertext = fromBase64(envelope.data);
+    if (salt.length !== SALT_BYTES || iv.length !== IV_BYTES || ciphertext.length === 0) {
+      throw new Error("Invalid cryptographic parameters");
+    }
     const key = await deriveKey(passphrase, salt, envelope.iter);
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: iv as BufferSource },
       key,
-      fromBase64(envelope.data) as BufferSource,
+      ciphertext as BufferSource,
     );
-    payload = JSON.parse(new TextDecoder().decode(plaintext)) as ExportedSettingsV1;
+    payload = validatePayload(JSON.parse(new TextDecoder().decode(plaintext)));
   } catch {
     throw new Error(WRONG_PASSPHRASE_MESSAGE);
   }

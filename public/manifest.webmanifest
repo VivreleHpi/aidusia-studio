@@ -1,7 +1,7 @@
 {
   "name": "AIDUSIA Studio",
   "short_name": "AIDUSIA",
-  "description": "IA locale et cloud, 100 % dans votre navigateur. Vos clés, vos règles.",
+  "description": "IA locale ou cloud depuis votre navigateur. Stockage local, appels externes à votre demande.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

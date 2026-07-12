@@ -11,7 +11,7 @@
    La page envoie aussi la liste des ressources qu'elle a chargees (message
    "cache-assets") : filet de securite complementaire au precache. */
 
-const CACHE = "aidusia-shell-v2";
+const CACHE = "aidusia-shell-v3";
 
 // Liste des assets du build (index.html, JS/CSS hashes, polices, icones),
 // injectee au build par scripts/inject-precache.mjs. Precachee des l'install

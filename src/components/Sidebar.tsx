@@ -245,7 +245,7 @@ export function Sidebar({
             className="w-full rounded-md border border-border bg-card/60 py-1.5 pl-8 pr-14 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {!query && (
-            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/60 px-1 py-0.5 font-mono text-[10px] text-muted-foreground/70">
+            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/60 px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
               {shortcutLabel("K")}
             </kbd>
           )}

@@ -8,6 +8,8 @@ import { newConversationTitle, useLang } from "@/lib/i18n";
 import { listMcpServers } from "@/lib/mcp/servers";
 import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/client";
 import type { McpServer } from "@/lib/mcp/types";
+import { requestToolApproval } from "@/lib/mcp/approval";
+import { selectMessagesForContext } from "@/lib/contextWindow";
 
 function titleFromFirstMessage(content: string, lang: Parameters<typeof newConversationTitle>[0]): string {
   const trimmed = content.trim().slice(0, 60);
@@ -34,17 +36,27 @@ const MAX_TOOL_HOPS = 4;
 // Best-effort : un serveur injoignable est ignore, pas fatal pour l'envoi.
 async function buildToolIndex(
   servers: McpServer[],
-): Promise<Map<string, { server: McpServer; tool: ToolDefinition }>> {
-  const index = new Map<string, { server: McpServer; tool: ToolDefinition }>();
+): Promise<Map<string, { server: McpServer; actualName: string; tool: ToolDefinition }>> {
+  const index = new Map<string, { server: McpServer; actualName: string; tool: ToolDefinition }>();
   await Promise.all(
     servers.map(async (server) => {
       try {
         await initializeMcp(server);
         const tools = await listTools(server);
         for (const tool of tools) {
-          index.set(tool.name, {
+          const serverKey = server.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
+          const safeName = tool.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 45);
+          let publicName = `mcp_${serverKey}_${safeName}`;
+          let suffix = 2;
+          while (index.has(publicName)) publicName = `mcp_${serverKey}_${safeName.slice(0, 42)}_${suffix++}`;
+          index.set(publicName, {
             server,
-            tool: { name: tool.name, description: tool.description, inputSchema: tool.inputSchema },
+            actualName: tool.name,
+            tool: {
+              name: publicName,
+              description: `[MCP: ${server.name} / ${tool.name}] ${tool.description ?? ""}`.trim(),
+              inputSchema: tool.inputSchema,
+            },
           });
         }
       } catch (err) {
@@ -138,15 +150,14 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               // Les assistants vides (laisses par une generation echouee ou
               // interrompue) font rejeter la requete par Mistral & co
               // ("Assistant message must have either content or tool_calls").
-              messages: updated.messages
-                .slice(0, -1)
-                .filter(
+              messages: selectMessagesForContext(
+                updated.messages.slice(0, -1).filter(
                   (m) =>
                     m.role !== "assistant" ||
                     Boolean(m.content) ||
                     (m.toolCalls?.length ?? 0) > 0,
-                )
-                .map((m) => ({
+                ),
+              ).map((m) => ({
                   role: m.role,
                   content: m.content,
                   images: m.images,
@@ -182,8 +193,18 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               resultText = `Outil "${call.name}" introuvable (aucun serveur MCP configure ne l'expose).`;
             } else {
               try {
-                const result = await callTool(entry.server, call.name, call.args);
-                resultText = result.content || (result.isError ? "Erreur sans detail." : "(reponse vide)");
+                const approved = requestToolApproval({
+                  server: entry.server,
+                  toolName: entry.actualName,
+                  args: call.args,
+                  lang,
+                });
+                if (!approved) {
+                  resultText = "Action refusée par l'utilisateur. Aucun appel MCP n'a été envoyé.";
+                } else {
+                  const result = await callTool(entry.server, entry.actualName, call.args);
+                  resultText = result.content || (result.isError ? "Erreur sans detail." : "(reponse vide)");
+                }
               } catch (err) {
                 resultText = `Erreur : ${err instanceof Error ? err.message : String(err)}`;
               }

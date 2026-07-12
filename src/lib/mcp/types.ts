@@ -16,3 +16,5 @@ export interface McpToolResult {
   content: string;
   isError: boolean;
 }
+
+export type McpToolRisk = "high" | "unknown";

@@ -157,7 +157,7 @@ export function ModelMenu({
         aria-label={s.buttonLabel}
         aria-expanded={open ? "true" : "false"}
         data-tour="provider-bar"
-        className="flex h-9 max-w-52 items-center gap-1.5 rounded-xl px-2.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground"
+        className="flex h-9 max-w-52 items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95"
       >
         {(missingKey || modelsError) && (
           <span

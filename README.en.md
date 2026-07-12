@@ -2,147 +2,92 @@
 
 🇫🇷 [Version française](./README.md)
 
-Test your AI models — local or cloud — directly in the browser. Nothing
-passes through a server of ours, with one documented exception (OpenAI and
-Ollama Cloud, below).
+AIDUSIA Studio is an open-source web interface for trying local and cloud AI models. It favors browser-side storage and includes no account or built-in analytics. Depending on the feature you choose, data may still be sent to a cloud provider, one of the project's two proxies, an MCP server, or the browser's speech-recognition service.
 
 ![Full AIDUSIA Studio walkthrough](docs/demo.gif)
 
-## Getting started in 60 seconds
-
-Three paths, from simplest to richest — the Studio guides you on first
-launch (onboarding wizard), but here's the summary:
-
-1. **The simplest option, zero download**: open "Providers", paste an API
-   key (Anthropic, Gemini, Mistral, OpenRouter, OpenAI). It works
-   immediately, on desktop as well as mobile.
-2. **Free, local AI (desktop)**: install
-   [Ollama](https://ollama.com/download), launch it. If you're running the
-   Studio locally (`http://localhost:...`), **no extra configuration is
-   needed** — Ollama allows `localhost` by default, verified empirically. If
-   you're using an instance deployed on a real domain, launch Ollama with
-   the `OLLAMA_ORIGINS` variable pointed at that domain (the onboarding
-   wizard gives you the exact command to copy).
-3. **Mobile, no backend**: the recommended path today is the cloud API key
-   (option 1). Local AI *inside* the mobile browser (Gemma 4, WebGPU) is on
-   the roadmap — see below — and hasn't shipped yet.
-
-## What this is
-
-- A chat interface that talks **directly, from your browser**, to:
-  - **Ollama** running locally on your machine;
-  - **local AI in the browser** (WebGPU, "Navigateur (local)" provider):
-    quantized Llama 3.2 1B, Qwen 2.5 1.5B or Gemma 2 2B, downloaded once
-    from HuggingFace **at your request** then cached — also works on mobile
-    (Chrome Android 121+, Safari 26), nothing to install;
-  - **Anthropic, Google Gemini, Mistral, OpenRouter, Groq** with your own
-    API key (BYOK), in a direct browser → provider connection;
-  - **OpenAI** and **Ollama Cloud**, via a small proxy — see "Why a proxy"
-    below.
-- A **Hardware Governor** that tells the truth about what your machine can
-  run (WebGPU, memory, local Ollama — with the actual VRAM in use when
-  Ollama is reachable), without ever pretending to know what it can't
-  measure.
-- **100% local OCR** (WASM, `tesseract.js`, self-hosted — never a CDN):
-  extract text from an image directly into the input field. **Honest
-  limitation**: Tesseract is built for **printed/typed** text; it's
-  fundamentally bad at **handwriting**, no matter what preprocessing you
-  throw at it — this isn't a tunable bug, it's the nature of the
-  technology.
-- **Vision-based image analysis** (image button in the composer, shown only
-  when the selected model has real vision capability detected via the
-  API — Ollama only for now): sends the image as-is to the model instead of
-  extracting text from it. Much better than OCR for a photo, a handwritten
-  document, or a complex screenshot.
-- **Voice dictation** via the browser's Web Speech API — see the privacy
-  notice below, it is **not** guaranteed to be 100% local everywhere.
-- Only models actually returned by the provider's API (with your key) show
-  up in the list — never a hardcoded catalog.
-- **Bilingual interface** French/English (instant, persisted toggle) and
-  **dark mode / light mode**.
-- **Connectors (MCP)**: plug in remote HTTP tool servers (n8n via its "MCP
-  Server Trigger" node, Gmail/Drive/X gateways…) that the model can call
-  during the conversation. Fonts, icons, and logos are self-hosted — the
-  app makes **no external requests** beyond the AI calls you trigger (and
-  local model downloads from HuggingFace, only at your request).
-- **Encrypted settings export/import** (AES-GCM + passphrase): move your
-  keys and preferences from one device to another as a file, without them
-  ever touching a server.
-- Conversations and keys stored **only in your browser** (IndexedDB /
-  localStorage), never on a server.
-- Zero account, zero analytics, zero tracking cookie.
-
-## Roadmap — what's coming will be heavier
-
-The following is **not shipped yet**:
-
-- **Local AI in the browser — v1 shipped** ("Navigateur (local)" provider,
-  see above). Still to come: bigger models gated by the Hardware Governor's
-  verdict, download resume, and a PWA for cache persistence. See
-  [the detailed mobile local-AI write-up](docs/ia-locale-mobile.md) (French),
-  including today's alternatives (PC-hosted Ollama over local Wi-Fi, Termux
-  on Android).
-- **Full settings modal** (profile, appearance, privacy).
-- **Installable PWA** on mobile.
-- **Vision for the other providers** (Anthropic, Gemini, and OpenAI all
-  have vision models) — for now only Ollama is wired up, actually verified
-  (image sent, color correctly identified by the model).
-
-These features are more resource-intensive (download, compute) than what
-exists today: the goal remains that the user has almost nothing to do to
-benefit from them — the onboarding wizard will guide that download when the
-time comes, just as it already guides Ollama installation.
-
-## Voice dictation privacy — let's be clear
-
-OCR is 100% local (WASM in your browser, no image is ever sent anywhere).
-**Voice dictation, however, is not necessarily so**: it uses the browser's
-native Web Speech API, which on Chrome/Edge sends the audio to Google's
-servers for recognition. It's the only dictation option that doesn't add a
-large WASM model (like Whisper) to the bundle — a pragmatic choice, not an
-"all local by default" one. The badge shown while listening is a reminder
-of this.
-
-## What this is NOT
-
-- This isn't a finished product in the SaaS sense: no account, no
-  multi-device sync, no commercial support in v1.
-- This isn't the full AIDUSIA product — this repo is an isolated,
-  deliberately minimal building block, extracted to be verifiable by
-  anyone.
-
-## Why a proxy for OpenAI and Ollama Cloud (and not the others)?
-
-OpenAI and Ollama Cloud deliberately block (or block by default, without
-planning to) direct requests from a browser — verified empirically: neither
-returns a CORS header on its actual response, unlike the preflight, which
-can be misleading. Anthropic, Gemini, Mistral, and OpenRouter allow direct
-browser access and are therefore called without an intermediary.
-
-Each proxy is:
-
-- **stateless** (no data written anywhere);
-- **log-free**: no logging of your key or your messages;
-- **open-source**, in this same repo (`api/openai/`, `api/ollama-cloud/`) —
-  verifiable line by line;
-- **replaceable** with your own instance if you'd rather not trust us.
-
-## Status
-
-Under construction (see the issues). Maintained product-style, with the
-roadmap tracked separately. PRs are welcome.
-
-## License
-
-GNU AGPL v3 — see [LICENSE](./LICENSE). Use, modify and fork freely — but
-any derivative, **including one hosted online (SaaS)**, must publish its
-source code under the same license. This is deliberate: what is open must
-stay open. The name "AIDUSIA" is a registered trademark; the license covers
-the code, not the trademark.
-
-## Local development
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
+
+Then choose a mode:
+
+1. **Local Ollama**: install [Ollama](https://ollama.com/download) and use the Studio on a desktop. From a deployed domain, Ollama must explicitly allow that origin through `OLLAMA_ORIGINS`.
+2. **In-browser AI**: select “On-device.” Model weights are downloaded on your request, cached, and run through WebGPU on the device. Support and performance depend on the browser, GPU, memory, and storage, especially on mobile.
+3. **Cloud provider**: add your own API key under “Providers.” The provider's pricing, quotas, retention, and terms apply.
+
+## Feature status
+
+| Feature | Status | Where does data go? |
+|---|---|---|
+| Local Ollama chat | Shipped | To the configured Ollama URL, usually your machine |
+| In-browser AI (WebLLM/WebGPU) | Shipped, experimental on mobile | Weights downloaded on request; inference on device |
+| Anthropic, Gemini, Mistral, OpenRouter, Groq | Shipped | Direct browser → provider connection |
+| OpenAI | Shipped | Through `/api/openai/`, then OpenAI |
+| Ollama Cloud | Shipped | Through `/api/ollama-cloud/`, then Ollama Cloud |
+| Tesseract OCR | Shipped | Local browser processing |
+| Image analysis | Shipped for vision-capable Ollama | Image sent to the configured Ollama instance |
+| Web Speech dictation | Shipped when supported by the browser | May use a remote browser/OS speech service |
+| HTTP MCP connectors | Shipped, experimental | Requests to configured MCP servers |
+| Settings export/import | Shipped | Passphrase-encrypted local file |
+| Installable PWA and offline shell | Shipped | Application resources cached locally |
+| Offline cloud chat | Not available | A provider connection remains necessary |
+
+API, model, WebGPU, and speech support vary by browser, device, region, and provider. Installing the PWA does not make cloud services available offline.
+
+## Operation and privacy
+
+- Conversations are stored in IndexedDB on this device.
+- Keys are held in `sessionStorage` and, by default, also in `localStorage`. Persistent storage can be disabled in the interface.
+- The app includes no account, analytics, or advertising cookie.
+- Fonts, icons, and OCR files are self-hosted.
+- Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when requested.
+- Exported settings are encrypted client-side with AES-GCM and a key derived from the passphrase. Security depends on the strength of that passphrase.
+
+“Stored locally” does not mean “never transmitted”: when you send a message to a cloud provider, use dictation, analyze an image with a remote model, or allow an MCP tool, the required data leaves the device. See [PRIVACY.md](./PRIVACY.md).
+
+## MCP connectors: security warning
+
+MCP servers add tools that a model can call during a conversation. Messages, documents, and tool results can contain prompt injection. An MCP server or tool can also be compromised, misleading, or highly privileged.
+
+The current release displays a browser confirmation before every call, including the server, tool, a heuristic risk estimate, and a redacted argument preview. This confirmation does not guarantee the tool's real effect. Only add trusted servers, and use test accounts and least privilege. Local `stdio` servers are unsupported; only remote, CORS-compatible HTTP servers work. See [SECURITY.md](./SECURITY.md).
+
+## Why are there two proxies?
+
+OpenAI and Ollama Cloud calls are not made directly from the browser. Their implementations use `api/openai/` and `api/ollama-cloud/`, respectively. These Edge functions relay the key, method, path, and request content to the matching provider. The repository code does not intentionally persist or log this data.
+
+That code-level property alone cannot guarantee the absence of logs at the hosting platform, network, or final provider. You can audit and self-host the proxies. Other supported providers are called directly from the browser.
+
+## Known limitations
+
+- In-browser AI may download hundreds of megabytes or more and can fail on resource-constrained devices.
+- Tesseract targets printed text and generally performs poorly on handwriting.
+- Image analysis is currently wired only for Ollama.
+- There is no multi-device synchronization, account, or guaranteed commercial support.
+- MCP should be treated as experimental: per-action confirmation exists, but risk classification is heuristic and there is no fine-grained persistent permission policy.
+
+## Quality and contributing
+
+Commands currently available:
+
+```bash
+npm run lint
+npm test
+npm run smoke
+npm run build
+npm run leak-scan
+npm run e2e
+```
+
+Unit, smoke, and E2E/accessibility tests are integrated into CI. E2E tests require the Playwright browser (`npx playwright install chromium`). See [CONTRIBUTING.md](./CONTRIBUTING.md) and [CHANGELOG.md](./CHANGELOG.md).
+
+## Security
+
+Never publish a key, token, settings export, or conversation in an issue. Follow the reporting process in [SECURITY.md](./SECURITY.md) for vulnerabilities.
+
+## License
+
+GNU AGPL v3 — see [LICENSE](./LICENSE). Code licensing and trademark rights are separate; the repository license does not automatically grant rights to the “AIDUSIA” name.
