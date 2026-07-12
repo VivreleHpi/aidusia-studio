@@ -58,18 +58,19 @@ export function providerDisabledOnDevice(
   return { disabled: false };
 }
 
-// Raison affichee quand un modele local est grise sur mobile (trop lourd).
+// Avertissement (NON bloquant) affiche sur un modele local un peu lourd pour un
+// telephone : l'utilisateur peut quand meme l'essayer.
 export function heavyOnMobileReason(lang: Lang): string {
   return lang === "fr"
-    ? "Trop lourd pour la plupart des téléphones — PC recommandé"
-    : "Too heavy for most phones — PC recommended";
+    ? "Peut dépasser la mémoire de ce téléphone"
+    : "May exceed this phone's memory";
 }
 
-// Raison affichee quand un modele local est verrouille pour la conversation en
-// cours (evite les changements de modele local en cours de route, source de
-// bugs GPU / d'incoherence). Pour en changer : nouvelle conversation.
-export function lockedModelReason(lang: Lang): string {
+// Avertissement (NON bloquant) affiche quand on change de modele local en cours
+// de conversation : autorise, mais previent que le moteur va se recharger (et
+// que la reponse changera de modele en milieu de fil).
+export function switchModelWarning(lang: Lang): string {
   return lang === "fr"
-    ? "Modèle fixé pour cette conversation — nouvelle conversation pour en changer"
-    : "Model fixed for this conversation — start a new one to change";
+    ? "Changer de modèle en cours de conversation recharge le moteur"
+    : "Switching model mid-conversation reloads the engine";
 }

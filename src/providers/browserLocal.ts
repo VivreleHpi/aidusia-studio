@@ -18,13 +18,30 @@ export interface LocalAiProgress {
   progress: number; // 0..1
 }
 
-// Identifiants du catalogue prebuilt de web-llm (MLC). Petits modeles
-// quantises q4f16 : choisis pour tenir sur un telephone recent.
-const MODELS: ProviderModel[] = [
-  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", label: "Llama 3.2 1B — léger (~0,7 Go)" },
-  { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", label: "Qwen 2.5 1.5B — équilibré (~1 Go)" },
-  { id: "gemma-2-2b-it-q4f16_1-MLC", label: "Gemma 2 2B — qualité (~1,4 Go)" },
+// Catalogue prebuilt de web-llm (MLC). Petits modeles quantises q4f16 : choisis
+// pour tenir sur un telephone recent. Libelles construits par langue (le
+// descriptif leger/equilibre/qualite doit s'afficher en anglais en mode EN).
+type Lang = "fr" | "en";
+interface ModelMeta {
+  id: string;
+  name: string;
+  tier: { fr: string; en: string };
+  size: { fr: string; en: string };
+}
+const MODEL_META: ModelMeta[] = [
+  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", name: "Llama 3.2 1B", tier: { fr: "léger", en: "light" }, size: { fr: "~0,7 Go", en: "~0.7 GB" } },
+  { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", name: "Qwen 2.5 1.5B", tier: { fr: "équilibré", en: "balanced" }, size: { fr: "~1 Go", en: "~1 GB" } },
+  { id: "gemma-2-2b-it-q4f16_1-MLC", name: "Gemma 2 2B", tier: { fr: "qualité", en: "quality" }, size: { fr: "~1,4 Go", en: "~1.4 GB" } },
 ];
+
+function modelLabel(meta: ModelMeta, lang: Lang): string {
+  return `${meta.name} — ${meta.tier[lang]} (${meta.size[lang]})`;
+}
+
+// Vue "id + libelle localise" pour les consommateurs internes (statut, etc.).
+function localizedModels(lang: Lang): ProviderModel[] {
+  return MODEL_META.map((m) => ({ id: m.id, label: modelLabel(m, lang) }));
+}
 
 // Tailles approximatives du telechargement selon la variante servie a cet
 // appareil (f16 si le GPU expose shader-f16, sinon f32 — voir supportsF16).
@@ -164,7 +181,7 @@ async function getEngine(model: string): Promise<Engine> {
 
 // Le modele le plus leger du catalogue : le refuge quand un plus gros ne tient
 // pas dans la memoire GPU du telephone.
-const LIGHTEST_MODEL_ID = MODELS[0].id;
+const LIGHTEST_MODEL_ID = MODEL_META[0].id;
 const LIGHTEST_MODEL_LABEL = "Llama 3.2 1B";
 
 function isMemoryError(detail: string): boolean {
@@ -218,8 +235,9 @@ export interface LocalModelStatus {
 export async function getLocalModelsStatus(): Promise<LocalModelStatus[]> {
   const { hasModelInCache } = await import("@mlc-ai/web-llm");
   const deviceF16 = await supportsF16();
+  const lang = getStoredLang();
   return Promise.all(
-    MODELS.map(async (m) => {
+    MODEL_META.map(async (m) => {
       const f32Id = f32VariantOf(m.id);
       const sizes = MODEL_SIZES_GB[m.id];
       // Le sondage du cache ne doit jamais faire disparaitre un modele de la
@@ -234,7 +252,7 @@ export async function getLocalModelsStatus(): Promise<LocalModelStatus[]> {
       const variant = hasF16 ? ("f16" as const) : hasF32 ? ("f32" as const) : null;
       return {
         id: m.id,
-        label: m.label,
+        label: modelLabel(m, lang),
         cached: hasF16 || hasF32,
         variant,
         sizeGb:
@@ -271,27 +289,27 @@ export const browserLocalProvider: ChatProvider = {
 
   async listModels(): Promise<ProviderModel[]> {
     if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
-    // Sur mobile, seul le modele le plus leger (Llama 1B) tient dans la memoire
-    // GPU d'un telephone ; les plus lourds sont grises (selectionnables sur PC).
-    // Retour utilisateur : "ce modele est trop lourd" sur les 1.5B / 2B.
+    const lang = getStoredLang();
+    // Sur mobile, les modeles plus lourds que le 1B risquent de depasser la
+    // memoire GPU du telephone : on ne les BLOQUE PAS (l'utilisateur peut
+    // essayer), on l'AVERTIT simplement (triangle ⚠). Retour utilisateur.
     const mobile = isMobile();
-    const heavyReason = heavyOnMobileReason(getStoredLang());
+    const heavyReason = heavyOnMobileReason(lang);
     const gate = (m: ProviderModel): ProviderModel =>
-      mobile && m.id !== MODELS[0].id
-        ? { ...m, disabled: true, disabledReason: heavyReason }
-        : m;
+      mobile && m.id !== MODEL_META[0].id ? { ...m, warning: heavyReason } : m;
+    const base = localizedModels(lang);
     // Statut "deja sur l'appareil" best-effort : si le cache est illisible,
     // la liste reste utilisable sans ce marquage.
     try {
       const { hasModelInCache } = await import("@mlc-ai/web-llm");
       return await Promise.all(
-        MODELS.map(async (m) => ({
+        base.map(async (m) => ({
           ...gate(m),
           downloaded: (await hasModelInCache(m.id)) || (await hasModelInCache(f32VariantOf(m.id))),
         })),
       );
     } catch {
-      return MODELS.map(gate);
+      return base.map(gate);
     }
   },
 

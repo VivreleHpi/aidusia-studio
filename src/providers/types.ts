@@ -25,10 +25,10 @@ export interface ProviderModel {
   // true si les poids du modele sont deja telecharges sur cet appareil
   // (IA locale navigateur uniquement). Absent = sans objet pour ce provider.
   downloaded?: boolean;
-  // Modele non selectionnable sur CET appareil (ex. trop lourd pour un
-  // telephone). Grise dans le selecteur, avec disabledReason en explication.
-  disabled?: boolean;
-  disabledReason?: string;
+  // Avertissement NON bloquant (le modele reste selectionnable) : ex. sur
+  // mobile, un modele qui risque de depasser la memoire du telephone. Affiche
+  // avec un triangle ⚠ dans le selecteur.
+  warning?: string;
 }
 
 // Outil MCP traduit dans un format neutre - chaque provider le retraduit

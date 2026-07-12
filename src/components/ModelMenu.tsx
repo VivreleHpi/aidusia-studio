@@ -6,10 +6,10 @@ import { describeFetchError } from "@/lib/fetchError";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
 import {
-  lockedModelReason,
   providerDisabledOnDevice,
   providerDisplayLabel,
   providerTagline,
+  switchModelWarning,
 } from "@/lib/providerTaglines";
 import { IconCheck, IconChevronDown, IconGear } from "@/components/Icons";
 
@@ -77,15 +77,9 @@ export function ModelMenu({
   const { lang } = useLang();
   const s = STRINGS[lang];
 
-  // Modele local verrouille pour la conversation en cours (fournisseur browser).
-  const localLocked = providerId === "browser" && Boolean(lockedLocalModel);
-
-  // Force le modele lie a la conversation tant qu'on reste sur l'IA locale.
-  useEffect(() => {
-    if (localLocked && lockedLocalModel && model !== lockedLocalModel) {
-      onChangeProvider("browser", lockedLocalModel);
-    }
-  }, [localLocked, lockedLocalModel, model, onChangeProvider]);
+  // La conversation est deja liee a un modele local (fournisseur browser) : on
+  // ne bloque PAS le changement, mais on avertit (le moteur se rechargera).
+  const localBound = providerId === "browser" && Boolean(lockedLocalModel);
 
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
   const missingKey = provider.requiresApiKey && !getApiKey(providerId);
@@ -103,12 +97,15 @@ export function ModelMenu({
       .then((list) => {
         if (cancelled) return;
         setModels(list);
-        // Auto-selection : si la conversation est liee a un modele local, on le
-        // reprend ; sinon le 1er modele NON grise (sur mobile, les lourds le
-        // sont — on ne veut pas pre-selectionner un modele qui echouerait).
-        const lockedTarget = localLocked ? list.find((m) => m.id === lockedLocalModel) : undefined;
-        const target = lockedTarget ?? list.find((m) => !m.disabled) ?? list[0];
-        if (target && !list.some((m) => m.id === model && !m.disabled)) {
+        // Auto-selection : si la conversation est deja liee a un modele local,
+        // on le reprend (continuite) ; sinon le 1er du catalogue. Aucun modele
+        // n'est bloque — les avertissements sont non bloquants.
+        const boundTarget =
+          providerId === "browser" && lockedLocalModel
+            ? list.find((m) => m.id === lockedLocalModel)
+            : undefined;
+        const target = boundTarget ?? list[0];
+        if (target && !list.some((m) => m.id === model)) {
           onChangeProvider(providerId, target.id);
         }
       })
@@ -274,57 +271,53 @@ export function ModelMenu({
                       </p>
                     )}
                     {filtered.map((m) => {
-                      const lockedOut = localLocked && m.id !== lockedLocalModel;
-                      const isDisabled = m.disabled || lockedOut;
+                      // Avertissements NON bloquants : modele lourd (mobile) ou
+                      // changement de modele en cours de conversation liee.
+                      const switchWarn = localBound && m.id !== lockedLocalModel;
+                      const warn = m.warning ?? (switchWarn ? switchModelWarning(lang) : undefined);
                       return (
                       <button
                         key={m.id}
                         type="button"
-                        disabled={isDisabled}
                         onClick={() => {
-                          if (isDisabled) return;
                           onChangeProvider(providerId, m.id);
                           setOpen(false);
                         }}
-                        title={m.disabled ? m.disabledReason : lockedOut ? lockedModelReason(lang) : m.label}
+                        title={warn ?? m.label}
                         className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
-                          isDisabled
-                            ? "cursor-not-allowed text-muted-foreground/40"
-                            : m.id === model
-                              ? "bg-accent/15 text-foreground"
-                              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                          m.id === model
+                            ? "bg-accent/15 text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
                       >
                         <span className="min-w-0 flex-1 truncate">{m.label}</span>
-                        {m.disabled ? (
-                          <span className="shrink-0 rounded-full bg-foreground/5 px-1.5 py-0.5 text-[10px] text-muted-foreground/60">
-                            PC
+                        {warn ? (
+                          <span className="shrink-0 text-[11px] text-warning" title={warn}>
+                            ⚠
                           </span>
-                        ) : lockedOut ? (
-                          <span className="shrink-0 text-[10px] text-muted-foreground/50">🔒</span>
                         ) : m.downloaded ? (
                           <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
                             ✓ {s.onDevice}
                           </span>
                         ) : null}
-                        {m.id === model && !isDisabled && (
+                        {m.id === model && (
                           <IconCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
                         )}
                       </button>
                       );
                     })}
                   </div>
-                  {localLocked ? (
-                    <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
-                      🔒 {lockedModelReason(lang)}
-                    </p>
-                  ) : (
-                    models.find((m) => m.disabled)?.disabledReason && (
-                      <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
-                        {models.find((m) => m.disabled)?.disabledReason}
+                  {(() => {
+                    const note =
+                      models.find((m) => m.warning)?.warning ??
+                      (localBound ? switchModelWarning(lang) : undefined);
+                    return note ? (
+                      <p className="flex items-start gap-1 px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                        <span className="text-warning">⚠</span>
+                        <span>{note}</span>
                       </p>
-                    )
-                  )}
+                    ) : null;
+                  })()}
                 </>
               )}
             </div>
