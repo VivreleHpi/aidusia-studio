@@ -8,7 +8,7 @@ import { HardwareGovernor } from "@/components/HardwareGovernor";
 import { LocalAiManager } from "@/components/LocalAiManager";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
-import { providerTagline } from "@/lib/providerTaglines";
+import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
 import { describeFetchError } from "@/lib/fetchError";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 
@@ -101,9 +101,10 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Ollama ne demande pas de cle : on teste sa joignabilite reelle au montage.
-    const ollama = providers.find((p) => !p.requiresApiKey);
-    if (ollama) void runTest(ollama.id);
+    // Ollama ne demande pas de cle : on teste sa joignabilite reelle au montage
+    // — sauf s'il est grise sur cet appareil (mobile), ou l'appel serait vain.
+    const ollama = providers.find((p) => p.id === "ollama");
+    if (ollama && !providerDisabledOnDevice(ollama.id, lang).disabled) void runTest(ollama.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -222,6 +223,8 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
           <div className="mb-6 rounded-xl border border-border divide-y divide-border">
             {providers.map((provider) => {
               const row = rows[provider.id];
+              const off = providerDisabledOnDevice(provider.id, lang);
+              const displayName = providerDisplayLabel(provider.id, lang) ?? provider.label;
               const configured = provider.requiresApiKey
                 ? Boolean(getApiKey(provider.id))
                 : true;
@@ -255,9 +258,9 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                 <div key={provider.id} className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass}`} />
-                      <span className="text-sm font-medium">{provider.label}</span>
-                      {PROVIDER_LINKS[provider.id] && (
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${off.disabled ? "bg-muted-foreground/20" : statusDotClass}`} />
+                      <span className={`text-sm font-medium ${off.disabled ? "text-muted-foreground/50" : ""}`}>{displayName}</span>
+                      {!off.disabled && PROVIDER_LINKS[provider.id] && (
                         <a
                           href={PROVIDER_LINKS[provider.id].keyUrl}
                           target="_blank"
@@ -270,14 +273,16 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => runTest(provider.id)}
-                        className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
-                      >
-                        {s.test}
-                      </button>
-                      {provider.id === "browser" && (
+                      {!off.disabled && (
+                        <button
+                          type="button"
+                          onClick={() => runTest(provider.id)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                        >
+                          {s.test}
+                        </button>
+                      )}
+                      {!off.disabled && provider.id === "browser" && (
                         <button
                           type="button"
                           onClick={() => setLocalAiOpen((v) => !v)}
@@ -286,7 +291,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                           {s.models}
                         </button>
                       )}
-                      {(provider.requiresApiKey || provider.id === "ollama") && (
+                      {!off.disabled && (provider.requiresApiKey || provider.id === "ollama") && (
                         <button
                           type="button"
                           onClick={() => updateRow(provider.id, { editing: !row.editing })}
@@ -312,11 +317,15 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
                       {providerTagline(provider.id, lang)}
                     </p>
                   )}
-                  <p className={`mt-0.5 wrap-break-word pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
+                  {off.disabled ? (
+                    <p className="mt-0.5 wrap-break-word pl-4 text-xs text-muted-foreground/50">{off.reason}</p>
+                  ) : (
+                    <p className={`mt-0.5 wrap-break-word pl-4 text-xs ${statusTextClass}`}>{statusText}</p>
+                  )}
 
-                  {provider.id === "browser" && localAiOpen && <LocalAiManager />}
+                  {!off.disabled && provider.id === "browser" && localAiOpen && <LocalAiManager />}
 
-                  {row.editing && (
+                  {!off.disabled && row.editing && (
                     <div className="mt-2 flex gap-2 pl-4">
                       <input
                         type={provider.requiresApiKey ? "password" : "text"}

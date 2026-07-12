@@ -5,7 +5,7 @@ import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
-import { providerTagline } from "@/lib/providerTaglines";
+import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
 import { IconCheck, IconChevronDown, IconGear } from "@/components/Icons";
 
 const STRINGS = {
@@ -64,6 +64,7 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
   const missingKey = provider.requiresApiKey && !getApiKey(providerId);
   const selected = models.find((m) => m.id === model);
+  const providerName = (id: string, fallback: string) => providerDisplayLabel(id, lang) ?? fallback;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,8 +77,11 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
       .then((list) => {
         if (cancelled) return;
         setModels(list);
-        if (list.length > 0 && !list.some((m) => m.id === model)) {
-          onChangeProvider(providerId, list[0].id);
+        // Auto-selection : le 1er modele NON grise (sur mobile, les lourds le
+        // sont — on ne veut pas pre-selectionner un modele qui echouerait).
+        const firstEnabled = list.find((m) => !m.disabled) ?? list[0];
+        if (firstEnabled && !list.some((m) => m.id === model && !m.disabled)) {
+          onChangeProvider(providerId, firstEnabled.id);
         }
       })
       .catch((err) => {
@@ -138,7 +142,7 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
           />
         )}
         <span className="truncate">
-          {selected?.label ?? (missingKey ? provider.label : s.chooseModel)}
+          {selected?.label ?? (missingKey ? providerName(provider.id, provider.label) : s.chooseModel)}
         </span>
         <IconChevronDown
           className={`h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
@@ -162,23 +166,28 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
               {providers.map((p) => {
                 const active = p.id === providerId;
                 const ready = !p.requiresApiKey || Boolean(getApiKey(p.id));
+                const off = providerDisabledOnDevice(p.id, lang);
                 return (
                   <button
                     key={p.id}
                     type="button"
+                    disabled={off.disabled}
+                    title={off.disabled ? off.reason : undefined}
                     onClick={() => onChangeProvider(p.id, "")}
                     className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
-                      active
-                        ? "bg-accent/15 text-foreground"
-                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                      off.disabled
+                        ? "cursor-not-allowed text-muted-foreground/40"
+                        : active
+                          ? "bg-accent/15 text-foreground"
+                          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                     }`}
                   >
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                        ready ? "bg-success" : "bg-muted-foreground/30"
+                        off.disabled ? "bg-muted-foreground/20" : ready ? "bg-success" : "bg-muted-foreground/30"
                       }`}
                     />
-                    <span className="truncate">{p.label}</span>
+                    <span className="truncate">{providerName(p.id, p.label)}</span>
                   </button>
                 );
               })}
@@ -196,7 +205,7 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
               </p>
               {missingKey ? (
                 <div className="flex flex-col items-center gap-2 px-3 py-3 text-center">
-                  <p className="text-xs text-muted-foreground">{s.keyRequired(provider.label)}</p>
+                  <p className="text-xs text-muted-foreground">{s.keyRequired(providerName(provider.id, provider.label))}</p>
                   <button
                     type="button"
                     onClick={openProvidersPanel}
@@ -240,29 +249,42 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
                       <button
                         key={m.id}
                         type="button"
+                        disabled={m.disabled}
                         onClick={() => {
+                          if (m.disabled) return;
                           onChangeProvider(providerId, m.id);
                           setOpen(false);
                         }}
-                        title={m.label}
+                        title={m.disabled ? m.disabledReason : m.label}
                         className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
-                          m.id === model
-                            ? "bg-accent/15 text-foreground"
-                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                          m.disabled
+                            ? "cursor-not-allowed text-muted-foreground/40"
+                            : m.id === model
+                              ? "bg-accent/15 text-foreground"
+                              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
                       >
                         <span className="min-w-0 flex-1 truncate">{m.label}</span>
-                        {m.downloaded && (
+                        {m.disabled ? (
+                          <span className="shrink-0 rounded-full bg-foreground/5 px-1.5 py-0.5 text-[10px] text-muted-foreground/60">
+                            PC
+                          </span>
+                        ) : m.downloaded ? (
                           <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
                             ✓ {s.onDevice}
                           </span>
-                        )}
-                        {m.id === model && (
+                        ) : null}
+                        {m.id === model && !m.disabled && (
                           <IconCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
                         )}
                       </button>
                     ))}
                   </div>
+                  {models.find((m) => m.disabled)?.disabledReason && (
+                    <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                      {models.find((m) => m.disabled)?.disabledReason}
+                    </p>
+                  )}
                 </>
               )}
             </div>

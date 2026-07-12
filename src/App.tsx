@@ -8,14 +8,16 @@ import { FaqPanel } from "@/components/FaqPanel";
 import { GuidePage } from "@/components/GuidePage";
 import { GuidedTour } from "@/components/GuidedTour";
 import { McpPanel } from "@/components/McpPanel";
-import { shouldShowOnboarding } from "@/lib/deviceDetect";
+import { isMobile, shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { IconPanelLeft } from "@/components/Icons";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import { getConversation, purgeAll, type Conversation } from "@/lib/db";
 
-const DEFAULT_PROVIDER = "ollama";
+// Sur mobile, Ollama est impossible (appli de bureau) : on demarre plutot sur
+// l'IA « Sur cet appareil » (navigateur). Sur PC, Ollama reste le defaut.
+const DEFAULT_PROVIDER = isMobile() ? "browser" : "ollama";
 
 const STRINGS = {
   fr: {

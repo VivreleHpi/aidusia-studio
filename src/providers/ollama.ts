@@ -23,7 +23,7 @@ export function ollamaUnreachableMessage(baseUrl: string): string {
       `1) Ollama tourne sur CE PC mais n'autorise pas ce site — relancez-le avec : ` +
       `${ollamaOriginsCommand(detectOs())} · ` +
       `2) vous êtes sur un téléphone — utilisez plutôt le fournisseur ` +
-      `« Navigateur (local) » (IA directement dans le navigateur, rien à installer), ` +
+      `« Sur cet appareil » (IA directement dans le navigateur, rien à installer), ` +
       `ou Termux sur Android (voir docs/ia-locale-mobile.md).`
     );
   }

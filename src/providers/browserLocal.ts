@@ -1,5 +1,8 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { probeWebGpu } from "@/lib/hardwareGovernor";
+import { isMobile } from "@/lib/deviceDetect";
+import { getStoredLang } from "@/lib/i18n";
+import { heavyOnMobileReason } from "@/lib/providerTaglines";
 
 /* IA locale DANS le navigateur (WebGPU, moteur web-llm/MLC) : aucune
    installation, fonctionne aussi sur mobile (Chrome Android 121+, Safari 26).
@@ -263,23 +266,32 @@ export function getLoadedLocalModel(): string | null {
 
 export const browserLocalProvider: ChatProvider = {
   id: "browser",
-  label: "Navigateur (local)",
+  label: "Sur cet appareil",
   requiresApiKey: false,
 
   async listModels(): Promise<ProviderModel[]> {
     if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
+    // Sur mobile, seul le modele le plus leger (Llama 1B) tient dans la memoire
+    // GPU d'un telephone ; les plus lourds sont grises (selectionnables sur PC).
+    // Retour utilisateur : "ce modele est trop lourd" sur les 1.5B / 2B.
+    const mobile = isMobile();
+    const heavyReason = heavyOnMobileReason(getStoredLang());
+    const gate = (m: ProviderModel): ProviderModel =>
+      mobile && m.id !== MODELS[0].id
+        ? { ...m, disabled: true, disabledReason: heavyReason }
+        : m;
     // Statut "deja sur l'appareil" best-effort : si le cache est illisible,
     // la liste reste utilisable sans ce marquage.
     try {
       const { hasModelInCache } = await import("@mlc-ai/web-llm");
       return await Promise.all(
         MODELS.map(async (m) => ({
-          ...m,
+          ...gate(m),
           downloaded: (await hasModelInCache(m.id)) || (await hasModelInCache(f32VariantOf(m.id))),
         })),
       );
     } catch {
-      return MODELS;
+      return MODELS.map(gate);
     }
   },
 

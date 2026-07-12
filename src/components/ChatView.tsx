@@ -8,7 +8,8 @@ import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
 import { providers } from "@/providers";
 import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/browserLocal";
-import { localeOf, useLang } from "@/lib/i18n";
+import { localeOf, useLang, type Lang } from "@/lib/i18n";
+import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { ModelMenu } from "@/components/ModelMenu";
 import {
   IconArrowUp,
@@ -133,9 +134,10 @@ const STRINGS = {
   },
 } as const;
 
-function providerLabel(providerId?: string): string | null {
+function providerLabel(providerId: string | undefined, lang: Lang): string | null {
   if (!providerId) return null;
-  return providers.find((p) => p.id === providerId)?.label ?? providerId;
+  const fallback = providers.find((p) => p.id === providerId)?.label ?? providerId;
+  return providerDisplayLabel(providerId, lang) ?? fallback;
 }
 
 const markdownComponents = {
@@ -448,7 +450,7 @@ export function ChatView({
                 }
                 const isLastAssistant =
                   m.role === "assistant" && i === conversation.messages.length - 1;
-                const label = m.role === "assistant" ? providerLabel(m.providerId) : null;
+                const label = m.role === "assistant" ? providerLabel(m.providerId, lang) : null;
                 const calledTools = m.role === "assistant" ? m.toolCalls : undefined;
                 if (m.role === "user") {
                   return (

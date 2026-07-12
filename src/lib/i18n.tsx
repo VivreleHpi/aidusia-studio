@@ -10,6 +10,12 @@ function detectLang(): Lang {
   return navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en";
 }
 
+/* Langue courante hors composant React (modules non-hook, ex. providers).
+   Lue a l'appel — pas reactive, mais suffisant la ou on l'utilise. */
+export function getStoredLang(): Lang {
+  return detectLang();
+}
+
 const LangContext = createContext<{ lang: Lang; setLang: (lang: Lang) => void }>({
   lang: "fr",
   setLang: () => {},
