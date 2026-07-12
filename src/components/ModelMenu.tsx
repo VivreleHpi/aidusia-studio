@@ -5,7 +5,12 @@ import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
-import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
+import {
+  lockedModelReason,
+  providerDisabledOnDevice,
+  providerDisplayLabel,
+  providerTagline,
+} from "@/lib/providerTaglines";
 import { IconCheck, IconChevronDown, IconGear } from "@/components/Icons";
 
 const STRINGS = {
@@ -46,12 +51,23 @@ interface ModelMenuProps {
   model: string;
   onChangeProvider: (providerId: string, model: string) => void;
   onOpenProviders: () => void;
+  // Modele local auquel la conversation en cours est deja liee (le 1er modele
+  // "browser" qu'elle a utilise). Non-null => on verrouille le choix du modele
+  // local sur celui-ci, pour eviter les changements de modele en cours de
+  // conversation (bugs GPU / incoherence). Pour en changer : nouvelle conv.
+  lockedLocalModel: string | null;
 }
 
 /* Sélecteur fournisseur + modèle intégré au composer (pattern Claude/
    Perplexity) : un bouton discret qui ouvre un menu vers le haut. Reprend la
    logique de chargement/auto-sélection de l'ancienne ProviderBar. */
-export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders }: ModelMenuProps) {
+export function ModelMenu({
+  providerId,
+  model,
+  onChangeProvider,
+  onOpenProviders,
+  lockedLocalModel,
+}: ModelMenuProps) {
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ProviderModel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +76,16 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
   const searchRef = useRef<HTMLInputElement>(null);
   const { lang } = useLang();
   const s = STRINGS[lang];
+
+  // Modele local verrouille pour la conversation en cours (fournisseur browser).
+  const localLocked = providerId === "browser" && Boolean(lockedLocalModel);
+
+  // Force le modele lie a la conversation tant qu'on reste sur l'IA locale.
+  useEffect(() => {
+    if (localLocked && lockedLocalModel && model !== lockedLocalModel) {
+      onChangeProvider("browser", lockedLocalModel);
+    }
+  }, [localLocked, lockedLocalModel, model, onChangeProvider]);
 
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
   const missingKey = provider.requiresApiKey && !getApiKey(providerId);
@@ -77,11 +103,13 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
       .then((list) => {
         if (cancelled) return;
         setModels(list);
-        // Auto-selection : le 1er modele NON grise (sur mobile, les lourds le
+        // Auto-selection : si la conversation est liee a un modele local, on le
+        // reprend ; sinon le 1er modele NON grise (sur mobile, les lourds le
         // sont — on ne veut pas pre-selectionner un modele qui echouerait).
-        const firstEnabled = list.find((m) => !m.disabled) ?? list[0];
-        if (firstEnabled && !list.some((m) => m.id === model && !m.disabled)) {
-          onChangeProvider(providerId, firstEnabled.id);
+        const lockedTarget = localLocked ? list.find((m) => m.id === lockedLocalModel) : undefined;
+        const target = lockedTarget ?? list.find((m) => !m.disabled) ?? list[0];
+        if (target && !list.some((m) => m.id === model && !m.disabled)) {
+          onChangeProvider(providerId, target.id);
         }
       })
       .catch((err) => {
@@ -102,7 +130,7 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerId]);
+  }, [providerId, lockedLocalModel]);
 
   useEffect(() => {
     if (open) {
@@ -245,19 +273,22 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
                         {s.noResults}
                       </p>
                     )}
-                    {filtered.map((m) => (
+                    {filtered.map((m) => {
+                      const lockedOut = localLocked && m.id !== lockedLocalModel;
+                      const isDisabled = m.disabled || lockedOut;
+                      return (
                       <button
                         key={m.id}
                         type="button"
-                        disabled={m.disabled}
+                        disabled={isDisabled}
                         onClick={() => {
-                          if (m.disabled) return;
+                          if (isDisabled) return;
                           onChangeProvider(providerId, m.id);
                           setOpen(false);
                         }}
-                        title={m.disabled ? m.disabledReason : m.label}
+                        title={m.disabled ? m.disabledReason : lockedOut ? lockedModelReason(lang) : m.label}
                         className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
-                          m.disabled
+                          isDisabled
                             ? "cursor-not-allowed text-muted-foreground/40"
                             : m.id === model
                               ? "bg-accent/15 text-foreground"
@@ -269,21 +300,30 @@ export function ModelMenu({ providerId, model, onChangeProvider, onOpenProviders
                           <span className="shrink-0 rounded-full bg-foreground/5 px-1.5 py-0.5 text-[10px] text-muted-foreground/60">
                             PC
                           </span>
+                        ) : lockedOut ? (
+                          <span className="shrink-0 text-[10px] text-muted-foreground/50">🔒</span>
                         ) : m.downloaded ? (
                           <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
                             ✓ {s.onDevice}
                           </span>
                         ) : null}
-                        {m.id === model && !m.disabled && (
+                        {m.id === model && !isDisabled && (
                           <IconCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
                         )}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
-                  {models.find((m) => m.disabled)?.disabledReason && (
+                  {localLocked ? (
                     <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
-                      {models.find((m) => m.disabled)?.disabledReason}
+                      🔒 {lockedModelReason(lang)}
                     </p>
+                  ) : (
+                    models.find((m) => m.disabled)?.disabledReason && (
+                      <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                        {models.find((m) => m.disabled)?.disabledReason}
+                      </p>
+                    )
                   )}
                 </>
               )}

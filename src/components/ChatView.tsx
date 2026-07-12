@@ -254,6 +254,12 @@ export function ChatView({
   const atBottomRef = useRef(true);
   const messageCount = conversation?.messages.length ?? 0;
   const lastContent = conversation?.messages.at(-1)?.content ?? "";
+  // Modele local auquel cette conversation est liee (1er message genere par
+  // l'IA « navigateur ») : verrouille le choix du modele local pour eviter les
+  // changements en cours de route (bugs GPU). Null tant qu'aucun message local.
+  const lockedLocalModel =
+    conversation?.messages.find((m) => m.role === "assistant" && m.providerId === "browser")?.model ??
+    null;
   const { lang } = useLang();
   const s = STRINGS[lang];
   const locale = localeOf(lang);
@@ -664,6 +670,7 @@ export function ChatView({
                   model={model}
                   onChangeProvider={onChangeProvider}
                   onOpenProviders={onOpenProviders}
+                  lockedLocalModel={lockedLocalModel}
                 />
                 {streaming ? (
                   <button
