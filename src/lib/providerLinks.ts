@@ -11,6 +11,10 @@ export const PROVIDER_LINKS: Record<string, ProviderLink> = {
     keyUrl: "https://console.groq.com/keys",
     note: "Compte gratuit, inférence très rapide, sans carte bancaire pour démarrer.",
   },
+  xai: {
+    keyUrl: "https://console.x.ai",
+    note: "Console développeur xAI — clé pour les modèles Grok.",
+  },
   openrouter: {
     keyUrl: "https://openrouter.ai/keys",
     note: "Un seul compte, accès à des dizaines de modèles (dont ceux d'autres fournisseurs).",

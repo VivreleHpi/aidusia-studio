@@ -8,6 +8,7 @@ import { mistralProvider } from "./mistral";
 import { openaiProvider } from "./openai";
 import { openrouterProvider } from "./openrouter";
 import { groqProvider } from "./groq";
+import { xaiProvider } from "./xai";
 
 export const providers: ChatProvider[] = [
   ollamaProvider,
@@ -19,6 +20,7 @@ export const providers: ChatProvider[] = [
   openaiProvider,
   openrouterProvider,
   groqProvider,
+  xaiProvider,
 ];
 
 export function getProvider(id: string): ChatProvider {
