@@ -9,13 +9,28 @@
      deja geres par web-llm dans Cache Storage, et les appels API des
      fournisseurs ne doivent surtout pas etre caches.
    La page envoie aussi la liste des ressources qu'elle a chargees (message
-   "cache-assets") : le hors-ligne fonctionne ainsi des la premiere visite,
-   avant meme que ce worker ne controle la page. */
+   "cache-assets") : filet de securite complementaire au precache. */
 
-const CACHE = "aidusia-shell-v1";
+const CACHE = "aidusia-shell-v2";
+
+// Liste des assets du build (index.html, JS/CSS hashes, polices, icones),
+// injectee au build par scripts/inject-precache.mjs. Precachee des l'install
+// pour que le hors-ligne (mode avion) marche apres UNE seule visite en ligne,
+// sans dependre du timing de chargement de la page. Le gros chunk web-llm en
+// est exclu (cache a la demande quand on utilise l'IA locale).
+const PRECACHE = self.__PRECACHE__ || ["/"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.add("/")));
+  event.waitUntil(
+    caches.open(CACHE).then(async (cache) => {
+      // addAll echoue en bloc si UN asset manque : on tolere les absences.
+      await Promise.all(
+        PRECACHE.map((url) =>
+          cache.add(new Request(url, { cache: "reload" })).catch(() => {}),
+        ),
+      );
+    }),
+  );
   self.skipWaiting();
 });
 

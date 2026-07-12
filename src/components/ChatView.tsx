@@ -36,8 +36,14 @@ const REPO_URL = "https://github.com/VivreleHpi/aidusia-studio";
 
 const STRINGS = {
   fr: {
-    greeting: (hour: number) => (hour >= 18 || hour < 5 ? "Bonsoir" : "Bonjour"),
-    helpPrompt: "en quoi puis-je vous aider aujourd'hui ?",
+    welcome: (hour: number) =>
+      hour >= 18 || hour < 5
+        ? "Aidusia est à votre écoute ce soir."
+        : hour < 12
+          ? "Aidusia est à votre écoute ce matin."
+          : "Aidusia est à votre écoute cet après-midi.",
+    helpPrompt: "En quoi puis-je vous aider ?",
+    jumpToTop: "Remonter en haut",
     chips: [
       { label: "Écrire", prompt: "Aide-moi à rédiger un email professionnel" },
       { label: "Apprendre", prompt: "Explique-moi un concept compliqué, simplement" },
@@ -78,9 +84,14 @@ const STRINGS = {
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
   },
   en: {
-    greeting: (hour: number) =>
-      hour >= 18 || hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : "Good afternoon",
-    helpPrompt: "how can I help you today?",
+    welcome: (hour: number) =>
+      hour >= 18 || hour < 5
+        ? "Aidusia is at your service this evening."
+        : hour < 12
+          ? "Aidusia is at your service this morning."
+          : "Aidusia is at your service this afternoon.",
+    helpPrompt: "How can I help you?",
+    jumpToTop: "Back to top",
     chips: [
       { label: "Write", prompt: "Help me write a professional email" },
       { label: "Learn", prompt: "Explain a complex concept to me, simply" },
@@ -231,6 +242,7 @@ export function ChatView({
   const [pendingImage, setPendingImage] = useState<{ base64: string; previewUrl: string } | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [showJumpToTop, setShowJumpToTop] = useState(false);
   const [localAi, setLocalAi] = useState<LocalAiProgress | null>(null);
   const ocrInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
@@ -249,6 +261,7 @@ export function ChatView({
   useEffect(() => {
     atBottomRef.current = true;
     setShowJumpToBottom(false);
+    setShowJumpToTop(false);
   }, [conversation?.id]);
 
   // Ne suit le flux que si l'utilisateur est deja en bas : s'il remonte lire,
@@ -289,12 +302,20 @@ export function ChatView({
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     atBottomRef.current = nearBottom;
     setShowJumpToBottom(!nearBottom && messageCount > 0);
+    // Remonter : proposé dès qu'on a défilé un peu vers le bas.
+    setShowJumpToTop(el.scrollTop > 240 && messageCount > 0);
   }
 
   function jumpToBottom() {
     atBottomRef.current = true;
     setShowJumpToBottom(false);
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function jumpToTop() {
+    atBottomRef.current = false;
+    setShowJumpToTop(false);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleSubmit(e: FormEvent) {
@@ -364,16 +385,11 @@ export function ChatView({
           {!conversation || conversation.messages.length === 0 ? (
             <div className="flex h-full flex-col items-center px-4 text-center">
               <div className="rise-in flex flex-1 flex-col items-center justify-center gap-4">
-                <h1 className="flex items-baseline gap-3">
-                  <span className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
-                    AIDUSIA
-                  </span>
-                  <span className="text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground sm:text-base">
-                    studio
-                  </span>
+                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-center text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
+                  AIDUSIA
                 </h1>
                 <p className="max-w-md text-base text-balance text-muted-foreground">
-                  {s.greeting(new Date().getHours())} — {s.helpPrompt}
+                  {s.welcome(new Date().getHours())} {s.helpPrompt}
                 </p>
                 <div
                   className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
@@ -506,20 +522,33 @@ export function ChatView({
           )}
         </div>
 
-        {showJumpToBottom && (
-          <button
-            type="button"
-            onClick={jumpToBottom}
-            aria-label={s.jumpToBottom}
-            title={s.jumpToBottom}
-            className="glass absolute bottom-4 left-1/2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full text-muted-foreground shadow-lg transition duration-150 hover:text-foreground active:scale-95"
-          >
-            <IconChevronDown className="h-4 w-4" />
-          </button>
-        )}
+        <div className="pointer-events-none absolute bottom-4 right-4 flex flex-col gap-2">
+          {showJumpToTop && (
+            <button
+              type="button"
+              onClick={jumpToTop}
+              aria-label={s.jumpToTop}
+              title={s.jumpToTop}
+              className="glass pointer-events-auto grid h-9 w-9 place-items-center rounded-full text-muted-foreground shadow-lg transition duration-150 hover:text-foreground active:scale-95"
+            >
+              <IconChevronDown className="h-4 w-4 rotate-180" />
+            </button>
+          )}
+          {showJumpToBottom && (
+            <button
+              type="button"
+              onClick={jumpToBottom}
+              aria-label={s.jumpToBottom}
+              title={s.jumpToBottom}
+              className="glass pointer-events-auto grid h-9 w-9 place-items-center rounded-full text-muted-foreground shadow-lg transition duration-150 hover:text-foreground active:scale-95"
+            >
+              <IconChevronDown className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-4 pb-3 pt-2" data-tour="chat-input">
+      <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-3 pt-2" data-tour="chat-input">
         <div className="mx-auto flex max-w-3xl flex-col gap-2">
           {ocrBusy && (
             <p className="px-2 text-xs text-muted-foreground">

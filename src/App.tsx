@@ -109,7 +109,10 @@ function App() {
   if (loading) return null;
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    // h-dvh (et non h-screen/100vh) : sur mobile, la barre d'adresse dynamique
+    // fait varier la hauteur visible ; dvh colle exactement au viewport pour
+    // que le bandeau reste en haut et le composer en bas, toujours visibles.
+    <div className="flex h-dvh min-h-0 bg-background text-foreground">
       <Sidebar
         conversations={conversations}
         currentId={currentId}
@@ -140,7 +143,7 @@ function App() {
             <IconPanelLeft className="h-4 w-4" />
           </button>
         )}
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background/80 px-3 py-2 backdrop-blur md:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen((v) => !v)}
