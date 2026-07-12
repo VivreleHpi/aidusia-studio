@@ -163,11 +163,40 @@ async function getEngine(model: string): Promise<Engine> {
   }
 }
 
-function wrapGenerationError(detail: string): Error {
+// Le modele le plus leger du catalogue : le refuge quand un plus gros ne tient
+// pas dans la memoire GPU du telephone.
+const LIGHTEST_MODEL_ID = MODELS[0].id;
+const LIGHTEST_MODEL_LABEL = "Llama 3.2 1B";
+
+function isMemoryError(detail: string): boolean {
+  return /out of memory|oom|mapasync|unmapped|gpubuffer|buffer was unmapped|device.*(lost|destroyed)|allocation failed/i.test(
+    detail,
+  );
+}
+
+/* Erreurs qui valent une reconstruction du moteur + une nouvelle tentative :
+   modele perdu (onglet gele, device repris) ou buffer/allocation GPU rate de
+   facon transitoire. Une seule reprise — si ca echoue encore, c'est
+   probablement que le modele est trop lourd pour cet appareil. */
+function shouldRetry(detail: string): boolean {
+  return (
+    /model not loaded|instance.*destroyed/i.test(detail) || isMemoryError(detail)
+  );
+}
+
+function wrapGenerationError(detail: string, model: string): Error {
+  const isLightest = model === LIGHTEST_MODEL_ID || model === f32VariantOf(LIGHTEST_MODEL_ID);
+  if (isMemoryError(detail) && !isLightest) {
+    return new Error(
+      `Ce modèle est trop lourd pour la mémoire GPU de cet appareil. Choisissez le ` +
+        `modèle le plus léger (« ${LIGHTEST_MODEL_LABEL} — léger ») dans le sélecteur ` +
+        `en bas, il est fait pour les téléphones. Détail : ${detail}`,
+    );
+  }
   return new Error(
     "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
-      "déchargé par le système). Essayez le modèle le plus léger (Llama 3.2 1B) ou " +
-      `rechargez la page. Détail : ${detail}`,
+      "déchargé par le système). Rechargez la page, et si besoin fermez d'autres onglets " +
+      `pour libérer la mémoire. Détail : ${detail}`,
   );
 }
 
@@ -274,9 +303,37 @@ export const browserLocalProvider: ChatProvider = {
 
   async chatStream(
     params: ChatStreamParams,
-    _apiKey: string | undefined,
+    apiKey: string | undefined,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
+    // Une seule generation a la fois sur le GPU. Deux envois rapproches (ou un
+    // retry qui chevauche) partageaient les memes buffers WebGPU -> erreur
+    // "Buffer was unmapped before mapping was resolved". On serialise.
+    const previous = generationChain;
+    let release!: () => void;
+    generationChain = new Promise<void>((r) => (release = r));
+    try {
+      await previous;
+    } catch {
+      /* l'echec precedent est deja remonte a son appelant */
+    }
+    try {
+      await runGeneration(params, apiKey, onChunk);
+    } finally {
+      release();
+    }
+  },
+};
+
+// Verrou : chaine de promesses garantissant l'execution sequentielle des
+// generations locales (une seule a la fois sur le GPU).
+let generationChain: Promise<void> = Promise.resolve();
+
+async function runGeneration(
+  params: ChatStreamParams,
+  _apiKey: string | undefined,
+  onChunk: (chunk: StreamChunk) => void,
+): Promise<void> {
     if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
     let eng: Engine;
     try {
@@ -321,23 +378,23 @@ export const browserLocalProvider: ChatProvider = {
     } catch (err) {
       if (params.signal?.aborted) return;
       const detail = err instanceof Error ? err.message : String(err);
-      // "Model not loaded" / device lost : le moteur a perdu son modele
-      // (onglet gele par Android, memoire GPU reprise par le systeme,
-      // changement de modele rate). Les poids sont deja en cache : on
-      // reconstruit le moteur et on reessaie UNE fois, sans deranger
-      // l'utilisateur — mais seulement si rien n'a encore ete emis.
-      const modelUnloaded = /model not loaded|device.*(lost|destroyed)|instance.*destroyed/i.test(detail);
-      if (!modelUnloaded || emitted) throw wrapGenerationError(detail);
+      // Modele perdu (onglet gele, device GPU repris) ou buffer/allocation GPU
+      // rate de facon transitoire ("Buffer was unmapped..."). Les poids sont
+      // deja en cache : on reconstruit le moteur et on reessaie UNE fois, sans
+      // deranger l'utilisateur — seulement si rien n'a encore ete emis.
+      if (!shouldRetry(detail) || emitted) throw wrapGenerationError(detail, params.model);
       await destroyEngine();
       try {
         eng = await getEngine(params.model);
         await generate();
       } catch (retryErr) {
         if (params.signal?.aborted) return;
-        throw wrapGenerationError(retryErr instanceof Error ? retryErr.message : String(retryErr));
+        throw wrapGenerationError(
+          retryErr instanceof Error ? retryErr.message : String(retryErr),
+          params.model,
+        );
       }
     } finally {
       params.signal?.removeEventListener("abort", abort);
     }
-  },
-};
+}
