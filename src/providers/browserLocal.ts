@@ -115,19 +115,15 @@ async function destroyEngine(): Promise<void> {
 
 async function loadEngine(actualModel: string): Promise<Engine> {
   if (engine && engineModel === actualModel) return engine;
+  // Changement de modele : on DETRUIT l'ancien moteur avant d'en creer un neuf,
+  // au lieu d'un reload() en place. reload() laissait des buffers / un cache KV
+  // GPU de l'ancien modele -> erreurs quand on changeait d'IA locale EN COURS de
+  // conversation (alors qu'un demarrage a froid, lui, marche). Repartir de zero
+  // fait emprunter au changement exactement le meme chemin fiable que le 1er
+  // chargement.
   if (engine) {
     emitProgress({ text: "", progress: 0 });
-    try {
-      await engine.reload(actualModel);
-      engineModel = actualModel;
-      emitProgress({ text: "", progress: 1 });
-      return engine;
-    } catch {
-      // reload rate (souvent memoire GPU) : web-llm laisse alors un moteur
-      // SANS modele charge — toute generation suivante echouerait avec
-      // "Model not loaded". On detruit ce zombie et on recree de zero.
-      await destroyEngine();
-    }
+    await destroyEngine();
   }
   const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
   const created = await CreateMLCEngine(actualModel, {

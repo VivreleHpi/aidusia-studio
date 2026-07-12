@@ -4,13 +4,14 @@ import { getProvider } from "@/providers";
 import type { ToolCall, ToolDefinition } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
+import { newConversationTitle, useLang } from "@/lib/i18n";
 import { listMcpServers } from "@/lib/mcp/servers";
 import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/client";
 import type { McpServer } from "@/lib/mcp/types";
 
-function titleFromFirstMessage(content: string): string {
+function titleFromFirstMessage(content: string, lang: Parameters<typeof newConversationTitle>[0]): string {
   const trimmed = content.trim().slice(0, 60);
-  return trimmed.length > 0 ? trimmed : "Nouvelle conversation";
+  return trimmed.length > 0 ? trimmed : newConversationTitle(lang);
 }
 
 // IMPORTANT : le rendu pendant le streaming se fait EXCLUSIVEMENT depuis
@@ -55,6 +56,7 @@ async function buildToolIndex(
 }
 
 export function useChat(onUpdated: (conversation: Conversation) => void, onListChanged: () => void) {
+  const { lang } = useLang();
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -95,7 +97,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       const isFirstMessage = conversation.messages.length === 0;
       const updated: Conversation = {
         ...conversation,
-        title: isFirstMessage ? titleFromFirstMessage(content) : conversation.title,
+        title: isFirstMessage ? titleFromFirstMessage(content, lang) : conversation.title,
         messages: [...conversation.messages, userMessage, assistantMessage],
         updatedAt: Date.now(),
       };
@@ -231,7 +233,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         onListChanged();
       }
     },
-    [onUpdated, onListChanged],
+    [onUpdated, onListChanged, lang],
   );
 
   return { sendMessage, stop, streaming, error };

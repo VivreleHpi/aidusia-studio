@@ -6,8 +6,10 @@ import {
   newConversationId,
   saveConversation,
 } from "@/lib/db";
+import { newConversationTitle, useLang } from "@/lib/i18n";
 
 export function useConversations() {
+  const { lang } = useLang();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export function useConversations() {
     const now = Date.now();
     const conversation: Conversation = {
       id: newConversationId(),
-      title: "Nouvelle conversation",
+      title: newConversationTitle(lang),
       createdAt: now,
       updatedAt: now,
       messages: [],
@@ -38,7 +40,7 @@ export function useConversations() {
     await refresh();
     setCurrentId(conversation.id);
     return conversation;
-  }, [refresh]);
+  }, [refresh, lang]);
 
   const removeConversation = useCallback(
     async (id: string) => {

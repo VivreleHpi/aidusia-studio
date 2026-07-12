@@ -42,3 +42,10 @@ export function useLang() {
 export function localeOf(lang: Lang): string {
   return lang === "fr" ? "fr-FR" : "en-US";
 }
+
+/* Titre par defaut d'une conversation neuve (avant le 1er message). Utilise
+   par les hooks (useConversations, useChat) qui n'ont pas de dictionnaire
+   local — d'ou ce helper partage plutot qu'une chaine codee en dur. */
+export function newConversationTitle(lang: Lang): string {
+  return lang === "fr" ? "Nouvelle conversation" : "New conversation";
+}
