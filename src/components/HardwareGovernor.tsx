@@ -30,7 +30,7 @@ const STRINGS = {
       "Estimations navigateur — le navigateur ne lit pas la VRAM réelle, seul Ollama la connaît vraiment (deuxième bloc).",
     webgpuLine: "IA locale dans le navigateur (WebGPU)",
     webgpuHelp:
-      "Essayez une version récente de Chrome, Edge ou Safari 26+, et vérifiez que l'accélération matérielle est activée dans les réglages du navigateur. Cela ne bloque rien aujourd'hui (Ollama et le cloud restent disponibles) — ce sera nécessaire pour l'IA locale dans le navigateur (Gemma 4), à venir sur ce Studio.",
+      "Essayez une version récente de Chrome, Edge ou Safari 26+, et vérifiez que l'accélération matérielle est activée dans les réglages du navigateur. Cela ne bloque rien aujourd'hui (Ollama et le cloud restent disponibles) — ce sera nécessaire pour utiliser l'IA locale dans le navigateur (fournisseur « Sur cet appareil », en bêta).",
     memory: "Mémoire (estimation)",
     memoryUnknown: "non exposée par ce navigateur",
     gb: "Go",
@@ -55,7 +55,7 @@ const STRINGS = {
       "Browser estimates — the browser can't read actual VRAM; only Ollama truly knows it (second block).",
     webgpuLine: "Local AI in the browser (WebGPU)",
     webgpuHelp:
-      "Try a recent version of Chrome, Edge or Safari 26+, and check that hardware acceleration is enabled in the browser settings. Nothing is blocked today (Ollama and the cloud remain available) — it will be required for local in-browser AI (Gemma 4), coming to this Studio.",
+      "Try a recent version of Chrome, Edge or Safari 26+, and check that hardware acceleration is enabled in the browser settings. Nothing is blocked today (Ollama and the cloud remain available) — it will be required to use local in-browser AI (the ‘On this device’ provider, in beta).",
     memory: "Memory (estimate)",
     memoryUnknown: "not exposed by this browser",
     gb: "GB",

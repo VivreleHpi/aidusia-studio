@@ -45,10 +45,11 @@ const STRINGS = {
     mobileOption1Label: "Le plus simple",
     mobileOption1Body: " : une clé API cloud (Anthropic, Gemini, Mistral, OpenRouter…), aucun téléchargement.",
     mobileOption2Label: "IA locale dans le navigateur",
-    mobileOption2Mid: " (Gemma 4, WebGPU) — ",
+    mobileOption2Mid: " (WebGPU) — ",
     webgpuSupported: "votre téléphone est compatible",
     webgpuNotSupported: "pas encore disponible sur cet appareil",
-    mobileOption2After: ", fonctionnalité à venir sur ce Studio.",
+    mobileOption2AfterSupported: ", en bêta sur mobile : modèle léger conseillé, aucune installation.",
+    mobileOption2AfterUnsupported: ", nécessite un navigateur plus récent (Chrome/Edge 121+, Safari 26+).",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
     language: "Langue",
@@ -80,10 +81,11 @@ const STRINGS = {
     mobileOption1Label: "The simplest",
     mobileOption1Body: ": a cloud API key (Anthropic, Gemini, Mistral, OpenRouter…), no download.",
     mobileOption2Label: "Local AI in the browser",
-    mobileOption2Mid: " (Gemma 4, WebGPU) — ",
+    mobileOption2Mid: " (WebGPU) — ",
     webgpuSupported: "your phone is compatible",
     webgpuNotSupported: "not yet available on this device",
-    mobileOption2After: ", a feature coming soon to this Studio.",
+    mobileOption2AfterSupported: ", in beta on mobile: a lightweight model is recommended, no download.",
+    mobileOption2AfterUnsupported: ", requires a newer browser (Chrome/Edge 121+, Safari 26+).",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
     language: "Language",
@@ -254,7 +256,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
                 <strong className="text-foreground">{s.mobileOption2Label}</strong>
                 {s.mobileOption2Mid}
                 {webgpu?.supported ? s.webgpuSupported : s.webgpuNotSupported}
-                {s.mobileOption2After}
+                {webgpu?.supported ? s.mobileOption2AfterSupported : s.mobileOption2AfterUnsupported}
               </li>
             </ul>
           </div>
