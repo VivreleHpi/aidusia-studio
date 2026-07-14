@@ -40,6 +40,7 @@ const STRINGS = {
     exportPromptPassphrase: "Choisissez une phrase secrète pour chiffrer le fichier :",
     importPromptPassphrase: "Entrez la phrase secrète utilisée pour chiffrer ce fichier :",
     importSuccess: "Réglages importés avec succès.",
+    ollamaHelp: "Ollama installé mais inaccessible ? Ouvrir le guide",
     cancel: "Annuler",
     confirm: "Continuer",
     passphraseTitle: "Phrase secrète",
@@ -71,6 +72,7 @@ const STRINGS = {
     exportPromptPassphrase: "Choose a passphrase to encrypt the file:",
     importPromptPassphrase: "Enter the passphrase used to encrypt this file:",
     importSuccess: "Settings imported successfully.",
+    ollamaHelp: "Ollama installed but unreachable? Open the guide",
     cancel: "Cancel",
     confirm: "Continue",
     passphraseTitle: "Passphrase",
@@ -247,6 +249,14 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
 
           <div className="mb-4">
             <HardwareGovernor ollamaBaseUrl={getOllamaBaseUrl()} />
+            <a
+              href="https://github.com/VivreleHpi/aidusia-studio/blob/main/docs/OLLAMA.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+            >
+              {s.ollamaHelp} ↗
+            </a>
           </div>
 
           <div className="mb-6 rounded-xl border border-border divide-y divide-border">
