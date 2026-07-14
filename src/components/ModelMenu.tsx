@@ -24,6 +24,7 @@ const STRINGS = {
     configureKey: "Configurer la clé",
     loading: "Chargement des modèles…",
     noModels: "Aucun modèle disponible.",
+    providerUnavailable: (label: string) => `${label} n'est pas disponible pour le moment. Choisissez un autre fournisseur ou ouvrez Fournisseurs pour le configurer.`,
     searchPlaceholder: (count: number) => `Rechercher parmi ${count} modèles…`,
     noResults: "Aucun résultat.",
     manageProviders: "Gérer les fournisseurs",
@@ -39,6 +40,7 @@ const STRINGS = {
     configureKey: "Set up the key",
     loading: "Loading models…",
     noModels: "No models available.",
+    providerUnavailable: (label: string) => `${label} is unavailable right now. Choose another provider or open Providers to configure it.`,
     searchPlaceholder: (count: number) => `Search ${count} models…`,
     noResults: "No results.",
     manageProviders: "Manage providers",
@@ -110,7 +112,15 @@ export function ModelMenu({
       };
     }
     if (loading) return { status: "loading", message: s.loading };
-    if (modelsError) return { status: "error", message: modelsError };
+    if (modelsError) {
+      // Les erreurs réseau/CORS brutes ne doivent jamais devenir le premier
+      // message visible dans le composer. Elles restent dans la console et le
+      // panneau Fournisseurs, tandis que l'interface propose une issue claire.
+      return {
+        status: "error",
+        message: s.providerUnavailable(providerName(provider.id, provider.label)),
+      };
+    }
     if (models.length === 0 || !selected) {
       return { status: "no-model", message: s.noModels };
     }
@@ -281,7 +291,10 @@ export function ModelMenu({
               ) : loading ? (
                 <p className="px-3 py-3 text-center text-xs text-muted-foreground">{s.loading}</p>
               ) : modelsError ? (
-                <p className="px-3 py-2 text-xs text-destructive">{modelsError}</p>
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  <p>{s.providerUnavailable(providerName(provider.id, provider.label))}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/70">{s.configureKey}</p>
+                </div>
               ) : models.length === 0 ? (
                 <p className="px-3 py-3 text-center text-xs text-muted-foreground">{s.noModels}</p>
               ) : (

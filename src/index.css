@@ -175,6 +175,12 @@ body::after {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
 }
+/* Anneau de focus constant et visible, y compris sur les composants qui
+   remplacent le style natif du navigateur. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
