@@ -2,9 +2,9 @@
 
 🇫🇷 [Version française](./README.md)
 
-**Try local and cloud AI models straight from your browser — no account, no tracking, with your own keys that never leave your device.**
+**Try local and cloud AI models straight from your browser — no account, no tracking, with your own keys and a documented data path.**
 
-- 🔑 **Your keys stay with you** — stored in the browser, never on an AIDUSIA server.
+- 🔑 **Your keys stay under your control** — stored in the browser, then sent only for the requested call to the chosen provider; OpenAI and Ollama Cloud use the documented proxies below.
 - 🖥️ **Local *or* cloud** — Ollama, in-browser AI (WebGPU), or your Anthropic / OpenAI / Grok / … key.
 - 🕵️ **No account, no analytics** — open source (AGPL v3), self-hosted fonts and OCR.
 
@@ -56,12 +56,12 @@ API, model, WebGPU, and speech support vary by browser, device, region, and prov
 <details>
 <summary>When does data leave the device?</summary>
 
-When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or allow an MCP tool, the required data is transmitted. Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when you request them. Full details in [PRIVACY.md](./PRIVACY.md).
+When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when you request them. Full details in [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## MCP connectors: security warning
 
-MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview; declining sends no request.
+MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Their tool definitions are sent to the chosen model. Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview; an approved result is then sent back to the model. Declining sends no tool call.
 
 <details>
 <summary>Why the caution, and what the confirmation does not guarantee</summary>
@@ -71,7 +71,7 @@ Messages, documents, and tool results can contain prompt injection. An MCP serve
 
 ## Why are there two proxies?
 
-OpenAI and Ollama Cloud calls go through Edge functions (`api/openai/` and `api/ollama-cloud/`) because those providers block direct browser CORS. These proxies relay the request without intentionally persisting or logging it. Other providers are called directly from the browser.
+OpenAI and Ollama Cloud calls go through Edge functions (`api/openai/` and `api/ollama-cloud/`) because those providers block direct browser CORS. The required key and content pass through these proxies, whose repository code relays the request without intentionally persisting or logging it. Other providers are called directly from the browser.
 
 <details>
 <summary>What that code-level property does not guarantee</summary>
@@ -107,3 +107,7 @@ Never publish a key, token, settings export, or conversation in an issue. Follow
 ## License
 
 GNU AGPL v3 — see [LICENSE](./LICENSE). Code licensing and trademark rights are separate; the repository license does not automatically grant rights to the "AIDUSIA" name.
+
+## Legal notice
+
+See [MENTIONS-LEGALES.md](./MENTIONS-LEGALES.md) (French legal notice, required by French law — publisher, host, third-party trademarks).

@@ -13,18 +13,27 @@ export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const all = await listConversations();
-    setConversations(all);
-    return all;
+    try {
+      const all = await listConversations();
+      setConversations(all);
+      setStorageError(null);
+      return all;
+    } catch (error) {
+      setConversations([]);
+      setStorageError(error instanceof Error ? error.message : String(error));
+      return [];
+    }
   }, []);
 
   useEffect(() => {
-    refresh().then((all) => {
-      if (all.length > 0) setCurrentId(all[0].id);
-      setLoading(false);
-    });
+    void refresh()
+      .then((all) => {
+        if (all.length > 0) setCurrentId(all[0].id);
+      })
+      .finally(() => setLoading(false));
   }, [refresh]);
 
   const createConversation = useCallback(async (): Promise<Conversation> => {
@@ -58,6 +67,7 @@ export function useConversations() {
     currentId,
     setCurrentId,
     loading,
+    storageError,
     refresh,
     createConversation,
     removeConversation,

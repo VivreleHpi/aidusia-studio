@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type SetStateAction,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
@@ -10,7 +17,7 @@ import { providers } from "@/providers";
 import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/browserLocal";
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
-import { ModelMenu } from "@/components/ModelMenu";
+import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import {
   IconArrowUp,
   IconBook,
@@ -34,6 +41,40 @@ import {
 const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
 
 const REPO_URL = "https://github.com/VivreleHpi/aidusia-studio";
+const DRAFT_STORAGE_KEY = "aidusia_chat_drafts_v1";
+const NEW_CONVERSATION_DRAFT_KEY = "__new_conversation__";
+
+interface PendingImage {
+  base64: string;
+  previewUrl: string;
+}
+
+interface LastSubmission {
+  draftKey: string;
+  content: string;
+  sentContent: string;
+  image: PendingImage | null;
+}
+
+function loadDrafts(): Record<string, string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function saveDrafts(drafts: Record<string, string>) {
+  try {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+  } catch {
+    // Le composer reste utilisable si le stockage prive/quota est indisponible.
+  }
+}
 
 const STRINGS = {
   fr: {
@@ -83,6 +124,11 @@ const STRINGS = {
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
+    configureProvider: "Configurer le fournisseur",
+    retryModels: "Réessayer le chargement",
+    chooseModelAction: "Choisir un modèle",
+    retryMessage: "Réessayer",
+    aiGenerated: "Généré par IA",
   },
   en: {
     welcome: (hour: number) =>
@@ -131,6 +177,11 @@ const STRINGS = {
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
     localAiLoading: "Preparing the local model (downloaded once, then cached)…",
+    configureProvider: "Set up provider",
+    retryModels: "Retry loading",
+    chooseModelAction: "Choose a model",
+    retryMessage: "Retry",
+    aiGenerated: "AI-generated",
   },
 } as const;
 
@@ -214,7 +265,7 @@ interface ChatViewProps {
   conversation: Conversation | null;
   streaming: boolean;
   error: string | null;
-  onSend: (content: string, images?: string[]) => void;
+  onSend: (content: string, images?: string[]) => void | Promise<void>;
   onStop: () => void;
   providerId: string;
   model: string;
@@ -237,11 +288,23 @@ export function ChatView({
   onOpenFaq,
   keysVersion,
 }: ChatViewProps) {
-  const [draft, setDraft] = useState("");
+  const draftKey = conversation?.id ?? NEW_CONVERSATION_DRAFT_KEY;
+  const draftsRef = useRef<Record<string, string> | null>(null);
+  if (draftsRef.current === null) draftsRef.current = loadDrafts();
+  const draftKeyRef = useRef(draftKey);
+  const [draft, setDraft] = useState(() => draftsRef.current?.[draftKey] ?? "");
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrError, setOcrError] = useState<string | null>(null);
-  const [pendingImage, setPendingImage] = useState<{ base64: string; previewUrl: string } | null>(null);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
+  const pendingImagesRef = useRef(new Map<string, PendingImage>());
+  const lastSubmissionRef = useRef<LastSubmission | null>(null);
+  const handledExternalErrorRef = useRef<string | null>(null);
+  const previousStreamingRef = useRef(streaming);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [modelReadiness, setModelReadiness] = useState<ModelReadiness>({ status: "loading" });
+  const [modelReloadRequest, setModelReloadRequest] = useState(0);
+  const [modelOpenRequest, setModelOpenRequest] = useState(0);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
@@ -266,6 +329,102 @@ export function ChatView({
   const dictation = useDictation(locale);
   const visionCapable = useVisionCapability(providerId, model);
 
+  function persistDraft(key: string, value: string) {
+    const drafts = draftsRef.current ?? {};
+    if (value) drafts[key] = value;
+    else delete drafts[key];
+    draftsRef.current = drafts;
+    saveDrafts(drafts);
+  }
+
+  function updateDraft(update: SetStateAction<string>, key = draftKeyRef.current) {
+    setDraft((current) => {
+      const next = typeof update === "function" ? update(current) : update;
+      persistDraft(key, next);
+      return next;
+    });
+  }
+
+  function releaseSubmission(submission: LastSubmission | null) {
+    if (!submission?.image) return;
+    const stillPending = [...pendingImagesRef.current.values()].some(
+      (image) => image.previewUrl === submission.image?.previewUrl,
+    );
+    if (!stillPending) URL.revokeObjectURL(submission.image.previewUrl);
+  }
+
+  function restoreSubmission(submission: LastSubmission) {
+    const existing = draftsRef.current?.[submission.draftKey] ?? "";
+    const restored = existing
+      ? existing.includes(submission.content)
+        ? existing
+        : `${submission.content}\n\n${existing}`
+      : submission.content;
+    persistDraft(submission.draftKey, restored);
+    if (draftKeyRef.current === submission.draftKey) setDraft(restored);
+
+    if (submission.image && !pendingImagesRef.current.has(submission.draftKey)) {
+      pendingImagesRef.current.set(submission.draftKey, submission.image);
+      if (draftKeyRef.current === submission.draftKey) setPendingImage(submission.image);
+    }
+  }
+
+  function submit(content: string, image: PendingImage | null, key: string) {
+    const submission: LastSubmission = {
+      draftKey: key,
+      content,
+      sentContent: content.trim(),
+      image,
+    };
+    lastSubmissionRef.current = submission;
+    handledExternalErrorRef.current = null;
+    setSubmitError(null);
+    persistDraft(key, "");
+    if (draftKeyRef.current === key) setDraft("");
+    pendingImagesRef.current.delete(key);
+    if (draftKeyRef.current === key) setPendingImage(null);
+
+    try {
+      void Promise.resolve(
+        onSend(submission.sentContent, image ? [image.base64] : undefined),
+      ).catch((reason) => {
+        const message = reason instanceof Error ? reason.message : String(reason);
+        setSubmitError(message);
+        restoreSubmission(submission);
+      });
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setSubmitError(message);
+      restoreSubmission(submission);
+    }
+  }
+
+  useEffect(() => {
+    const previousKey = draftKeyRef.current;
+    if (previousKey === draftKey) return;
+
+    // Le premier envoi cree son identifiant de conversation apres le submit :
+    // la soumission en attente doit suivre ce nouvel identifiant.
+    const lastSubmission = lastSubmissionRef.current;
+    if (previousKey === NEW_CONVERSATION_DRAFT_KEY && lastSubmission?.draftKey === previousKey) {
+      lastSubmission.draftKey = draftKey;
+      const orphanDraft = draftsRef.current?.[previousKey];
+      if (orphanDraft) {
+        persistDraft(draftKey, orphanDraft);
+        persistDraft(previousKey, "");
+      }
+      const orphanImage = pendingImagesRef.current.get(previousKey);
+      if (orphanImage) {
+        pendingImagesRef.current.delete(previousKey);
+        pendingImagesRef.current.set(draftKey, orphanImage);
+      }
+    }
+
+    draftKeyRef.current = draftKey;
+    setDraft(draftsRef.current?.[draftKey] ?? "");
+    setPendingImage(pendingImagesRef.current.get(draftKey) ?? null);
+  }, [draftKey]);
+
   useEffect(() => {
     atBottomRef.current = true;
     setShowJumpToBottom(false);
@@ -288,10 +447,36 @@ export function ChatView({
   }, [draft]);
 
   useEffect(() => {
+    const pendingImages = pendingImagesRef.current;
+    const submissionRef = lastSubmissionRef;
     return () => {
-      if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+      const urls = new Set(
+        [...pendingImages.values()].map((image) => image.previewUrl),
+      );
+      const submittedUrl = submissionRef.current?.image?.previewUrl;
+      if (submittedUrl) urls.add(submittedUrl);
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [pendingImage]);
+  }, []);
+
+  useEffect(() => {
+    if (!error) {
+      handledExternalErrorRef.current = null;
+      return;
+    }
+    if (handledExternalErrorRef.current === error) return;
+    handledExternalErrorRef.current = error;
+    const submission = lastSubmissionRef.current;
+    if (submission) restoreSubmission(submission);
+  }, [error]);
+
+  useEffect(() => {
+    if (previousStreamingRef.current && !streaming && !error && !submitError) {
+      releaseSubmission(lastSubmissionRef.current);
+      lastSubmissionRef.current = null;
+    }
+    previousStreamingRef.current = streaming;
+  }, [error, streaming, submitError]);
 
   // Progression du fournisseur « Navigateur (local) » : telechargement puis
   // chargement du modele en memoire GPU, diffusee par evenement global.
@@ -329,13 +514,15 @@ export function ChatView({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = draft.trim();
-    if ((!trimmed && !pendingImage) || streaming) return;
-    onSend(trimmed, pendingImage ? [pendingImage.base64] : undefined);
-    setDraft("");
-    if (pendingImage) {
-      URL.revokeObjectURL(pendingImage.previewUrl);
-      setPendingImage(null);
-    }
+    if ((!trimmed && !pendingImage) || streaming || modelReadiness.status !== "ready") return;
+    submit(draft, pendingImage, draftKeyRef.current);
+  }
+
+  function retryLastMessage() {
+    const submission = lastSubmissionRef.current;
+    if (!submission || submission.draftKey !== draftKeyRef.current) return;
+    if (streaming || modelReadiness.status !== "ready") return;
+    submit(submission.content, submission.image, submission.draftKey);
   }
 
   async function handleOcrFileSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -348,7 +535,7 @@ export function ChatView({
     try {
       validateImageFile(file, lang);
       const text = await extractTextFromImage(file, lang === "fr" ? "fra" : "eng", setOcrProgress);
-      setDraft((prev) => (prev ? `${prev}\n\n${text}` : text));
+      updateDraft((prev) => (prev ? `${prev}\n\n${text}` : text));
     } catch (err) {
       setOcrError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -363,14 +550,16 @@ export function ChatView({
     setVisionError(null);
     try {
       if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
-      setPendingImage(await prepareVisionImage(file, lang));
+      const prepared = await prepareVisionImage(file, lang);
+      pendingImagesRef.current.set(draftKeyRef.current, prepared);
+      setPendingImage(prepared);
     } catch (err) {
       setVisionError(err instanceof Error ? err.message : String(err));
     }
   }
 
   function applySuggestion(text: string) {
-    setDraft(text);
+    updateDraft(text);
     textareaRef.current?.focus();
   }
 
@@ -379,13 +568,13 @@ export function ChatView({
       dictation.stop();
     } else {
       dictation.start((transcript) => {
-        setDraft((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        updateDraft((prev) => (prev ? `${prev} ${transcript}` : transcript));
       });
     }
   }
 
   const composerButtonClass =
-    "grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 disabled:opacity-40";
+    "grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 disabled:opacity-40 sm:h-9 sm:w-9";
 
   return (
     <div className="flex h-full flex-1 flex-col">
@@ -502,7 +691,7 @@ export function ChatView({
                     {label && (m.content || !streaming) && (
                       <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
                         <span className="h-1 w-1 rounded-full bg-primary/60" />
-                        <span>{label}</span>
+                        <span>{s.aiGenerated} · {label}</span>
                         {m.model && <span className="font-mono opacity-80">· {m.model}</span>}
                         {m.content && !streaming && (
                           <span className="ml-auto">
@@ -515,15 +704,31 @@ export function ChatView({
                 );
               })}
               {error && (
-                <div className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive"
+                >
                   <p className="wrap-break-word">{error}</p>
-                  <button
-                    type="button"
-                    onClick={onOpenProviders}
-                    className="mt-2 rounded-md border border-destructive/40 px-2.5 py-1 text-xs transition duration-150 hover:bg-destructive/15 active:scale-[0.98]"
-                  >
-                    {s.openProviders}
-                  </button>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {lastSubmissionRef.current?.draftKey === draftKeyRef.current && (
+                      <button
+                        type="button"
+                        onClick={retryLastMessage}
+                        disabled={streaming || modelReadiness.status !== "ready"}
+                        className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs transition duration-150 hover:bg-destructive/15 active:scale-[0.98] disabled:opacity-40"
+                      >
+                        {s.retryMessage}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={onOpenProviders}
+                      className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs transition duration-150 hover:bg-destructive/15 active:scale-[0.98]"
+                    >
+                      {s.openProviders}
+                    </button>
+                  </div>
                 </div>
               )}
               <div ref={bottomRef} />
@@ -557,21 +762,50 @@ export function ChatView({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-3 pt-2" data-tour="chat-input">
+      <form
+        onSubmit={handleSubmit}
+        className="shrink-0 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
+        data-tour="chat-input"
+      >
         <div className="mx-auto flex max-w-3xl flex-col gap-2">
           {ocrBusy && (
-            <p className="px-2 text-xs text-muted-foreground">
+            <p role="status" aria-live="polite" className="px-2 text-xs text-muted-foreground">
               {s.ocrRunning} {Math.round(ocrProgress * 100)}%
             </p>
           )}
           {localAi && (
-            <p className="px-2 text-xs text-muted-foreground">
+            <p role="status" aria-live="polite" className="px-2 text-xs text-muted-foreground">
               {s.localAiLoading} {Math.round(localAi.progress * 100)}%
             </p>
           )}
-          {ocrError && <p className="px-2 text-xs text-destructive">{s.ocrPrefix} : {ocrError}</p>}
+          {ocrError && <p role="alert" className="px-2 text-xs text-destructive">{s.ocrPrefix} : {ocrError}</p>}
           {visionError && (
-            <p className="px-2 text-xs text-destructive">{s.imagePrefix} : {visionError}</p>
+            <p role="alert" className="px-2 text-xs text-destructive">{s.imagePrefix} : {visionError}</p>
+          )}
+          {submitError && <p role="alert" className="px-2 text-xs text-destructive">{submitError}</p>}
+          {modelReadiness.status !== "ready" && (
+            <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 px-2 text-xs">
+              <span className="min-w-0 wrap-break-word text-muted-foreground">
+                {modelReadiness.message ?? s.chooseModelAction}
+              </span>
+              {modelReadiness.status !== "loading" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (modelReadiness.status === "missing-key") onOpenProviders();
+                    else if (modelReadiness.status === "error") setModelReloadRequest((value) => value + 1);
+                    else setModelOpenRequest((value) => value + 1);
+                  }}
+                  className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-foreground transition hover:bg-foreground/5"
+                >
+                  {modelReadiness.status === "missing-key"
+                    ? s.configureProvider
+                    : modelReadiness.status === "error"
+                      ? s.retryModels
+                      : s.chooseModelAction}
+                </button>
+              )}
+            </div>
           )}
           {dictation.listening && (
             <p className="px-2 text-xs text-warning">{s.dictationWarning}</p>
@@ -582,9 +816,10 @@ export function ChatView({
               <span className="flex-1 text-muted-foreground">{s.pendingImageInfo}</span>
               <button
                 type="button"
-                onClick={() => {
-                  URL.revokeObjectURL(pendingImage.previewUrl);
-                  setPendingImage(null);
+                 onClick={() => {
+                   URL.revokeObjectURL(pendingImage.previewUrl);
+                   pendingImagesRef.current.delete(draftKeyRef.current);
+                   setPendingImage(null);
                 }}
                 aria-label={s.removeImage}
                 className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-destructive"
@@ -598,7 +833,7 @@ export function ChatView({
             <textarea
               ref={textareaRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => updateDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -655,7 +890,7 @@ export function ChatView({
                   onClick={toggleDictation}
                   title={s.dictation}
                   aria-label={s.dictation}
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition duration-150 active:scale-95 ${
+                  className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl transition duration-150 active:scale-95 sm:h-9 sm:w-9 ${
                     dictation.listening
                       ? "bg-warning/15 text-warning"
                       : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
@@ -672,6 +907,9 @@ export function ChatView({
                   onChangeProvider={onChangeProvider}
                   onOpenProviders={onOpenProviders}
                   lockedLocalModel={lockedLocalModel}
+                  onReadinessChange={setModelReadiness}
+                  reloadRequest={modelReloadRequest}
+                  openRequest={modelOpenRequest}
                 />
                 {streaming ? (
                   <button
@@ -679,17 +917,17 @@ export function ChatView({
                     onClick={onStop}
                     title={s.stop}
                     aria-label={s.stop}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground transition duration-150 hover:opacity-90 active:scale-95"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground transition duration-150 hover:opacity-90 active:scale-95 sm:h-9 sm:w-9"
                   >
                     <IconSquare className="h-3 w-3" />
                   </button>
                 ) : (
                   <button
                     type="submit"
-                    disabled={!draft.trim() && !pendingImage}
+                    disabled={modelReadiness.status !== "ready" || (!draft.trim() && !pendingImage)}
                     aria-label={s.send}
                     title={s.send}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition duration-150 hover:opacity-90 active:scale-95 disabled:opacity-30"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition duration-150 hover:opacity-90 active:scale-95 disabled:opacity-30 sm:h-9 sm:w-9"
                   >
                     <IconArrowUp className="h-4 w-4" />
                   </button>

@@ -18,19 +18,19 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
     faqs: [
       {
         q: "Mes conversations et mes clés API sont-elles envoyées sur un serveur ?",
-        a: "Non. Les conversations restent uniquement dans votre navigateur (IndexedDB), et les clés API dans localStorage. Les appels partent directement de votre navigateur vers le fournisseur choisi (Anthropic, Gemini, Mistral, OpenRouter, Groq) ou vers Ollama en local. Seules deux exceptions passent par un petit proxy — voir la question suivante.",
+        a: "Les conversations sont stockées dans votre navigateur (IndexedDB). Un appel cloud envoie toutefois le contexte nécessaire et votre clé au fournisseur choisi. Pour OpenAI et Ollama Cloud, clé et contenu transitent par le proxy du déploiement avant le fournisseur — voir la question suivante.",
       },
       {
         q: "Pourquoi un proxy existe pour OpenAI et Ollama Cloud ?",
-        a: "OpenAI et Ollama Cloud bloquent les requêtes directes depuis un navigateur (pas d'en-tête CORS sur la vraie réponse, vérifié empiriquement). Le proxy est stateless, sans log de votre clé ni de vos messages, et son code est dans ce même dépôt (api/openai/, api/ollama-cloud/) — vérifiable ligne par ligne.",
+        a: "OpenAI et Ollama Cloud bloquent les requêtes directes depuis un navigateur (pas d'en-tête CORS sur la vraie réponse, vérifié empiriquement). Le code du proxy est stateless et ne persiste ni ne journalise volontairement votre clé ou vos messages ; l'hébergeur et le réseau peuvent néanmoins avoir leurs propres journaux techniques.",
       },
       {
         q: "L'outil est-il français ?",
-        a: "Oui, AIDUSIA Studio est conçu et développé en France. La conformité à la législation — le RGPD en premier lieu — n'est pas une contrainte ajoutée après coup : c'est un principe de conception, présent dès la première ligne de code.",
+        a: "Oui, AIDUSIA Studio est conçu et développé en France. La minimisation des données et la transparence des flux guident sa conception ; la politique de confidentialité décrit le comportement du code, sans constituer une certification réglementaire d'un déploiement donné.",
       },
       {
         q: "Comment obtenir une clé API ?",
-        a: "Chaque fournisseur (Anthropic, Google Gemini, Mistral, OpenRouter, OpenAI, Groq) propose une page \"API keys\" dans son propre espace développeur après création d'un compte. La \"Notice d'utilisation\" (menu Paramètres) donne un lien direct vers la page de clé de chacun. Collez la clé obtenue dans le panneau \"Fournisseurs\" — rien n'est envoyé ailleurs qu'au fournisseur concerné.",
+        a: "Chaque fournisseur propose une page \"API keys\" dans son propre espace développeur. La \"Notice d'utilisation\" donne les liens directs. La clé sert au fournisseur concerné ; pour OpenAI et Ollama Cloud, elle transite d'abord par le proxy du déploiement.",
       },
       {
         q: "Qu'est-ce qu'Ollama, et pourquoi l'utiliser ?",
@@ -77,19 +77,19 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
     faqs: [
       {
         q: "Are my conversations and API keys sent to a server?",
-        a: "No. Conversations stay only in your browser (IndexedDB), and API keys in localStorage. Requests go directly from your browser to the provider you choose (Anthropic, Gemini, Mistral, OpenRouter, Groq) or to Ollama running locally. Only two exceptions go through a small proxy — see the next question.",
+        a: "Conversations are stored in your browser (IndexedDB). A cloud call still sends the necessary context and your key to the chosen provider. For OpenAI and Ollama Cloud, key and content pass through the deployment proxy before reaching the provider — see the next question.",
       },
       {
         q: "Why is there a proxy for OpenAI and Ollama Cloud?",
-        a: "OpenAI and Ollama Cloud block direct requests from a browser (no CORS header on the actual response, verified empirically). The proxy is stateless, logs neither your key nor your messages, and its code lives in this same repository (api/openai/, api/ollama-cloud/) — auditable line by line.",
+        a: "OpenAI and Ollama Cloud block direct browser requests (no CORS header on the actual response, verified empirically). The proxy code is stateless and does not intentionally persist or log your key or messages; the host and network may still keep their own technical logs.",
       },
       {
         q: "Is this tool French?",
-        a: "Yes, AIDUSIA Studio is designed and built in France. Legal compliance — GDPR first and foremost — isn't a constraint bolted on afterward: it's a design principle, built in from the first line of code.",
+        a: "Yes, AIDUSIA Studio is designed and built in France. Data minimization and transparent flows guide its design; the privacy policy documents the code's behavior but is not a legal certification of any particular deployment.",
       },
       {
         q: "How do I get an API key?",
-        a: "Each provider (Anthropic, Google Gemini, Mistral, OpenRouter, OpenAI, Groq) offers an \"API keys\" page in its own developer console once you've created an account. The \"Usage notice\" (Settings menu) links directly to each provider's key page. Paste the key into the \"Providers\" panel — it's sent nowhere except to that provider.",
+        a: "Each provider offers an \"API keys\" page in its developer console. The \"Usage notice\" links directly to those pages. The key is used for that provider; for OpenAI and Ollama Cloud, it first passes through the deployment proxy.",
       },
       {
         q: "What is Ollama, and why use it?",

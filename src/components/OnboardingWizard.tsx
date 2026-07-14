@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   detectOs,
   isLocalOrigin,
@@ -6,6 +6,7 @@ import {
   markOnboarded,
   ollamaDownloadUrl,
   ollamaOriginsCommand,
+  ollamaOriginsRestartNote,
 } from "@/lib/deviceDetect";
 import { probeOllama, probeWebGpu, type OllamaProbe, type WebGpuProbe } from "@/lib/hardwareGovernor";
 import { useLang } from "@/lib/i18n";
@@ -34,7 +35,7 @@ const STRINGS = {
       "Vous utilisez le Studio en local : aucune configuration supplémentaire n'est nécessaire, Ollama autorise localhost par défaut. Installez-le, lancez-le, puis cliquez sur \"",
     localOriginNoteAfter: "\".",
     remoteOriginNote:
-      "Ce site est déployé sur un vrai domaine : Ollama doit explicitement autoriser cette origine. Lancez cette commande au lieu de double-cliquer sur Ollama :",
+      "Ce site est déployé sur un vrai domaine : Ollama doit explicitement autoriser cette origine. Exécutez cette commande :",
     copy: "Copier",
     copied: "Copié !",
     retry: "Réessayer",
@@ -52,6 +53,7 @@ const STRINGS = {
     mobileOption2AfterUnsupported: ", nécessite un navigateur plus récent (Chrome/Edge 121+, Safari 26+).",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
+    explore: "Explorer sans configurer",
     language: "Langue",
   },
   en: {
@@ -70,7 +72,7 @@ const STRINGS = {
       "You're using the Studio locally: no extra configuration is needed, Ollama allows localhost by default. Install it, launch it, then click \"",
     localOriginNoteAfter: "\".",
     remoteOriginNote:
-      "This site is deployed on a real domain: Ollama must explicitly allow this origin. Run this command instead of double-clicking Ollama:",
+      "This site is deployed on a real domain: Ollama must explicitly allow this origin. Run this command:",
     copy: "Copy",
     copied: "Copied!",
     retry: "Retry",
@@ -88,6 +90,7 @@ const STRINGS = {
     mobileOption2AfterUnsupported: ", requires a newer browser (Chrome/Edge 121+, Safari 26+).",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
+    explore: "Explore without setup",
     language: "Language",
   },
 } as const;
@@ -105,18 +108,26 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
   const os = detectOs();
   const localOrigin = isLocalOrigin();
   const command = ollamaOriginsCommand(os);
+  const restartNote = ollamaOriginsRestartNote(os, lang);
+  const environmentReady = !checking && (mobile ? Boolean(webgpu?.supported) : Boolean(ollama?.reachable));
 
-  async function runProbes() {
+  const runProbes = useCallback(async () => {
     setChecking(true);
+    if (mobile) {
+      setOllama(null);
+      setWebgpu(await probeWebGpu());
+      setChecking(false);
+      return;
+    }
     const [o, w] = await Promise.all([probeOllama(getOllamaBaseUrl()), probeWebGpu()]);
     setOllama(o);
     setWebgpu(w);
     setChecking(false);
-  }
+  }, [mobile]);
 
   useEffect(() => {
     void runProbes();
-  }, []);
+  }, [runProbes]);
 
   function finish() {
     markOnboarded();
@@ -225,6 +236,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
                     {copied ? s.copied : s.copy}
                   </button>
                 </div>
+                {restartNote && <p className="text-xs text-muted-foreground">{restartNote}</p>}
               </>
             )}
 
@@ -265,20 +277,24 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
         <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
           <button
             type="button"
-            onClick={() => {
+            onClick={environmentReady ? () => {
               finish();
               onOpenProviders();
-            }}
+            } : finish}
             className="text-xs text-muted-foreground hover:underline"
           >
-            {s.configureCloudKey}
+            {environmentReady ? s.configureCloudKey : s.explore}
           </button>
           <button
             type="button"
-            onClick={finish}
+            disabled={checking}
+            onClick={environmentReady ? finish : () => {
+              finish();
+              onOpenProviders();
+            }}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
-            {s.start}
+            {checking ? s.checking : environmentReady ? s.start : s.configureCloudKey}
           </button>
         </div>
       </div>

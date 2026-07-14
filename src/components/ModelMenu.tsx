@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { providers } from "@/providers";
 import type { ProviderModel } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
@@ -46,6 +46,13 @@ const STRINGS = {
   },
 } as const;
 
+export type ModelReadinessStatus = "missing-key" | "loading" | "error" | "no-model" | "ready";
+
+export interface ModelReadiness {
+  status: ModelReadinessStatus;
+  message?: string;
+}
+
 interface ModelMenuProps {
   providerId: string;
   model: string;
@@ -56,6 +63,9 @@ interface ModelMenuProps {
   // local sur celui-ci, pour eviter les changements de modele en cours de
   // conversation (bugs GPU / incoherence). Pour en changer : nouvelle conv.
   lockedLocalModel: string | null;
+  onReadinessChange?: (readiness: ModelReadiness) => void;
+  reloadRequest?: number;
+  openRequest?: number;
 }
 
 /* Sélecteur fournisseur + modèle intégré au composer (pattern Claude/
@@ -67,6 +77,9 @@ export function ModelMenu({
   onChangeProvider,
   onOpenProviders,
   lockedLocalModel,
+  onReadinessChange,
+  reloadRequest = 0,
+  openRequest = 0,
 }: ModelMenuProps) {
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ProviderModel[]>([]);
@@ -84,7 +97,29 @@ export function ModelMenu({
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
   const missingKey = provider.requiresApiKey && !getApiKey(providerId);
   const selected = models.find((m) => m.id === model);
-  const providerName = (id: string, fallback: string) => providerDisplayLabel(id, lang) ?? fallback;
+  const providerName = useCallback(
+    (id: string, fallback: string) => providerDisplayLabel(id, lang) ?? fallback,
+    [lang],
+  );
+
+  const readiness = useMemo<ModelReadiness>(() => {
+    if (missingKey) {
+      return {
+        status: "missing-key",
+        message: s.keyRequired(providerName(provider.id, provider.label)),
+      };
+    }
+    if (loading) return { status: "loading", message: s.loading };
+    if (modelsError) return { status: "error", message: modelsError };
+    if (models.length === 0 || !selected) {
+      return { status: "no-model", message: s.noModels };
+    }
+    return { status: "ready" };
+  }, [loading, missingKey, models.length, modelsError, provider.id, provider.label, providerName, s, selected]);
+
+  useEffect(() => {
+    onReadinessChange?.(readiness);
+  }, [onReadinessChange, readiness]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +162,11 @@ export function ModelMenu({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerId, lockedLocalModel]);
+  }, [providerId, lockedLocalModel, reloadRequest]);
+
+  useEffect(() => {
+    if (openRequest > 0) setOpen(true);
+  }, [openRequest]);
 
   useEffect(() => {
     if (open) {
@@ -157,7 +196,7 @@ export function ModelMenu({
         aria-label={s.buttonLabel}
         aria-expanded={open ? "true" : "false"}
         data-tour="provider-bar"
-        className="flex h-9 max-w-52 items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95"
+        className="flex h-11 max-w-52 items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95 sm:h-9"
       >
         {(missingKey || modelsError) && (
           <span

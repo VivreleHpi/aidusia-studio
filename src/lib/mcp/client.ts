@@ -18,6 +18,42 @@ const MAX_TOOL_TEXT_CHARS = 64 * 1024;
 
 let requestId = 0;
 
+export type McpTransportViolation = "invalid-url" | "https-required" | "headers-require-https";
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized === "[::1]" || /^127(?:\.\d{1,3}){3}$/.test(normalized);
+}
+
+/**
+ * MCP credentials must never cross a clear-text network hop. Plain HTTP is
+ * kept only for an unauthenticated server on this same machine.
+ */
+export function mcpTransportViolation(server: Pick<McpServer, "url" | "headers">): McpTransportViolation | null {
+  let url: URL;
+  try {
+    url = new URL(server.url);
+  } catch {
+    return "invalid-url";
+  }
+  if (url.protocol === "https:") return null;
+  if (url.protocol !== "http:" || !isLoopbackHostname(url.hostname)) return "https-required";
+  if (url.username || url.password || url.search || Object.keys(server.headers ?? {}).length > 0) {
+    return "headers-require-https";
+  }
+  return null;
+}
+
+function assertSafeMcpTransport(server: McpServer): void {
+  const violation = mcpTransportViolation(server);
+  if (violation === "headers-require-https") {
+    throw new Error("Un serveur MCP HTTP local ne peut pas recevoir de secret ou d'en-tête configuré. Utilisez HTTPS.");
+  }
+  if (violation) {
+    throw new Error("Un serveur MCP distant doit utiliser HTTPS. HTTP est réservé à localhost sans authentification.");
+  }
+}
+
 async function readTextLimited(response: Response): Promise<string> {
   if (!response.body) return "";
   const reader = response.body.getReader();
@@ -38,6 +74,7 @@ async function readTextLimited(response: Response): Promise<string> {
 }
 
 async function rpcCall(server: McpServer, method: string, params?: unknown): Promise<unknown> {
+  assertSafeMcpTransport(server);
   const response = await fetch(server.url, {
     method: "POST",
     headers: {
@@ -74,6 +111,7 @@ export async function initialize(server: McpServer): Promise<void> {
     clientInfo: { name: "AIDUSIA Studio", version: "0.0.0" },
   });
   // Notification "initialized" : pas de reponse attendue, best-effort.
+  assertSafeMcpTransport(server);
   await fetch(server.url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...server.headers },

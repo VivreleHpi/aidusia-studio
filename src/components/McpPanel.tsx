@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listMcpServers, addMcpServer, removeMcpServer } from "@/lib/mcp/servers";
-import { initialize, listTools } from "@/lib/mcp/client";
+import { initialize, listTools, mcpTransportViolation } from "@/lib/mcp/client";
 import type { McpServer, McpTool } from "@/lib/mcp/types";
 import { useLang } from "@/lib/i18n";
 import { IconPlug, IconX } from "@/components/Icons";
@@ -69,6 +69,8 @@ const STRINGS = {
     tokenPlaceholder: "Jeton d'authentification (optionnel)",
     unreachable: "Serveur injoignable",
     invalidUrl: "Utilisez une URL HTTP ou HTTPS valide.",
+    httpsRequired: "Un connecteur distant doit utiliser HTTPS. HTTP est réservé à localhost.",
+    localHttpNoToken: "Un connecteur HTTP local ne peut pas inclure de secret, de paramètre d'URL ou de jeton. Activez HTTPS ou retirez-les.",
     connecting: "Connexion…",
     add: "Connecter",
     cancel: "Annuler",
@@ -119,6 +121,8 @@ const STRINGS = {
     tokenPlaceholder: "Authentication token (optional)",
     unreachable: "Server unreachable",
     invalidUrl: "Use a valid HTTP or HTTPS URL.",
+    httpsRequired: "A remote connector must use HTTPS. HTTP is reserved for localhost.",
+    localHttpNoToken: "A local HTTP connector cannot include a secret, URL parameter, or token. Enable HTTPS or remove them.",
     connecting: "Connecting…",
     add: "Connect",
     cancel: "Cancel",
@@ -194,12 +198,18 @@ export function McpPanel({ onClose }: McpPanelProps) {
       setAddError(s.invalidUrl);
       return;
     }
+    const headers = token.trim() ? { Authorization: `Bearer ${token.trim()}` } : undefined;
+    const transportViolation = mcpTransportViolation({ url: parsedUrl.toString(), headers });
+    if (transportViolation) {
+      setAddError(transportViolation === "headers-require-https" ? s.localHttpNoToken : s.httpsRequired);
+      return;
+    }
     setAdding(true);
     setAddError(null);
     const server = addMcpServer({
       name: name.trim(),
       url: parsedUrl.toString(),
-      headers: token.trim() ? { Authorization: `Bearer ${token.trim()}` } : undefined,
+      headers,
     });
     const result = await probe(server);
     if (result.status === "error") {

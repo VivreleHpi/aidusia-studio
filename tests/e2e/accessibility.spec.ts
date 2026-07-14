@@ -54,3 +54,16 @@ test("dialog traps focus, closes with Escape and restores focus", async ({ page 
   await expect(dialog).toBeHidden();
   await expect(settings).toBeFocused();
 });
+
+test("guided tour traps focus, follows the viewport and restores focus", async ({ page }) => {
+  const settings = await openSettings(page);
+  await page.getByRole("button", { name: "Guided tour" }).click();
+  const dialog = page.getByRole("dialog", { name: "Start a conversation" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Skip" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: "Next" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(settings).toBeFocused();
+});

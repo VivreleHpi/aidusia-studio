@@ -31,6 +31,17 @@ const PERSIST_INTERVAL_MS = 500;
 // conclure par une reponse texte.
 const MAX_TOOL_HOPS = 4;
 
+function snapshotConversation(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    messages: conversation.messages.map((message) => ({
+      ...message,
+      images: message.images ? [...message.images] : undefined,
+      toolCalls: message.toolCalls ? message.toolCalls.map((call) => ({ ...call })) : undefined,
+    })),
+  };
+}
+
 // Index {nom d'outil -> serveur qui l'expose}, construit une fois par envoi
 // de message (pas par hop) - au prix d'un tools/list par serveur configure.
 // Best-effort : un serveur injoignable est ignore, pas fatal pour l'envoi.
@@ -124,6 +135,25 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       setStreaming(true);
 
       let lastPersist = 0;
+      let pendingRender: number | null = null;
+      const scheduleFrame =
+        typeof requestAnimationFrame === "function"
+          ? requestAnimationFrame
+          : (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 16);
+      const cancelFrame =
+        typeof cancelAnimationFrame === "function" ? cancelAnimationFrame : window.clearTimeout;
+
+      function renderThrottled() {
+        if (pendingRender !== null) return;
+        pendingRender = scheduleFrame(() => {
+          pendingRender = null;
+          // React ignore un setState qui recoit la meme reference. Le moteur
+          // conserve son objet mutable pour le streaming, mais l'UI recoit un
+          // snapshot immutable au maximum une fois par frame.
+          onUpdated(snapshotConversation(updated));
+        });
+      }
+
       function persistThrottled() {
         const now = Date.now();
         if (now - lastPersist > PERSIST_INTERVAL_MS) {
@@ -175,7 +205,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
                 toolCalls.push(chunk.call);
               }
               // Rendu immediat, en memoire - aucune lecture IndexedDB.
-              onUpdated(updated);
+              renderThrottled();
               // Persistance throttlee : la version finale est de toute facon
               // ecrite dans le `finally` ci-dessous.
               persistThrottled();
@@ -229,7 +259,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
             model,
           };
           updated.messages.push(assistantMessage);
-          onUpdated(updated);
+          renderThrottled();
           persistThrottled();
         }
       } catch (err) {
@@ -237,6 +267,10 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
           setError(describeFetchError(err, "Le fournisseur sélectionné"));
         }
       } finally {
+        if (pendingRender !== null) {
+          cancelFrame(pendingRender);
+          pendingRender = null;
+        }
         setStreaming(false);
         abortRef.current = null;
         // Ne jamais persister un assistant reste vide (echec/interruption) -

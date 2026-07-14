@@ -3,6 +3,10 @@ import type { ChatMessage, ChatProvider, ChatStreamParams, KeyTestResult, Provid
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
+function apiKeyHeaders(apiKey: string): Record<string, string> {
+  return { "x-goog-api-key": apiKey };
+}
+
 // Gemini n'a pas de role "tool" ni d'id d'appel : un resultat d'outil est un
 // message "user" avec une part functionResponse identifiee par le NOM de
 // l'outil (pas un id), et un appel demande par le modele est une part
@@ -45,7 +49,7 @@ export const geminiProvider: ChatProvider = {
   // disponibles pour cette cle et compatibles chat apparaissent.
   async listModels(apiKey?: string): Promise<ProviderModel[]> {
     if (!apiKey) return [];
-    const response = await fetch(`${API_BASE}/models?key=${encodeURIComponent(apiKey)}`);
+    const response = await fetch(`${API_BASE}/models`, { headers: apiKeyHeaders(apiKey) });
     if (!response.ok) throw new Error(`Gemini a repondu ${response.status}`);
     const data = (await response.json()) as { models: GeminiModel[] };
     return data.models
@@ -54,7 +58,7 @@ export const geminiProvider: ChatProvider = {
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {
-    const response = await fetch(`${API_BASE}/models?key=${encodeURIComponent(apiKey)}`);
+    const response = await fetch(`${API_BASE}/models`, { headers: apiKeyHeaders(apiKey) });
     if (response.status === 400 || response.status === 403) {
       return { ok: false, reason: "Cle invalide" };
     }
@@ -68,10 +72,10 @@ export const geminiProvider: ChatProvider = {
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
     if (!apiKey) throw missingKeyError("Gemini");
-    const url = `${API_BASE}/models/${params.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+    const url = `${API_BASE}/models/${params.model}:streamGenerateContent?alt=sse`;
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...apiKeyHeaders(apiKey) },
       signal: params.signal,
       body: JSON.stringify({
         systemInstruction: params.systemPrompt

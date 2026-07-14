@@ -11,7 +11,39 @@
    La page envoie aussi la liste des ressources qu'elle a chargees (message
    "cache-assets") : filet de securite complementaire au precache. */
 
-const CACHE = "aidusia-shell-v3";
+// v4 purge les anciens caches v3, susceptibles de contenir des GET /api mis
+// en cache avant que la frontiere ci-dessous soit appliquee.
+const CACHE = "aidusia-shell-v4";
+
+// Le service worker ne doit jamais devenir un cache HTTP generaliste. En
+// particulier, les deux proxies Edge same-origin transportent des cles dans
+// leurs en-tetes : une reponse mise en Cache Storage pourrait sinon etre
+// resservie apres un changement de cle. Les destinations couvrent les assets
+// charges par le navigateur ; les extensions couvrent les ressources chargees
+// via fetch() par Tesseract (WASM et donnees de langue).
+const STATIC_DESTINATIONS = new Set([
+  "audio",
+  "font",
+  "image",
+  "manifest",
+  "script",
+  "style",
+  "video",
+  "worker",
+]);
+const STATIC_PATH = /\.(?:css|gif|gz|ico|jpe?g|js|json|mjs|png|svg|wasm|webmanifest|webp|woff2?)$/i;
+
+function isApiRequest(url) {
+  return url.pathname === "/api" || url.pathname.startsWith("/api/");
+}
+
+function isStaticAsset(request, url) {
+  return STATIC_DESTINATIONS.has(request.destination) || STATIC_PATH.test(url.pathname);
+}
+
+function canStore(response) {
+  return response.ok && !/(?:^|,)\s*no-store\b/i.test(response.headers.get("cache-control") || "");
+}
 
 // Liste des assets du build (index.html, JS/CSS hashes, polices, icones),
 // injectee au build par scripts/inject-precache.mjs. Precachee des l'install
@@ -31,7 +63,6 @@ self.addEventListener("install", (event) => {
       );
     }),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -47,18 +78,24 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   const data = event.data;
+  if (data?.type === "skip-waiting") {
+    self.skipWaiting();
+    return;
+  }
   if (!data || data.type !== "cache-assets" || !Array.isArray(data.urls)) return;
   event.waitUntil(
     caches.open(CACHE).then(async (cache) => {
       for (const url of data.urls) {
         try {
-          if (new URL(url).origin !== self.location.origin) continue;
+          const parsed = new URL(url);
+          if (parsed.origin !== self.location.origin || isApiRequest(parsed)) continue;
+          if (parsed.pathname !== "/" && !STATIC_PATH.test(parsed.pathname)) continue;
           const hit = await cache.match(url);
           // Deja en HTTP cache navigateur (la page vient de les charger) :
           // ce fetch est quasi gratuit.
           if (!hit) {
             const res = await fetch(url);
-            if (res.ok) await cache.put(url, res);
+            if (canStore(res)) await cache.put(url, res);
           }
         } catch {
           // ressource individuelle injoignable : on continue avec les autres
@@ -80,14 +117,15 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || request.headers.has("range")) return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (isApiRequest(url)) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          if (res.ok) {
+          if (canStore(res)) {
             const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put("/", copy));
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put("/", copy)));
           }
           return res;
         })
@@ -96,6 +134,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Les documents, endpoints metier et autres GET same-origin restent sous le
+  // controle normal du navigateur. Seuls les assets statiques sont servis par
+  // la strategie cache-first ci-dessous.
+  if (!isStaticAsset(request, url)) return;
+
   // Cache-first : les assets hashes sont immuables, on les sert
   // instantanement et hors-ligne, avec revalidation en arriere-plan pour les
   // rares ressources non hashees (theme-init.js, icônes).
@@ -103,12 +146,14 @@ self.addEventListener("fetch", (event) => {
     caches.open(CACHE).then(async (cache) => {
       const hit = await cache.match(request, MATCH_OPTS);
       const refresh = fetch(request)
-        .then((res) => {
-          if (res.ok) cache.put(request, res.clone());
+        .then(async (res) => {
+          if (canStore(res)) await cache.put(request, res.clone());
           return res;
         })
         .catch(() => hit ?? Response.error());
-      return hit ?? refresh;
+      if (!hit) return refresh;
+      event.waitUntil(refresh.then(() => undefined));
+      return hit;
     }),
   );
 });

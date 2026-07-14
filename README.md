@@ -2,9 +2,9 @@
 
 🇬🇧 [English version](./README.en.md)
 
-**Testez des modèles d'IA locaux et cloud depuis votre navigateur — sans compte, sans mouchard, avec vos propres clés qui ne quittent pas votre appareil.**
+**Testez des modèles d'IA locaux et cloud depuis votre navigateur — sans compte, sans mouchard, avec vos propres clés et un chemin de données documenté.**
 
-- 🔑 **Vos clés restent chez vous** — stockées dans le navigateur, jamais sur un serveur AIDUSIA.
+- 🔑 **Vos clés restent sous votre contrôle** — stockées dans le navigateur, puis envoyées uniquement pour l'appel demandé au fournisseur choisi ; OpenAI et Ollama Cloud passent par les proxys documentés ci-dessous.
 - 🖥️ **Local *ou* cloud** — Ollama, IA dans le navigateur (WebGPU), ou votre clé Anthropic / OpenAI / Grok / etc.
 - 🕵️ **Zéro compte, zéro analytics** — code ouvert (AGPL v3), polices et OCR auto-hébergés.
 
@@ -56,12 +56,12 @@ La disponibilité d'une API, d'un modèle, de WebGPU ou de la dictée varie selo
 <details>
 <summary>Quand des données quittent-elles l'appareil ?</summary>
 
-Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou autorisez un outil MCP, les données nécessaires sont transmises. Les modèles locaux du navigateur sont téléchargés depuis l'infrastructure de distribution de WebLLM, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
+Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou activez MCP, les données nécessaires sont transmises. Avec MCP, les définitions d'outils sont présentées au modèle choisi et le résultat d'un appel autorisé lui est renvoyé pour poursuivre la réponse. Les modèles locaux du navigateur sont téléchargés depuis l'infrastructure de distribution de WebLLM, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## Connecteurs MCP : avertissement de sécurité
 
-Les serveurs MCP ajoutent des outils qu'un modèle peut appeler pendant une conversation. **N'ajoutez que des serveurs de confiance, avec des comptes de test et les privilèges minimaux.** Avant chaque appel, une confirmation affiche le serveur, l'outil, une estimation heuristique du risque et un aperçu expurgé des arguments ; refuser n'envoie aucune requête.
+Les serveurs MCP ajoutent des outils qu'un modèle peut appeler pendant une conversation. **N'ajoutez que des serveurs de confiance, avec des comptes de test et les privilèges minimaux.** Leurs définitions d'outils sont transmises au modèle choisi. Avant chaque appel, une confirmation affiche le serveur, l'outil, une estimation heuristique du risque et un aperçu expurgé des arguments ; le résultat autorisé est ensuite renvoyé au modèle. Refuser n'envoie aucun appel d'outil.
 
 <details>
 <summary>Pourquoi cette prudence, et ce que la confirmation ne garantit pas</summary>
@@ -71,7 +71,7 @@ Le contenu d'un message, d'un document ou d'une réponse d'outil peut contenir u
 
 ## Pourquoi deux proxies ?
 
-Les appels OpenAI et Ollama Cloud passent par des fonctions Edge (`api/openai/` et `api/ollama-cloud/`) car ces fournisseurs bloquent le CORS direct navigateur. Ces proxies relaient la requête sans la persister ni la journaliser volontairement. Les autres fournisseurs sont appelés directement depuis le navigateur.
+Les appels OpenAI et Ollama Cloud passent par des fonctions Edge (`api/openai/` et `api/ollama-cloud/`) car ces fournisseurs bloquent le CORS direct navigateur. La clé et le contenu requis transitent par ces proxys, qui relaient la requête sans la persister ni la journaliser volontairement dans le code du dépôt. Les autres fournisseurs sont appelés directement depuis le navigateur.
 
 <details>
 <summary>Ce que cette propriété du code ne garantit pas</summary>
@@ -107,3 +107,7 @@ Ne publiez pas de clé, de jeton, d'export de réglages ou de conversation dans 
 ## Licence
 
 GNU AGPL v3 — voir [LICENSE](./LICENSE). Le code et la marque sont des sujets distincts : la licence du dépôt ne concède pas automatiquement de droits sur le nom « AIDUSIA ».
+
+## Mentions légales
+
+Voir [MENTIONS-LEGALES.md](./MENTIONS-LEGALES.md) (éditeur, hébergeur, propriété intellectuelle des marques tierces).

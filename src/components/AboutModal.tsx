@@ -10,7 +10,7 @@ const STRINGS = {
   fr: {
     dialogLabel: "Présentation d'AIDUSIA Studio",
     close: "Fermer",
-    tagline: "Une fenêtre ouverte sur l'IA, sans compromis sur la confidentialité.",
+    tagline: "Une fenêtre ouverte sur l'IA, pensée pour la confidentialité.",
     steps: [
       {
         title: "Choisissez votre IA",
@@ -21,8 +21,8 @@ const STRINGS = {
         text: "Aucune installation lourde, aucun compte. Ça marche immédiatement, sur ordinateur comme sur mobile.",
       },
       {
-        title: "Rien ne transite par un serveur à nous",
-        text: "Vos conversations et vos clés restent dans ce navigateur. Le code est ouvert, vérifiable ligne par ligne.",
+        title: "Un chemin de données explicite",
+        text: "Les conversations sont stockées ici. Les appels cloud vont au fournisseur choisi ; OpenAI et Ollama Cloud transitent par nos proxys stateless. Le code est ouvert et vérifiable.",
       },
     ],
     trustPoints: [
@@ -38,7 +38,7 @@ const STRINGS = {
   en: {
     dialogLabel: "About AIDUSIA Studio",
     close: "Close",
-    tagline: "An open window onto AI, with no compromise on privacy.",
+    tagline: "An open window onto AI, designed with privacy in mind.",
     steps: [
       {
         title: "Choose your AI",
@@ -49,8 +49,8 @@ const STRINGS = {
         text: "No heavy install, no account. It works immediately, on desktop and mobile alike.",
       },
       {
-        title: "Nothing passes through a server of ours",
-        text: "Your conversations and keys stay in this browser. The code is open, auditable line by line.",
+        title: "A clear data path",
+        text: "Conversations are stored here. Cloud calls go to your chosen provider; OpenAI and Ollama Cloud pass through our stateless proxies. The code is open and auditable.",
       },
     ],
     trustPoints: [

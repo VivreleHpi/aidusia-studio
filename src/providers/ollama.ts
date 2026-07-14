@@ -1,6 +1,6 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
-import { detectOs, isLocalOrigin, ollamaOriginsCommand } from "@/lib/deviceDetect";
+import { detectOs, isLocalOrigin, ollamaOriginsCommand, ollamaOriginsRestartNote } from "@/lib/deviceDetect";
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
 
@@ -18,10 +18,13 @@ export function ollamaUnreachableMessage(baseUrl: string): string {
   }
   const origin = window.location.origin;
   if (targetIsLocalhost) {
+    const os = detectOs();
+    const restartNote = ollamaOriginsRestartNote(os, "fr");
     return (
       `Ollama injoignable depuis ${origin}. Deux causes possibles : ` +
-      `1) Ollama tourne sur CE PC mais n'autorise pas ce site — relancez-le avec : ` +
-      `${ollamaOriginsCommand(detectOs())} · ` +
+      `1) Ollama tourne sur CE PC (l'appli de bureau) mais n'autorise pas ce site — ` +
+      `définissez la variable : ${ollamaOriginsCommand(os)}` +
+      `${restartNote ? ` · ${restartNote}` : ""} · ` +
       `2) vous êtes sur un téléphone — utilisez plutôt le fournisseur ` +
       `« Sur cet appareil » (IA directement dans le navigateur, rien à installer), ` +
       `ou Termux sur Android (voir docs/ia-locale-mobile.md).`

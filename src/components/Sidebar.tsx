@@ -3,6 +3,7 @@ import type { Conversation } from "@/lib/db";
 import { shortcutLabel } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { PwaStatus } from "@/components/PwaStatus";
 import {
   IconBook,
   IconCompass,
@@ -378,6 +379,8 @@ export function Sidebar({
               >
                 <IconWrench className="h-4 w-4 text-muted-foreground" /> {s.mcp}
               </button>
+              <div className="my-1 border-t border-border" />
+              <PwaStatus />
               <div className="my-1 border-t border-border" />
               <button
                 type="button"

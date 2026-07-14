@@ -11,7 +11,10 @@ export function useVisionCapability(providerId: string, model: string): boolean 
 
   useEffect(() => {
     let cancelled = false;
-    if (!model) {
+    // L'IA locale navigateur est texte seul. Eviter de rappeler listModels
+    // apres l'auto-selection du modele : sur mobile ce hook est monte des le
+    // premier affichage et ne doit provoquer aucun travail WebLLM/cache.
+    if (!model || providerId === "browser") {
       setVisionCapable(false);
       return;
     }

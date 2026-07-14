@@ -25,11 +25,21 @@ const STRINGS = {
       "Effacer définitivement toutes les conversations ? Cette action est irréversible.",
     toggleMenu: "Basculer le menu",
     expandSidebar: "Ouvrir le panneau",
+    loading: "Chargement de vos conversations…",
+    storageTitle: "Le stockage local est indisponible",
+    storageBody:
+      "AIDUSIA ne peut pas ouvrir les conversations de ce navigateur. Vos données n'ont pas été supprimées. Vérifiez les permissions du site puis réessayez.",
+    retry: "Réessayer",
   },
   en: {
     purgeConfirm: "Permanently delete all conversations? This cannot be undone.",
     toggleMenu: "Toggle menu",
     expandSidebar: "Open sidebar",
+    loading: "Loading your conversations…",
+    storageTitle: "Local storage is unavailable",
+    storageBody:
+      "AIDUSIA cannot open this browser's conversations. Your data has not been deleted. Check the site's permissions, then try again.",
+    retry: "Try again",
   },
 } as const;
 
@@ -39,6 +49,7 @@ function App() {
     currentId,
     setCurrentId,
     loading,
+    storageError,
     refresh,
     createConversation,
     removeConversation,
@@ -57,17 +68,41 @@ function App() {
   const [mcpOpen, setMcpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const tourFocusRestorePending = useRef(false);
   const { lang } = useLang();
   const s = STRINGS[lang];
 
   useEffect(() => {
+    let cancelled = false;
+    setConversationError(null);
     if (!currentId) {
       setCurrent(null);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
-    getConversation(currentId).then((c) => setCurrent(c ?? null));
+    void getConversation(currentId)
+      .then((conversation) => {
+        if (!cancelled) setCurrent(conversation ?? null);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCurrent(null);
+          setConversationError(error instanceof Error ? error.message : String(error));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [currentId, conversations]);
+
+  useEffect(() => {
+    if (tourOpen || !tourFocusRestorePending.current) return;
+    tourFocusRestorePending.current = false;
+    requestAnimationFrame(() => modalReturnFocusRef.current?.focus());
+  }, [tourOpen]);
 
   const { sendMessage, stop, streaming, error } = useChat(setCurrent, refresh);
 
@@ -119,7 +154,47 @@ function App() {
     requestAnimationFrame(() => modalReturnFocusRef.current?.focus());
   }
 
-  if (loading) return null;
+  function openTour() {
+    modalReturnFocusRef.current = document.querySelector<HTMLElement>("[data-tour='settings-menu']");
+    setTourOpen(true);
+  }
+
+  function closeTour() {
+    tourFocusRestorePending.current = true;
+    setTourOpen(false);
+  }
+
+  if (loading) {
+    return (
+      <main className="grid h-dvh place-items-center bg-background px-6 text-foreground">
+        <p role="status" className="text-sm text-muted-foreground">
+          {s.loading}
+        </p>
+      </main>
+    );
+  }
+
+  const effectiveStorageError = storageError ?? conversationError;
+  if (effectiveStorageError) {
+    return (
+      <main className="grid h-dvh place-items-center bg-background px-6 text-foreground">
+        <section
+          role="alert"
+          className="w-full max-w-md rounded-2xl border border-destructive/30 bg-card p-6 shadow-lg"
+        >
+          <h1 className="text-lg font-semibold">{s.storageTitle}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{s.storageBody}</p>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="mt-5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            {s.retry}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   const hasModal = providersOpen || onboarding || aboutOpen || faqOpen || guideOpen || tourOpen || mcpOpen;
 
@@ -138,7 +213,7 @@ function App() {
         onOpenAbout={openAbout}
         onOpenFaq={() => setFaqOpen(true)}
         onOpenGuide={() => setGuideOpen(true)}
-        onStartTour={() => setTourOpen(true)}
+        onStartTour={openTour}
         onOpenProviders={() => setProvidersOpen(true)}
         onOpenMcp={() => setMcpOpen(true)}
         onPurgeAll={() => void handlePurgeAll()}
@@ -197,6 +272,10 @@ function App() {
       </div>
       {providersOpen && (
         <ProvidersPanel
+          onProviderReady={(readyProviderId) => {
+            setProviderId(readyProviderId);
+            setModel("");
+          }}
           onClose={() => {
             setProvidersOpen(false);
             setKeysVersion((v) => v + 1);
@@ -212,7 +291,7 @@ function App() {
       {aboutOpen && <AboutModal onClose={closeAbout} />}
       {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
       {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
-      {tourOpen && <GuidedTour onFinish={() => setTourOpen(false)} />}
+      {tourOpen && <GuidedTour onFinish={closeTour} />}
       {mcpOpen && <McpPanel onClose={() => setMcpOpen(false)} />}
     </div>
   );

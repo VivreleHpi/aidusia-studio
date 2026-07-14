@@ -32,7 +32,7 @@ appareil partagé et effacez les données du site lorsque nécessaire.
 
 | Action | Destinataire |
 |---|---|
-| Anthropic, Gemini, Mistral, OpenRouter ou Groq | Fournisseur choisi, directement depuis le navigateur |
+| Anthropic, Gemini, Mistral, OpenRouter, Groq ou xAI | Fournisseur choisi, directement depuis le navigateur |
 | OpenAI | Fonction Edge du déploiement, puis OpenAI |
 | Ollama Cloud | Fonction Edge du déploiement, puis Ollama Cloud |
 | Ollama | URL configurée ; elle peut être locale ou distante |
@@ -42,9 +42,12 @@ appareil partagé et effacez les données du site lorsque nécessaire.
 | OCR Tesseract | Aucun transfert prévu par le code ; traitement local |
 
 Un message envoyé à un modèle peut comprendre l’historique nécessaire au
-contexte. Une analyse vision transmet l’image au modèle concerné. Un appel MCP
-transmet les arguments approuvés et peut ensuite transmettre des données au
-service relié par ce serveur.
+contexte. Une analyse vision transmet l’image au modèle concerné. Quand MCP est
+activé, les noms, descriptions et schémas des outils configurés sont transmis au
+modèle choisi. Un appel MCP transmet les arguments approuvés au serveur d’outils ;
+son résultat est ensuite renvoyé au modèle afin qu’il poursuive la réponse. Un
+serveur MCP distant doit utiliser HTTPS. HTTP n’est accepté que sur la boucle
+locale (`localhost`, `127.0.0.0/8` ou `::1`) et sans jeton ni en-tête configuré.
 
 Les politiques de rétention, d’entraînement, de localisation et de suppression
 des fournisseurs et serveurs tiers s’appliquent indépendamment du Studio.
@@ -84,8 +87,6 @@ qui n’est pas explicitement autorisé à les traiter.
 
 ## Questions
 
-Aucune adresse de contact dédiée n’est publiée dans ce dépôt. Pour une question
-de confidentialité, utilisez les coordonnées publiques du profil de
-l’organisation si elles existent. Pour une vulnérabilité, suivez exclusivement
-la procédure privée de [SECURITY.md](./SECURITY.md).
-
+Pour une question de confidentialité, utilisez le contact publié dans
+[MENTIONS-LEGALES.md](./MENTIONS-LEGALES.md). Pour une vulnérabilité, suivez
+exclusivement la procédure privée de [SECURITY.md](./SECURITY.md).

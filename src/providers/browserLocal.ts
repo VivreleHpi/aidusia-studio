@@ -297,20 +297,12 @@ export const browserLocalProvider: ChatProvider = {
     const heavyReason = heavyOnMobileReason(lang);
     const gate = (m: ProviderModel): ProviderModel =>
       mobile && m.id !== MODEL_META[0].id ? { ...m, warning: heavyReason } : m;
-    const base = localizedModels(lang);
-    // Statut "deja sur l'appareil" best-effort : si le cache est illisible,
-    // la liste reste utilisable sans ce marquage.
-    try {
-      const { hasModelInCache } = await import("@mlc-ai/web-llm");
-      return await Promise.all(
-        base.map(async (m) => ({
-          ...gate(m),
-          downloaded: (await hasModelInCache(m.id)) || (await hasModelInCache(f32VariantOf(m.id))),
-        })),
-      );
-    } catch {
-      return base.map(gate);
-    }
+    // Le catalogue doit rester instantane : ModelMenu l'appelle au montage et
+    // ne doit donc jamais charger le chunk WebLLM ni sonder Cache Storage. Le
+    // statut telecharge est lu uniquement depuis le gestionnaire explicite via
+    // getLocalModelsStatus(). Le moteur, lui, reste charge a la premiere vraie
+    // generation dans loadEngine().
+    return localizedModels(lang).map(gate);
   },
 
   async testKey(): Promise<KeyTestResult> {

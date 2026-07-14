@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { shortcutLabel } from "@/lib/deviceDetect";
 import { useLang, type Lang } from "@/lib/i18n";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface TourStep {
   selector: string;
@@ -102,6 +103,7 @@ export function GuidedTour({ onFinish }: GuidedTourProps) {
   const s = STRINGS[lang];
   const steps = stepsFor(lang);
   const step = steps[stepIndex];
+  const dialogRef = useDialogFocus<HTMLDivElement>(onFinish);
 
   useEffect(() => {
     function measure() {
@@ -115,7 +117,15 @@ export function GuidedTour({ onFinish }: GuidedTourProps) {
     }
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
   }, [step.selector]);
 
   function next() {
@@ -154,10 +164,12 @@ export function GuidedTour({ onFinish }: GuidedTourProps) {
       {!spotlight && <div className="fixed inset-0 bg-background/70" />}
 
       <div
-        key={stepIndex}
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label={step.title}
+        aria-labelledby="guided-tour-title"
+        aria-describedby="guided-tour-description"
         className="modal-in glass fixed w-72 rounded-lg bg-card p-4 text-card-foreground shadow-xl"
         style={{
           top: spotlight ? (flipUp ? undefined : tooltipTop) : "50%",
@@ -169,8 +181,8 @@ export function GuidedTour({ onFinish }: GuidedTourProps) {
         <p className="mb-1 text-xs font-medium text-primary">
           {s.stepOf(stepIndex + 1, steps.length)}
         </p>
-        <p className="mb-1 text-sm font-semibold">{step.title}</p>
-        <p className="mb-3 text-xs text-muted-foreground">{step.description}</p>
+        <p id="guided-tour-title" className="mb-1 text-sm font-semibold">{step.title}</p>
+        <p id="guided-tour-description" className="mb-3 text-xs text-muted-foreground">{step.description}</p>
         <div className="flex items-center justify-between">
           <button
             type="button"

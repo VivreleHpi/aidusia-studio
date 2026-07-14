@@ -89,9 +89,10 @@ function initialRowState(providerId: string): ProviderRowState {
 
 interface ProvidersPanelProps {
   onClose: () => void;
+  onProviderReady?: (providerId: string) => void;
 }
 
-export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
+export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps) {
   const { lang } = useLang();
   const s = STRINGS[lang];
   const [rows, setRows] = useState<Record<string, ProviderRowState>>(() =>
@@ -114,7 +115,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
     setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
-  async function runTest(providerId: string) {
+  async function runTest(providerId: string, selectOnSuccess = false) {
     const provider = providers.find((p) => p.id === providerId);
     if (!provider) return;
     updateRow(providerId, { testing: true, result: null });
@@ -129,6 +130,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
       result.reason = describeFetchError(new TypeError(result.reason), provider.label, baseUrl);
     }
     updateRow(providerId, { testing: false, result });
+    if (result.ok && selectOnSuccess) onProviderReady?.(providerId);
   }
 
   function saveKey(providerId: string) {
@@ -139,7 +141,7 @@ export function ProvidersPanel({ onClose }: ProvidersPanelProps) {
       setApiKey(providerId, draft);
     }
     updateRow(providerId, { editing: false });
-    void runTest(providerId);
+    void runTest(providerId, true);
   }
 
   function removeKey(providerId: string) {

@@ -1,13 +1,24 @@
-// Cles API : persistees dans localStorage PAR DEFAUT (les navigateurs mobiles
-// tuent les onglets en arriere-plan - une cle en session seule y disparait
-// sans explication), desactivable dans le panneau Fournisseurs pour un mode
-// session-only. Jamais envoyees ailleurs qu'au fournisseur choisi (ou au
-// proxy same-origin pour OpenAI). Jamais journalisees.
+// Cles API : session-only par defaut pour toute nouvelle installation. Les
+// installations historiques qui possedent deja une cle dans localStorage sans
+// drapeau explicite sont migrees vers persist=true sans supprimer leur cle.
+// Jamais envoyees ailleurs qu'au fournisseur choisi (ou au proxy same-origin
+// documente pour OpenAI/Ollama Cloud). Jamais journalisees volontairement.
 const PERSIST_FLAG_KEY = "aidusia_persist_keys";
 const KEY_PREFIX = "aidusia_key_";
 
 export function isPersistEnabled(): boolean {
-  return localStorage.getItem(PERSIST_FLAG_KEY) !== "false";
+  const storedPreference = localStorage.getItem(PERSIST_FLAG_KEY);
+  if (storedPreference === "true") return true;
+  if (storedPreference === "false") return false;
+
+  // Compatibilite avec l'ancien defaut : l'absence du drapeau ne doit jamais
+  // faire disparaitre ni cesser de persister silencieusement des cles deja la.
+  const hasLegacyPersistedKey = Object.keys(localStorage).some((key) => key.startsWith(KEY_PREFIX));
+  if (hasLegacyPersistedKey) {
+    localStorage.setItem(PERSIST_FLAG_KEY, "true");
+    return true;
+  }
+  return false;
 }
 
 export function setPersistEnabled(enabled: boolean) {
