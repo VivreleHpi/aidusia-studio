@@ -44,5 +44,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Accessibility E2E
+      - name: Accessibility E2E desktop
         run: npm run e2e:desktop
+      - name: Accessibility E2E mobile
+        run: npm run e2e:mobile

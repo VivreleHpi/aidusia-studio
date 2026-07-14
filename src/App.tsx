@@ -90,6 +90,7 @@ function App() {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const tourFocusRestorePending = useRef(false);
+  const launchParamsHandled = useRef(false);
   const { lang } = useLang();
   const s = STRINGS[lang];
 
@@ -144,6 +145,17 @@ function App() {
     window.addEventListener("keydown", handleGlobalKeydown);
     return () => window.removeEventListener("keydown", handleGlobalKeydown);
   }, [handleGlobalKeydown]);
+
+  useEffect(() => {
+    if (loading || launchParamsHandled.current) return;
+    launchParamsHandled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("panel") === "providers") setProvidersOpen(true);
+    if (params.get("action") === "new") void createConversation();
+    if (params.has("panel") || params.has("action") || params.has("source")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [createConversation, loading]);
 
   async function handleSend(content: string, images?: string[]) {
     let id = currentId;
