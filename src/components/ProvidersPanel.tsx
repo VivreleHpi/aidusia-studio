@@ -12,6 +12,7 @@ import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from 
 import { describeFetchError } from "@/lib/fetchError";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { detectOs, ollamaOriginsCommand } from "@/lib/deviceDetect";
 
 const STRINGS = {
   fr: {
@@ -41,6 +42,9 @@ const STRINGS = {
     importPromptPassphrase: "Entrez la phrase secrète utilisée pour chiffrer ce fichier :",
     importSuccess: "Réglages importés avec succès.",
     ollamaHelp: "Ollama installé mais inaccessible ? Ouvrir le guide",
+    terminalHelp: "Terminal demandé : autorisez ce site dans Ollama",
+    copyCommand: "Copier la commande",
+    copiedCommand: "Commande copiée",
     cancel: "Annuler",
     confirm: "Continuer",
     passphraseTitle: "Phrase secrète",
@@ -73,6 +77,9 @@ const STRINGS = {
     importPromptPassphrase: "Enter the passphrase used to encrypt this file:",
     importSuccess: "Settings imported successfully.",
     ollamaHelp: "Ollama installed but unreachable? Open the guide",
+    terminalHelp: "Terminal required: allow this site in Ollama",
+    copyCommand: "Copy command",
+    copiedCommand: "Command copied",
     cancel: "Cancel",
     confirm: "Continue",
     passphraseTitle: "Passphrase",
@@ -115,6 +122,8 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const [passphrase, setPassphrase] = useState("");
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [commandCopied, setCommandCopied] = useState(false);
+  const ollamaCommand = ollamaOriginsCommand(detectOs());
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   useEffect(() => {
@@ -257,6 +266,23 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
             >
               {s.ollamaHelp} ↗
             </a>
+            <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3">
+              <p className="text-xs font-medium text-foreground">{s.terminalHelp}</p>
+              <code className="mt-2 block overflow-x-auto rounded-lg bg-background/70 px-2 py-2 font-mono text-[11px] text-muted-foreground">
+                {ollamaCommand}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(ollamaCommand);
+                  setCommandCopied(true);
+                  window.setTimeout(() => setCommandCopied(false), 1800);
+                }}
+                className="mt-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
+              >
+                {commandCopied ? s.copiedCommand : s.copyCommand}
+              </button>
+            </div>
           </div>
 
           <div className="mb-6 rounded-xl border border-border divide-y divide-border">
