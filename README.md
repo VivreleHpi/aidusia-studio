@@ -22,6 +22,7 @@ npm run dev
 Puis choisissez un mode :
 
 1. **Ollama local** — installez [Ollama](https://ollama.com/download) et utilisez le Studio sur ordinateur. Depuis un domaine déployé, Ollama doit autoriser l'origine via `OLLAMA_ORIGINS`.
+   Si Ollama est installé mais affiché comme injoignable, suivez le [guide de dépannage Ollama](./docs/OLLAMA.md).
 2. **IA dans le navigateur** — choisissez « Sur cet appareil ». Les poids sont téléchargés à la demande, mis en cache, puis exécutés par WebGPU. Performances variables selon navigateur, GPU et mémoire, surtout sur mobile.
 3. **Fournisseur cloud** — ajoutez votre clé API dans « Fournisseurs ». Tarifs, quotas, rétention et conditions du fournisseur s'appliquent.
 
