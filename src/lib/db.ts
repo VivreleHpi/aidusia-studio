@@ -81,6 +81,19 @@ export async function purgeAll(): Promise<void> {
   });
 }
 
+export async function deleteLocalDatabase(): Promise<void> {
+  const db = await dbPromise?.catch(() => null);
+  db?.close();
+  dbPromise = null;
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error("IndexedDB deletion blocked"));
+  });
+}
+
 export function newConversationId(): string {
   return crypto.randomUUID();
 }

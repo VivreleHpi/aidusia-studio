@@ -9,6 +9,7 @@ import {
   IconCompass,
   IconGear,
   IconHelp,
+  IconKey,
   IconMoon,
   IconPanelLeft,
   IconPlug,
@@ -44,6 +45,7 @@ const STRINGS = {
     faq: "FAQ",
     providers: "Fournisseurs",
     mcp: "Connecteurs",
+    data: "Données",
     purgeAll: "Effacer toutes les conversations",
     settings: "Paramètres",
     language: "Langue",
@@ -72,6 +74,7 @@ const STRINGS = {
     faq: "FAQ",
     providers: "Providers",
     mcp: "Connectors",
+    data: "Data",
     purgeAll: "Delete all conversations",
     settings: "Settings",
     language: "Language",
@@ -92,6 +95,7 @@ interface SidebarProps {
   onStartTour: () => void;
   onOpenProviders: () => void;
   onOpenMcp: () => void;
+  onOpenData: () => void;
   onPurgeAll: () => void;
   open: boolean;
   onClose: () => void;
@@ -137,6 +141,7 @@ export function Sidebar({
   onStartTour,
   onOpenProviders,
   onOpenMcp,
+  onOpenData,
   onPurgeAll,
   open,
   onClose,
@@ -378,6 +383,16 @@ export function Sidebar({
                 className={menuItemClass}
               >
                 <IconWrench className="h-4 w-4 text-muted-foreground" /> {s.mcp}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSettingsOpen(false);
+                  onOpenData();
+                }}
+                className={menuItemClass}
+              >
+                <IconKey className="h-4 w-4 text-muted-foreground" /> {s.data}
               </button>
               <div className="my-1 border-t border-border" />
               <PwaStatus />

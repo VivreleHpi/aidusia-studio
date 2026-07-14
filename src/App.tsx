@@ -8,6 +8,7 @@ import { FaqPanel } from "@/components/FaqPanel";
 import { GuidePage } from "@/components/GuidePage";
 import { GuidedTour } from "@/components/GuidedTour";
 import { McpPanel } from "@/components/McpPanel";
+import { DataPanel } from "@/components/DataPanel";
 import { isMobile, shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { IconPanelLeft } from "@/components/Icons";
@@ -66,6 +67,7 @@ function App() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [dataOpen, setDataOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
@@ -196,7 +198,7 @@ function App() {
     );
   }
 
-  const hasModal = providersOpen || onboarding || aboutOpen || faqOpen || guideOpen || tourOpen || mcpOpen;
+  const hasModal = providersOpen || onboarding || aboutOpen || faqOpen || guideOpen || tourOpen || mcpOpen || dataOpen;
 
   return (
     // h-dvh (et non h-screen/100vh) : sur mobile, la barre d'adresse dynamique
@@ -216,6 +218,7 @@ function App() {
         onStartTour={openTour}
         onOpenProviders={() => setProvidersOpen(true)}
         onOpenMcp={() => setMcpOpen(true)}
+        onOpenData={() => setDataOpen(true)}
         onPurgeAll={() => void handlePurgeAll()}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -293,6 +296,7 @@ function App() {
       {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
       {tourOpen && <GuidedTour onFinish={closeTour} />}
       {mcpOpen && <McpPanel onClose={() => setMcpOpen(false)} />}
+      {dataOpen && <DataPanel onClose={() => setDataOpen(false)} />}
     </div>
   );
 }
