@@ -40,6 +40,10 @@ const STRINGS = {
     exportPromptPassphrase: "Choisissez une phrase secrète pour chiffrer le fichier :",
     importPromptPassphrase: "Entrez la phrase secrète utilisée pour chiffrer ce fichier :",
     importSuccess: "Réglages importés avec succès.",
+    cancel: "Annuler",
+    confirm: "Continuer",
+    passphraseTitle: "Phrase secrète",
+    passphrasePlaceholder: "Phrase secrète",
   },
   en: {
     dialogLabel: "Providers",
@@ -67,6 +71,10 @@ const STRINGS = {
     exportPromptPassphrase: "Choose a passphrase to encrypt the file:",
     importPromptPassphrase: "Enter the passphrase used to encrypt this file:",
     importSuccess: "Settings imported successfully.",
+    cancel: "Cancel",
+    confirm: "Continue",
+    passphraseTitle: "Passphrase",
+    passphrasePlaceholder: "Passphrase",
   },
 } as const;
 
@@ -101,6 +109,10 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const [persist, setPersist] = useState(isPersistEnabled());
   const [localAiOpen, setLocalAiOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [passphraseAction, setPassphraseAction] = useState<"export" | "import" | null>(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [pendingImport, setPendingImport] = useState<File | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   useEffect(() => {
@@ -161,18 +173,35 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   }
 
   async function handleExport() {
-    const passphrase = window.prompt(s.exportPromptPassphrase);
-    if (!passphrase) return;
+    setPassphrase("");
+    setPassphraseAction("export");
+  }
+
+  async function submitPassphrase() {
+    const secret = passphrase.trim();
+    if (!secret) return;
+    const action = passphraseAction;
+    const file = pendingImport;
+    setPassphraseAction(null);
+    setPassphrase("");
     try {
-      const blob = await exportSettings(passphrase);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "aidusia-reglages.aidusia";
-      a.click();
-      URL.revokeObjectURL(url);
+      if (action === "export") {
+        const blob = await exportSettings(secret);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "aidusia-reglages.aidusia";
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (action === "import" && file) {
+        await importSettings(file, secret);
+        reloadRows();
+        setNotice(s.importSuccess);
+      }
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : String(err));
+      setNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingImport(null);
     }
   }
 
@@ -186,15 +215,9 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
     // un echec (sinon onChange ne se redeclenche pas pour un chemin identique).
     e.target.value = "";
     if (!file) return;
-    const passphrase = window.prompt(s.importPromptPassphrase);
-    if (!passphrase) return;
-    try {
-      await importSettings(file, passphrase);
-      reloadRows();
-      window.alert(s.importSuccess);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : String(err));
-    }
+    setPendingImport(file);
+    setPassphrase("");
+    setPassphraseAction("import");
   }
 
   return (
@@ -400,6 +423,35 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
           </div>
         </div>
       </div>
+      {passphraseAction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm">
+          <div className="glass w-full max-w-sm rounded-2xl bg-card p-5 text-card-foreground shadow-xl" role="dialog" aria-modal="true" aria-label={s.passphraseTitle}>
+            <h2 className="text-base font-semibold">{s.passphraseTitle}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {passphraseAction === "export" ? s.exportPromptPassphrase : s.importPromptPassphrase}
+            </p>
+            <input
+              autoFocus
+              type="password"
+              value={passphrase}
+              onChange={(event) => setPassphrase(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter") void submitPassphrase(); }}
+              placeholder={s.passphrasePlaceholder}
+              className="mt-4 w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => { setPassphraseAction(null); setPendingImport(null); }} className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-foreground/5">{s.cancel}</button>
+              <button type="button" onClick={() => void submitPassphrase()} disabled={!passphrase.trim()} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{s.confirm}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {notice && (
+        <div className="fixed bottom-5 left-1/2 z-[70] -translate-x-1/2 rounded-lg bg-card px-4 py-3 text-sm text-card-foreground shadow-lg" role="status">
+          <span>{notice}</span>
+          <button type="button" className="ml-3 text-muted-foreground hover:text-foreground" onClick={() => setNotice(null)} aria-label={s.close}>×</button>
+        </div>
+      )}
     </div>
   );
 }
