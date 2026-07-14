@@ -15,6 +15,15 @@ ollama list
 
 La première commande doit répondre avec une version JSON.
 
+Vérifiez aussi qu'un modèle est installé :
+
+```powershell
+ollama list
+ollama pull llama3.2
+```
+
+Sans modèle dans `ollama list`, AIDUSIA peut joindre Ollama mais ne peut pas encore répondre.
+
 ## Autoriser le site déployé
 
 Pour `https://aidusia-studio.vercel.app` :

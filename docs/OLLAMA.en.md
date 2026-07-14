@@ -15,6 +15,15 @@ ollama list
 
 The first command should return a JSON version.
 
+Also check that a model is installed:
+
+```powershell
+ollama list
+ollama pull llama3.2
+```
+
+Without a model in `ollama list`, AIDUSIA can reach Ollama but cannot answer yet.
+
 ## Allow the deployed site
 
 For `https://aidusia-studio.vercel.app`:
