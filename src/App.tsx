@@ -1,20 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar, FOCUS_SEARCH_EVENT } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
-import { ProvidersPanel } from "@/components/ProvidersPanel";
-import { OnboardingWizard } from "@/components/OnboardingWizard";
-import { AboutModal } from "@/components/AboutModal";
-import { FaqPanel } from "@/components/FaqPanel";
-import { GuidePage } from "@/components/GuidePage";
-import { GuidedTour } from "@/components/GuidedTour";
-import { McpPanel } from "@/components/McpPanel";
-import { DataPanel } from "@/components/DataPanel";
 import { isMobile, shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { IconPanelLeft } from "@/components/Icons";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import { getConversation, purgeAll, type Conversation } from "@/lib/db";
+
+const ProvidersPanel = lazy(() =>
+  import("@/components/ProvidersPanel").then((module) => ({ default: module.ProvidersPanel })),
+);
+const OnboardingWizard = lazy(() =>
+  import("@/components/OnboardingWizard").then((module) => ({ default: module.OnboardingWizard })),
+);
+const AboutModal = lazy(() =>
+  import("@/components/AboutModal").then((module) => ({ default: module.AboutModal })),
+);
+const FaqPanel = lazy(() =>
+  import("@/components/FaqPanel").then((module) => ({ default: module.FaqPanel })),
+);
+const GuidePage = lazy(() =>
+  import("@/components/GuidePage").then((module) => ({ default: module.GuidePage })),
+);
+const GuidedTour = lazy(() =>
+  import("@/components/GuidedTour").then((module) => ({ default: module.GuidedTour })),
+);
+const McpPanel = lazy(() =>
+  import("@/components/McpPanel").then((module) => ({ default: module.McpPanel })),
+);
+const DataPanel = lazy(() =>
+  import("@/components/DataPanel").then((module) => ({ default: module.DataPanel })),
+);
 
 // Sur mobile, Ollama est impossible (appli de bureau) : on demarre plutot sur
 // l'IA « Sur cet appareil » (navigateur). Sur PC, Ollama reste le defaut.
@@ -273,30 +290,32 @@ function App() {
         />
       </main>
       </div>
-      {providersOpen && (
-        <ProvidersPanel
-          onProviderReady={(readyProviderId) => {
-            setProviderId(readyProviderId);
-            setModel("");
-          }}
-          onClose={() => {
-            setProvidersOpen(false);
-            setKeysVersion((v) => v + 1);
-          }}
-        />
-      )}
-      {onboarding && (
-        <OnboardingWizard
-          onFinish={() => setOnboarding(false)}
-          onOpenProviders={() => setProvidersOpen(true)}
-        />
-      )}
-      {aboutOpen && <AboutModal onClose={closeAbout} />}
-      {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
-      {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
-      {tourOpen && <GuidedTour onFinish={closeTour} />}
-      {mcpOpen && <McpPanel onClose={() => setMcpOpen(false)} />}
-      {dataOpen && <DataPanel onClose={() => setDataOpen(false)} />}
+      <Suspense fallback={null}>
+        {providersOpen && (
+          <ProvidersPanel
+            onProviderReady={(readyProviderId) => {
+              setProviderId(readyProviderId);
+              setModel("");
+            }}
+            onClose={() => {
+              setProvidersOpen(false);
+              setKeysVersion((v) => v + 1);
+            }}
+          />
+        )}
+        {onboarding && (
+          <OnboardingWizard
+            onFinish={() => setOnboarding(false)}
+            onOpenProviders={() => setProvidersOpen(true)}
+          />
+        )}
+        {aboutOpen && <AboutModal onClose={closeAbout} />}
+        {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
+        {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
+        {tourOpen && <GuidedTour onFinish={closeTour} />}
+        {mcpOpen && <McpPanel onClose={() => setMcpOpen(false)} />}
+        {dataOpen && <DataPanel onClose={() => setDataOpen(false)} />}
+      </Suspense>
     </div>
   );
 }
