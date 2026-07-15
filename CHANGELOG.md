@@ -6,6 +6,16 @@ stable.
 
 ## [Non publié]
 
+### Blocage release — à résoudre ce soir
+
+- **IA locale Ollama non utilisable depuis le site déployé** : Ollama répond
+  bien sur `http://localhost:11434`, mais l’origine du site peut être refusée
+  par CORS (`403`) tant que `OLLAMA_ORIGINS` n’autorise pas le domaine exact.
+- Ce point est bloquant pour la promesse « IA locale » et doit être validé sur
+  le domaine public avec un modèle installé (`ollama list`) avant toute release.
+- Procédure utilisateur documentée dans [docs/OLLAMA.md](docs/OLLAMA.md) et
+  accessible depuis le panneau **Fournisseurs**.
+
 ### Documentation
 
 - Clarification des flux de données locaux, directs, proxifiés, MCP et Web
