@@ -129,11 +129,16 @@ function sendToolCall(response, toolName) {
   response.end();
 }
 
-function sendToolFollowUp(response) {
+function sendToolFollowUp(response, refused) {
   beginNdjson(response);
   writeNdjson(response, {
     model: "aidusia-e2e:latest",
-    message: { role: "assistant", content: "Le résultat MCP a été reçu." },
+    message: {
+      role: "assistant",
+      content: refused
+        ? "L’appel MCP a été refusé. Aucun résultat externe n’a été reçu."
+        : "Le résultat MCP a été reçu.",
+    },
     done: true,
   });
   response.end();
@@ -144,7 +149,10 @@ async function handleOllamaChat(request, response) {
   const body = await readJson(request);
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.at(-1)?.role === "tool") {
-    sendToolFollowUp(response);
+    sendToolFollowUp(
+      response,
+      messageText(messages.at(-1)).includes("Aucun appel MCP n'a été envoyé"),
+    );
     return;
   }
   const prompt = messageText(

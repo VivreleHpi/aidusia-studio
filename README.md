@@ -50,7 +50,7 @@ La disponibilité d'une API, d'un modèle, de WebGPU ou de la dictée varie selo
 ## Confidentialité
 
 - Les conversations sont enregistrées dans IndexedDB sur cet appareil.
-- Les clés sont conservées dans `sessionStorage` et, par défaut, dans `localStorage`. La persistance peut être désactivée dans l'interface.
+- Les clés API sont conservées dans `sessionStorage` par défaut. Une persistance optionnelle dans `localStorage` peut être activée par l'utilisateur. Les anciennes installations peuvent conserver leur préférence historique après migration.
 - Ni compte, ni analytics, ni cookie publicitaire. Polices, icônes et fichiers OCR auto-hébergés.
 - Les réglages exportés sont chiffrés côté client (AES-GCM, clé dérivée de la phrase secrète par PBKDF2). La sécurité dépend de la qualité de cette phrase.
 

@@ -115,9 +115,16 @@ export function createEdgeProxyHandler(config: EdgeProxyConfig) {
     if (violation) return errorResponse(violation, 403, id);
 
     const url = new URL(request.url);
-    if (url.search) return errorResponse("Paramètres de requête interdits", 400, id);
-
     const path = url.pathname.replace(config.requestPathPrefix, "").replace(/^\/+/, "");
+    const queryEntries = [...url.searchParams.entries()];
+    const isVercelCatchAllParameter =
+      queryEntries.length === 1 &&
+      queryEntries[0]?.[0] === "path" &&
+      queryEntries[0]?.[1] === path;
+    if (queryEntries.length > 0 && !isVercelCatchAllParameter) {
+      return errorResponse("Paramètres de requête interdits", 400, id);
+    }
+
     const route = config.routes[path];
     if (!route || !route.methods.includes(request.method)) {
       return errorResponse("Route ou méthode interdite", 405, id);

@@ -2,7 +2,7 @@
 
 Les protections et limites des proxys de déploiement sont documentées dans [docs/deployment-security.md](./docs/deployment-security.md).
 
-Dernière mise à jour : 12 juillet 2026.
+Dernière mise à jour : 17 juillet 2026.
 
 Ce document décrit le comportement du code de ce dépôt. Un déploiement tiers
 peut ajouter des journaux, cookies, proxies ou outils d’observabilité ; vérifiez
@@ -19,11 +19,13 @@ un modèle à télécharger ou une instance Ollama non locale.
 ## Données conservées sur l’appareil
 
 - conversations et pièces jointes dans IndexedDB ;
-- clés API dans `sessionStorage` et, par défaut, aussi dans `localStorage` ;
-- préférence de persistance, langue, thème, URL Ollama et configuration MCP dans
-  le stockage du navigateur ;
-- URL, nom et en-têtes configurés pour les serveurs MCP, qui peuvent contenir un
-  jeton d’autorisation ;
+- clés API dans `sessionStorage` par défaut ; une persistance optionnelle dans
+  `localStorage` peut être activée par l’utilisateur, et les anciennes installations
+  peuvent conserver leur préférence historique après migration ;
+- préférence de persistance, langue, thème, URL Ollama et métadonnées MCP dans
+  `localStorage` ;
+- en-têtes et jetons MCP uniquement dans `sessionStorage`, jusqu’à la fermeture
+  complète de la session du navigateur ;
 - modèles WebLLM, ressources PWA et autres fichiers dans les caches du navigateur.
 
 Toute personne ou extension ayant accès au même profil de navigateur peut

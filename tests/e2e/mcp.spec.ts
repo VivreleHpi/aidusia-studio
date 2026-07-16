@@ -57,7 +57,9 @@ test("requires approval for every MCP tool call", async ({ page }, testInfo) => 
   expect(firstPrompt).toContain("42");
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   expect((await getMockStats(page)).mcp.callTool).toBe(0);
-  await expect(page.getByText("Le résultat MCP a été reçu.")).toHaveCount(1);
+  await expect(page.getByText(
+    "L’appel MCP a été refusé. Aucun résultat externe n’a été reçu.",
+  )).toHaveCount(1);
 
   await page.evaluate(() => {
     (window as typeof window & { __e2eConfirmDecision?: boolean })
@@ -80,4 +82,7 @@ test("requires approval for every MCP tool call", async ({ page }, testInfo) => 
   )).toBe(3);
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   expect((await getMockStats(page)).mcp.callTool).toBe(1);
+  await expect(page.getByText(
+    "L’appel MCP a été refusé. Aucun résultat externe n’a été reçu.",
+  )).toHaveCount(2);
 });
