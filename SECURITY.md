@@ -102,6 +102,8 @@ pour les réponses. La CI complète ces contrôles avec Gitleaks, Dependency Rev
 et `npm audit`. Ces protections réduisent l’exposition sans empêcher toute
 compromission.
 
+Les contraintes des proxys Edge, des headers web et du contrôle anti-abus sont détaillées dans [docs/deployment-security.md](./docs/deployment-security.md).
+
 Pour MCP, chaque action doit être présentée à l’utilisateur avant envoi, avec le
 serveur, l’outil, une estimation de risque et un aperçu expurgé des arguments.
 Cette confirmation réduit le risque mais ne prouve ni l’innocuité de l’outil ni

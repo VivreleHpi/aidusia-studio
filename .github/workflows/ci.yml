@@ -50,8 +50,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Accessibility E2E desktop
-        run: npm run e2e:desktop
-      - name: Accessibility E2E mobile
-        run: npm run e2e:mobile
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Functional E2E desktop
+        run: npm run e2e:run:desktop
+
+      - name: Functional E2E mobile
+        run: npm run e2e:run:mobile
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

@@ -109,6 +109,8 @@ Le contrôle `brand-scan` vérifie uniquement l’isolation du dépôt vis-à-vi
 
 Ne publiez pas de clé, de jeton, d'export de réglages ou de conversation dans une issue. Pour signaler une vulnérabilité, suivez la procédure décrite dans [SECURITY.md](./SECURITY.md).
 
+Les limites et protections du déploiement public sont détaillées dans [docs/deployment-security.md](./docs/deployment-security.md).
+
 ## Licence
 
 GNU AGPL v3 — voir [LICENSE](./LICENSE). Le code et la marque sont des sujets distincts : la licence du dépôt ne concède pas automatiquement de droits sur le nom « AIDUSIA ».

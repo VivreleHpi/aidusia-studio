@@ -1,5 +1,7 @@
 # Confidentialité
 
+Les protections et limites des proxys de déploiement sont documentées dans [docs/deployment-security.md](./docs/deployment-security.md).
+
 Dernière mise à jour : 12 juillet 2026.
 
 Ce document décrit le comportement du code de ce dépôt. Un déploiement tiers
