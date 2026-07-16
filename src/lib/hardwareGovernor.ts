@@ -65,11 +65,11 @@ import { ollamaUnreachableMessage } from "@/providers/ollama";
 
 export async function probeOllama(baseUrl: string): Promise<OllamaProbe> {
   try {
-    const versionResponse = await fetch(`${baseUrl}/api/version`, { signal: AbortSignal.timeout(2000) });
+    const versionResponse = await fetch(`${baseUrl}/api/version`, { signal: AbortSignal.timeout(5_000) });
     if (!versionResponse.ok) throw new Error(`HTTP ${versionResponse.status}`);
     const { version } = (await versionResponse.json()) as { version: string };
 
-    const psResponse = await fetch(`${baseUrl}/api/ps`, { signal: AbortSignal.timeout(2000) });
+    const psResponse = await fetch(`${baseUrl}/api/ps`, { signal: AbortSignal.timeout(5_000) });
     const psData = psResponse.ok
       ? ((await psResponse.json()) as { models: { name: string; size_vram: number }[] })
       : { models: [] };

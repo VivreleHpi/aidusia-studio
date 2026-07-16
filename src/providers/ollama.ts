@@ -2,7 +2,44 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
 import { detectOs, isLocalOrigin, ollamaOriginsCommand, ollamaOriginsRestartNote } from "@/lib/deviceDetect";
 
-const DEFAULT_BASE_URL = "http://localhost:11434";
+export const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
+
+const INITIAL_CONNECTION_TIMEOUT_MS = 20_000;
+
+const OLLAMA_APPROVED_URL_KEY = "aidusia_ollama_approved_url";
+
+export function normalizeOllamaBaseUrl(input: string): string {
+  const raw = input.trim() || DEFAULT_OLLAMA_BASE_URL;
+  const url = new URL(raw);
+
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("L’URL Ollama doit utiliser HTTP ou HTTPS.");
+  }
+
+  if (url.username || url.password) {
+    throw new Error("Les identifiants intégrés dans l’URL Ollama sont interdits.");
+  }
+
+  return url.origin;
+}
+
+export function isOllamaApproved(baseUrl = getOllamaBaseUrl()): boolean {
+  return sessionStorage.getItem(OLLAMA_APPROVED_URL_KEY) === baseUrl;
+}
+
+function approveOllama(baseUrl: string): void {
+  sessionStorage.setItem(OLLAMA_APPROVED_URL_KEY, baseUrl);
+}
+
+function revokeOllamaApproval(): void {
+  sessionStorage.removeItem(OLLAMA_APPROVED_URL_KEY);
+}
+
+function requireOllamaApproval(baseUrl: string): void {
+  if (!isOllamaApproved(baseUrl)) {
+    throw new Error("Connectez d’abord Ollama depuis le panneau Fournisseurs.");
+  }
+}
 
 /* Message contextuel : la cause d'un Ollama injoignable n'est pas la meme
    selon qu'on est en local, sur un domaine deploye, ou sur un autre appareil
@@ -40,18 +77,106 @@ export function ollamaUnreachableMessage(baseUrl: string): string {
 }
 
 export function getOllamaBaseUrl(): string {
-  return localStorage.getItem("aidusia_ollama_url") || DEFAULT_BASE_URL;
+  const stored = localStorage.getItem("aidusia_ollama_url");
+
+  if (!stored) {
+    return DEFAULT_OLLAMA_BASE_URL;
+  }
+
+  try {
+    return normalizeOllamaBaseUrl(stored);
+  } catch {
+    return DEFAULT_OLLAMA_BASE_URL;
+  }
 }
 const getBaseUrl = getOllamaBaseUrl;
 
-export function setOllamaBaseUrl(url: string) {
-  localStorage.setItem("aidusia_ollama_url", url.replace(/\/+$/, ""));
+export function setOllamaBaseUrl(input: string): void {
+  const normalized = normalizeOllamaBaseUrl(input);
+
+  localStorage.setItem("aidusia_ollama_url", normalized);
+
+  revokeOllamaApproval();
 }
 
 async function fetchTags(baseUrl: string) {
-  const response = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-  if (!response.ok) throw new Error(`Ollama a repondu ${response.status}`);
-  return response.json() as Promise<{ models: { name: string; capabilities?: string[] }[] }>;
+  const response = await fetch(`${baseUrl}/api/tags`, {
+    signal: AbortSignal.timeout(INITIAL_CONNECTION_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw await createOllamaHttpError(response);
+  }
+  return response.clone().json() as Promise<{ models: { name: string }[] }>;
+}
+
+async function createOllamaHttpError(response: Response): Promise<Error> {
+  let detail = "";
+
+  try {
+    const body = (await response.json()) as { error?: unknown };
+
+    if (typeof body.error === "string") {
+      detail = body.error.trim();
+    }
+  } catch {
+    // La réponse peut être vide ou non JSON.
+  }
+
+  return new Error(
+    `Ollama a répondu ${response.status}${detail ? ` : ${detail}` : ""}`,
+  );
+}
+
+function processOllamaLine(
+  line: string,
+  onChunk: (chunk: StreamChunk) => void,
+): void {
+  const trimmed = line.trim();
+
+  if (!trimmed) return;
+
+  let event: {
+    error?: unknown;
+    message?: {
+      content?: unknown;
+      thinking?: unknown;
+      tool_calls?: Array<{
+        function?: { name?: unknown; arguments?: unknown };
+      }>;
+    };
+  };
+
+  try {
+    event = JSON.parse(trimmed);
+  } catch {
+    throw new Error("Flux Ollama invalide : événement NDJSON non JSON.");
+  }
+
+  if (typeof event.error === "string") {
+    throw new Error(`Ollama : ${event.error}`);
+  }
+
+  if (typeof event.message?.content === "string") {
+    onChunk({ type: "text", delta: event.message.content });
+  }
+
+  for (const toolCall of event.message?.tool_calls ?? []) {
+    const name = toolCall.function?.name;
+    const args = toolCall.function?.arguments;
+
+    if (typeof name !== "string" || !name.trim()) {
+      throw new Error("Appel d’outil Ollama refusé : nom absent.");
+    }
+
+    if (args === null || typeof args !== "object" || Array.isArray(args)) {
+      throw new Error(`Appel de l’outil "${name}" refusé : arguments invalides.`);
+    }
+
+    onChunk({
+      type: "tool_call",
+      call: { id: crypto.randomUUID(), name, args },
+    });
+  }
 }
 
 export const ollamaProvider: ChatProvider = {
@@ -61,14 +186,15 @@ export const ollamaProvider: ChatProvider = {
 
   async listModels(): Promise<ProviderModel[]> {
     const baseUrl = getBaseUrl();
+    requireOllamaApproval(baseUrl);
     try {
       const data = await fetchTags(baseUrl);
-      return data.models.map((m) => ({
-        id: m.name,
-        label: m.name,
-        visionCapable: m.capabilities?.includes("vision") ?? false,
+      return data.models.map((model) => ({
+        id: model.name,
+        label: model.name,
       }));
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && /^Ollama a répondu/.test(err.message)) throw err;
       throw new Error(ollamaUnreachableMessage(baseUrl));
     }
   },
@@ -77,11 +203,13 @@ export const ollamaProvider: ChatProvider = {
     const baseUrl = getBaseUrl();
     try {
       await fetchTags(baseUrl);
+      approveOllama(baseUrl);
       return { ok: true };
     } catch (err) {
+      revokeOllamaApproval();
       const raw = err instanceof Error ? err.message : String(err);
-      // "Ollama a repondu 4xx" = il tourne mais refuse ; sinon, injoignable.
-      return { ok: false, reason: /repondu/.test(raw) ? raw : ollamaUnreachableMessage(baseUrl) };
+      // "Ollama a répondu 4xx" = il tourne mais refuse ; sinon, injoignable.
+      return { ok: false, reason: /répondu/.test(raw) ? raw : ollamaUnreachableMessage(baseUrl) };
     }
   },
 
@@ -91,6 +219,7 @@ export const ollamaProvider: ChatProvider = {
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<void> {
     const baseUrl = getBaseUrl();
+    requireOllamaApproval(baseUrl);
     const response = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -102,8 +231,11 @@ export const ollamaProvider: ChatProvider = {
       if (err instanceof Error && err.name === "AbortError") throw err;
       throw new Error(ollamaUnreachableMessage(baseUrl));
     });
-    if (!response.ok || !response.body) {
-      throw new Error(`Ollama a repondu ${response.status}`);
+    if (!response.ok) {
+      throw await createOllamaHttpError(response);
+    }
+    if (!response.body) {
+      throw new Error("Réponse Ollama sans corps.");
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -115,26 +247,13 @@ export const ollamaProvider: ChatProvider = {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
       for (const line of lines) {
-        if (!line.trim()) continue;
-        const json = JSON.parse(line) as {
-          message?: {
-            content?: string;
-            tool_calls?: { function: { name: string; arguments: unknown } }[];
-          };
-          done?: boolean;
-        };
-        if (json.message?.content) {
-          onChunk({ type: "text", delta: json.message.content });
-        }
-        // Ollama renvoie les tool_calls complets (arguments deja un objet
-        // JSON, jamais fragmentes) - pas d'accumulation necessaire.
-        for (const tc of json.message?.tool_calls ?? []) {
-          onChunk({
-            type: "tool_call",
-            call: { id: crypto.randomUUID(), name: tc.function.name, args: tc.function.arguments },
-          });
-        }
+        processOllamaLine(line, onChunk);
       }
+    }
+    buffer += decoder.decode();
+
+    if (buffer.trim()) {
+      processOllamaLine(buffer, onChunk);
     }
   },
 };

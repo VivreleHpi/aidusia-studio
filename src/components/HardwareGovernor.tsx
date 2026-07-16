@@ -79,6 +79,7 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
   const [hardware, setHardware] = useState<HardwareProbe | null>(null);
   const [storageGb, setStorageGb] = useState<number | null>(null);
   const [ollama, setOllama] = useState<OllamaProbe | null>(null);
+  const [ollamaTesting, setOllamaTesting] = useState(false);
   const { lang } = useLang();
   const s = STRINGS[lang];
 
@@ -86,8 +87,17 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
     setHardware(probeHardware());
     probeWebGpu().then(setWebgpu);
     probeStorageQuotaGb().then(setStorageGb);
-    probeOllama(ollamaBaseUrl).then(setOllama);
-  }, [ollamaBaseUrl]);
+  }, []);
+
+  async function handleOllamaProbe(): Promise<void> {
+    setOllamaTesting(true);
+
+    try {
+      setOllama(await probeOllama(ollamaBaseUrl));
+    } finally {
+      setOllamaTesting(false);
+    }
+  }
 
   return (
     <div className="rounded-md border border-border bg-background/40 p-4">
@@ -129,13 +139,30 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
       <div className="border-t border-border pt-3">
         <div className="flex items-center justify-between text-sm">
           <span>{s.ollamaLocal}</span>
-          {ollama === null ? (
-            <span className="text-xs text-muted-foreground">…</span>
-          ) : ollama.reachable ? (
-            <span className="font-mono text-xs text-success">{s.reachable(ollama.version ?? "?")}</span>
-          ) : (
-            <span className="font-mono text-xs text-destructive">{s.unreachable}</span>
-          )}
+          <div className="flex items-center gap-2">
+            {ollama !== null &&
+              (ollama.reachable ? (
+                <span className="font-mono text-xs text-success">
+                  {s.reachable(ollama.version ?? "?")}
+                </span>
+              ) : (
+                <span className="font-mono text-xs text-destructive">{s.unreachable}</span>
+              ))}
+            <button
+              type="button"
+              onClick={() => void handleOllamaProbe()}
+              disabled={ollamaTesting}
+              className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 disabled:opacity-50"
+            >
+              {ollamaTesting
+                ? lang === "fr"
+                  ? "Test en cours…"
+                  : "Testing…"
+                : lang === "fr"
+                  ? "Tester Ollama"
+                  : "Test Ollama"}
+            </button>
+          </div>
         </div>
         {ollama && !ollama.reachable && (
           <p className="mt-1 text-xs text-muted-foreground">{ollama.error}</p>

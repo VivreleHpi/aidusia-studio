@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { providers } from "@/providers";
-import { getOllamaBaseUrl, setOllamaBaseUrl } from "@/providers/ollama";
+import {
+  DEFAULT_OLLAMA_BASE_URL,
+  getOllamaBaseUrl,
+  setOllamaBaseUrl,
+} from "@/providers/ollama";
 import { clearAllApiKeys, clearApiKey, getApiKey, isPersistEnabled, setApiKey, setPersistEnabled } from "@/lib/apiKeys";
 import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import type { KeyTestResult } from "@/providers/types";
@@ -126,14 +130,6 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const ollamaCommand = ollamaOriginsCommand(detectOs());
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
-  useEffect(() => {
-    // Ollama ne demande pas de cle : on teste sa joignabilite reelle au montage
-    // — sauf s'il est grise sur cet appareil (mobile), ou l'appel serait vain.
-    const ollama = providers.find((p) => p.id === "ollama");
-    if (ollama && !providerDisabledOnDevice(ollama.id, lang).disabled) void runTest(ollama.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   function updateRow(id: string, patch: Partial<ProviderRowState>) {
     setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
@@ -159,7 +155,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   function saveKey(providerId: string) {
     const draft = rows[providerId].draft.trim();
     if (providerId === "ollama") {
-      setOllamaBaseUrl(draft || "http://localhost:11434");
+      setOllamaBaseUrl(draft || DEFAULT_OLLAMA_BASE_URL);
     } else {
       setApiKey(providerId, draft);
     }
