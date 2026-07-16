@@ -1,35 +1,42 @@
 // Client MCP fait main (transport "Streamable HTTP" du spec MCP) : juste du
-// JSON-RPC 2.0 sur fetch(), pas le SDK officiel @modelcontextprotocol/sdk
-// (~4 Mo, depend d'express/hono/cross-spawn cote serveur, inutile et risque
-// pour un bundle navigateur). Ne fonctionne qu'avec des serveurs MCP HTTP
-// distants qui autorisent CORS depuis cette origine - un serveur MCP "stdio"
-// (le plus courant, ex. via npx) est injoignable depuis un navigateur, point
-// dur de la plateforme, pas une limite qu'on choisit.
-// La CSP doit conserver connect-src https:/http: pour ces URL utilisateur
-// arbitraires : une allowlist statique casserait cette fonction. La sécurité
-// repose donc ici sur l'ajout explicite du serveur et l'approbation par appel.
+// JSON-RPC 2.0 sur fetch(), pas le SDK officiel @modelcontextprotocol/sdk.
+// Ne fonctionne qu’avec des serveurs MCP HTTP distants autorisant CORS.
 import type { McpServer, McpTool, McpToolResult } from "./types";
+import {
+  unwrapJsonRpcResult,
+  validateMcpToolArguments,
+  validateMcpToolListResult,
+  validateMcpToolResult,
+} from "./validation";
 
 const PROTOCOL_VERSION = "2024-11-05";
 const RPC_TIMEOUT_MS = 15_000;
 const TOOL_TIMEOUT_MS = 45_000;
 const MAX_RPC_RESPONSE_BYTES = 512 * 1024;
-const MAX_TOOL_TEXT_CHARS = 64 * 1024;
 
 let requestId = 0;
 
-export type McpTransportViolation = "invalid-url" | "https-required" | "headers-require-https";
+export type McpTransportViolation =
+  | "invalid-url"
+  | "https-required"
+  | "headers-require-https";
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
-  return normalized === "localhost" || normalized === "[::1]" || /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  return (
+    normalized === "localhost" ||
+    normalized === "[::1]" ||
+    /^127(?:\.\d{1,3}){3}$/.test(normalized)
+  );
 }
 
 /**
  * MCP credentials must never cross a clear-text network hop. Plain HTTP is
  * kept only for an unauthenticated server on this same machine.
  */
-export function mcpTransportViolation(server: Pick<McpServer, "url" | "headers">): McpTransportViolation | null {
+export function mcpTransportViolation(
+  server: Pick<McpServer, "url" | "headers">,
+): McpTransportViolation | null {
   let url: URL;
   try {
     url = new URL(server.url);
@@ -37,8 +44,15 @@ export function mcpTransportViolation(server: Pick<McpServer, "url" | "headers">
     return "invalid-url";
   }
   if (url.protocol === "https:") return null;
-  if (url.protocol !== "http:" || !isLoopbackHostname(url.hostname)) return "https-required";
-  if (url.username || url.password || url.search || Object.keys(server.headers ?? {}).length > 0) {
+  if (url.protocol !== "http:" || !isLoopbackHostname(url.hostname)) {
+    return "https-required";
+  }
+  if (
+    url.username ||
+    url.password ||
+    url.search ||
+    Object.keys(server.headers ?? {}).length > 0
+  ) {
     return "headers-require-https";
   }
   return null;
@@ -47,10 +61,14 @@ export function mcpTransportViolation(server: Pick<McpServer, "url" | "headers">
 function assertSafeMcpTransport(server: McpServer): void {
   const violation = mcpTransportViolation(server);
   if (violation === "headers-require-https") {
-    throw new Error("Un serveur MCP HTTP local ne peut pas recevoir de secret ou d'en-tête configuré. Utilisez HTTPS.");
+    throw new Error(
+      "Un serveur MCP HTTP local ne peut pas recevoir de secret ou d’en-tête configuré. Utilisez HTTPS.",
+    );
   }
   if (violation) {
-    throw new Error("Un serveur MCP distant doit utiliser HTTPS. HTTP est réservé à localhost sans authentification.");
+    throw new Error(
+      "Un serveur MCP distant doit utiliser HTTPS. HTTP est réservé à localhost sans authentification.",
+    );
   }
 }
 
@@ -73,7 +91,41 @@ async function readTextLimited(response: Response): Promise<string> {
   return text + decoder.decode();
 }
 
-async function rpcCall(server: McpServer, method: string, params?: unknown): Promise<unknown> {
+function parseJsonText(text: string, label: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`${label} contient un JSON invalide.`);
+  }
+}
+
+function parseFirstSsePayload(text: string, serverName: string): unknown {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const events = normalized.split("\n\n");
+
+  for (const event of events) {
+    const dataLines = event
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart());
+
+    if (dataLines.length === 0) continue;
+
+    const data = dataLines.join("\n").trim();
+
+    if (!data || data === "[DONE]") continue;
+
+    return parseJsonText(data, `Réponse SSE de "${serverName}"`);
+  }
+
+  throw new Error(`Réponse SSE vide de "${serverName}".`);
+}
+
+async function rpcCall(
+  server: McpServer,
+  method: string,
+  params?: unknown,
+): Promise<unknown> {
   assertSafeMcpTransport(server);
   const response = await fetch(server.url, {
     method: "POST",
@@ -86,22 +138,16 @@ async function rpcCall(server: McpServer, method: string, params?: unknown): Pro
     signal: AbortSignal.timeout(method === "tools/call" ? TOOL_TIMEOUT_MS : RPC_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`Serveur MCP "${server.name}" a repondu ${response.status}`);
+    throw new Error(`Serveur MCP "${server.name}" a répondu ${response.status}`);
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  let payload: { result?: unknown; error?: { message: string } };
   const text = await readTextLimited(response);
-  if (contentType.includes("text/event-stream")) {
-    const dataLine = text.split("\n").find((l) => l.startsWith("data:"));
-    if (!dataLine) throw new Error(`Reponse SSE vide de "${server.name}"`);
-    payload = JSON.parse(dataLine.slice(5).trim());
-  } else {
-    payload = JSON.parse(text);
-  }
+  const rawPayload = contentType.includes("text/event-stream")
+    ? parseFirstSsePayload(text, server.name)
+    : parseJsonText(text, `Réponse de "${server.name}"`);
 
-  if (payload.error) throw new Error(payload.error.message);
-  return payload.result;
+  return unwrapJsonRpcResult(rawPayload);
 }
 
 export async function initialize(server: McpServer): Promise<void> {
@@ -110,7 +156,7 @@ export async function initialize(server: McpServer): Promise<void> {
     capabilities: {},
     clientInfo: { name: "AIDUSIA Studio", version: "0.0.0" },
   });
-  // Notification "initialized" : pas de reponse attendue, best-effort.
+  // Notification "initialized" : pas de réponse attendue, best-effort.
   assertSafeMcpTransport(server);
   await fetch(server.url, {
     method: "POST",
@@ -121,8 +167,9 @@ export async function initialize(server: McpServer): Promise<void> {
 }
 
 export async function listTools(server: McpServer): Promise<McpTool[]> {
-  const result = (await rpcCall(server, "tools/list")) as { tools: McpTool[] };
-  return result.tools;
+  const result = await rpcCall(server, "tools/list");
+
+  return validateMcpToolListResult(result);
 }
 
 export async function callTool(
@@ -130,17 +177,15 @@ export async function callTool(
   name: string,
   args: unknown,
 ): Promise<McpToolResult> {
-  const result = (await rpcCall(server, "tools/call", { name, arguments: args })) as {
-    content?: { type: string; text?: string }[];
-    isError?: boolean;
-  };
-  const text = (result.content ?? [])
-    .filter((c) => c.type === "text" && c.text)
-    .map((c) => c.text)
-    .join("\n");
-  const boundedText =
-    text.length > MAX_TOOL_TEXT_CHARS
-      ? `${text.slice(0, MAX_TOOL_TEXT_CHARS)}\n[Résultat MCP tronqué pour sécurité]`
-      : text;
-  return { content: boundedText, isError: Boolean(result.isError) };
+  if (typeof name !== "string" || name.trim().length === 0 || name.length > 128) {
+    throw new Error("Nom d’outil MCP invalide.");
+  }
+
+  const safeArguments = validateMcpToolArguments(args);
+  const result = await rpcCall(server, "tools/call", {
+    name,
+    arguments: safeArguments,
+  });
+
+  return validateMcpToolResult(result);
 }
