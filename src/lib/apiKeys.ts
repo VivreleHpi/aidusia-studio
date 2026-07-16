@@ -4,7 +4,11 @@
 // Jamais envoyees ailleurs qu'au fournisseur choisi (ou au proxy same-origin
 // documente pour OpenAI/Ollama Cloud). Jamais journalisees volontairement.
 const PERSIST_FLAG_KEY = "aidusia_persist_keys";
-const KEY_PREFIX = "aidusia_key_";
+export const API_KEY_STORAGE_PREFIX = "aidusia_key_";
+
+export function isApiKeyStorageKey(key: string): boolean {
+  return key.startsWith(API_KEY_STORAGE_PREFIX);
+}
 
 export function isPersistEnabled(): boolean {
   const storedPreference = localStorage.getItem(PERSIST_FLAG_KEY);
@@ -13,7 +17,9 @@ export function isPersistEnabled(): boolean {
 
   // Compatibilite avec l'ancien defaut : l'absence du drapeau ne doit jamais
   // faire disparaitre ni cesser de persister silencieusement des cles deja la.
-  const hasLegacyPersistedKey = Object.keys(localStorage).some((key) => key.startsWith(KEY_PREFIX));
+  const hasLegacyPersistedKey = Object.keys(localStorage).some((key) =>
+    key.startsWith(API_KEY_STORAGE_PREFIX),
+  );
   if (hasLegacyPersistedKey) {
     localStorage.setItem(PERSIST_FLAG_KEY, "true");
     return true;
@@ -28,36 +34,36 @@ export function setPersistEnabled(enabled: boolean) {
     localStorage.setItem(PERSIST_FLAG_KEY, "false");
     // Migration cle -> memoire de session uniquement : purge le stockage durable.
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(KEY_PREFIX)) localStorage.removeItem(key);
+      if (key.startsWith(API_KEY_STORAGE_PREFIX)) localStorage.removeItem(key);
     }
   }
 }
 
 export function getApiKey(providerId: string): string | undefined {
   return (
-    sessionStorage.getItem(KEY_PREFIX + providerId) ??
-    localStorage.getItem(KEY_PREFIX + providerId) ??
+    sessionStorage.getItem(API_KEY_STORAGE_PREFIX + providerId) ??
+    localStorage.getItem(API_KEY_STORAGE_PREFIX + providerId) ??
     undefined
   );
 }
 
 export function setApiKey(providerId: string, value: string) {
-  sessionStorage.setItem(KEY_PREFIX + providerId, value);
+  sessionStorage.setItem(API_KEY_STORAGE_PREFIX + providerId, value);
   if (isPersistEnabled()) {
-    localStorage.setItem(KEY_PREFIX + providerId, value);
+    localStorage.setItem(API_KEY_STORAGE_PREFIX + providerId, value);
   }
 }
 
 export function clearApiKey(providerId: string) {
-  sessionStorage.removeItem(KEY_PREFIX + providerId);
-  localStorage.removeItem(KEY_PREFIX + providerId);
+  sessionStorage.removeItem(API_KEY_STORAGE_PREFIX + providerId);
+  localStorage.removeItem(API_KEY_STORAGE_PREFIX + providerId);
 }
 
 export function clearAllApiKeys() {
   for (const key of Object.keys(sessionStorage)) {
-    if (key.startsWith(KEY_PREFIX)) sessionStorage.removeItem(key);
+    if (key.startsWith(API_KEY_STORAGE_PREFIX)) sessionStorage.removeItem(key);
   }
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith(KEY_PREFIX)) localStorage.removeItem(key);
+    if (key.startsWith(API_KEY_STORAGE_PREFIX)) localStorage.removeItem(key);
   }
 }

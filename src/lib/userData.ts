@@ -1,10 +1,8 @@
-import { clearAllApiKeys } from "@/lib/apiKeys";
+import { clearAllApiKeys, isApiKeyStorageKey } from "@/lib/apiKeys";
 import { deleteLocalDatabase, listConversations, type Conversation } from "@/lib/db";
-import { listMcpServers } from "@/lib/mcp/servers";
+import { listMcpServers, MCP_SERVERS_STORAGE_KEY } from "@/lib/mcp/servers";
 
-const APP_KEY_PREFIX = "aidusia";
-const API_KEY_PREFIX = "aidusia_api_key_";
-const MCP_SERVERS_KEY = "aidusia_mcp_servers";
+const APP_KEY_PREFIX = "aidusia_";
 
 interface ExportedStorage {
   local: Record<string, string>;
@@ -33,7 +31,7 @@ function isAppKey(key: string): boolean {
 }
 
 function isSecretKey(key: string): boolean {
-  return key.startsWith(API_KEY_PREFIX) || key === MCP_SERVERS_KEY;
+  return isApiKeyStorageKey(key) || key === MCP_SERVERS_STORAGE_KEY;
 }
 
 function collectStorage(storage: Storage): Record<string, string> {
