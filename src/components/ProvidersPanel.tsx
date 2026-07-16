@@ -145,7 +145,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
     );
     // Certains testKey attrapent eux-memes l'erreur et renvoient le message
     // brut du navigateur dans reason : on le rend actionnable ici aussi.
-    if (!result.ok && result.reason && /failed to fetch|networkerror|load failed/i.test(result.reason)) {
+    if ("reason" in result && /failed to fetch|networkerror|load failed/i.test(result.reason)) {
       result.reason = describeFetchError(new TypeError(result.reason), provider.label, baseUrl);
     }
     updateRow(providerId, { testing: false, result });
@@ -305,7 +305,9 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                 : row.result
                   ? row.result.ok
                     ? s.statusReachable
-                    : row.result.reason
+                    : "reason" in row.result
+                      ? row.result.reason
+                      : s.statusReachable
                   : configured
                     ? s.statusConfigured
                     : s.statusNotConfigured;
