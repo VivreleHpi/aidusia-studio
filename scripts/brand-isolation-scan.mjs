@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Bloque en CI toute mention des autres produits AIDUSIA dans ce dépôt public.
-// Scanne les sources ET le bundle construit (dist/) — cf. docs/PLAN...  §4.
+// Scanne les sources et le bundle construit (dist/).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,7 +58,7 @@ function* walk(dir) {
   }
 }
 
-let violations = [];
+const violations = [];
 
 for (const dir of SCAN_DIRS) {
   for (const file of walk(dir)) {
@@ -72,12 +72,12 @@ for (const dir of SCAN_DIRS) {
 }
 
 if (violations.length > 0) {
-  console.error("LEAK-SCAN ECHEC — termes interdits detectes:\n");
-  for (const v of violations) console.error(`  - ${v}`);
+  console.error("BRAND-ISOLATION-SCAN ÉCHEC — termes interdits détectés:\n");
+  for (const violation of violations) console.error(`  - ${violation}`);
   console.error(
-    "\nCe depot public ne doit contenir aucune reference aux autres produits AIDUSIA.",
+    "\nCe dépôt public ne doit contenir aucune référence aux autres produits AIDUSIA.",
   );
   process.exit(1);
 }
 
-console.log("leak-scan OK — aucun terme interdit detecte.");
+console.log("brand-isolation-scan OK — aucun terme interdit détecté.");
