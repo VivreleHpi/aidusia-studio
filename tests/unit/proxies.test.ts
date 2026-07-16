@@ -38,6 +38,6 @@ describe("Edge proxy guards", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(upstream).toHaveBeenCalledOnce();
-    expect(upstream.mock.calls[0]?.[0]).toBe("https://api.openai.com/v1/models");
+    expect(String(upstream.mock.calls[0]?.[0])).toBe("https://api.openai.com/v1/models");
   });
 });
