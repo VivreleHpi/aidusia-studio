@@ -338,6 +338,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                         <button
                           type="button"
                           onClick={() => runTest(provider.id)}
+                          aria-label={`${s.test} ${displayName}`}
                           className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                           {s.test}
@@ -356,6 +357,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                         <button
                           type="button"
                           onClick={() => updateRow(provider.id, { editing: !row.editing })}
+                          aria-label={`${s.configure} ${displayName}`}
                           className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                           {s.configure}
@@ -398,6 +400,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                       <button
                         type="button"
                         onClick={() => saveKey(provider.id)}
+                        aria-label={`${s.save} ${displayName}`}
                         className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition duration-150 active:scale-[0.98]"
                       >
                         {s.save}
