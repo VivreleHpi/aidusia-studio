@@ -62,56 +62,163 @@ export async function readOpenAiCompatibleStream(
   response: Response,
   onChunk: (chunk: StreamChunk) => void,
 ): Promise<void> {
-  if (!response.body) throw new Error("Reponse sans corps");
+  if (!response.body) {
+    throw new Error("Réponse sans corps.");
+  }
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
   const pendingCalls = new Map<number, PendingToolCall>();
 
-  function flushToolCalls() {
+  let buffer = "";
+
+  function flushToolCalls(): void {
     for (const call of pendingCalls.values()) {
-      if (!call.name) continue;
-      let args: unknown = {};
-      try {
-        args = call.args ? JSON.parse(call.args) : {};
-      } catch {
-        args = {};
+      if (!call.name?.trim()) {
+        throw new Error("Appel d’outil refusé : nom d’outil absent.");
       }
-      onChunk({ type: "tool_call", call: { id: call.id ?? crypto.randomUUID(), name: call.name, args } });
+
+      let args: unknown = {};
+
+      if (call.args.trim()) {
+        try {
+          args = JSON.parse(call.args);
+        } catch {
+          throw new Error(
+            `Appel de l’outil "${call.name}" refusé : arguments JSON invalides.`,
+          );
+        }
+      }
+
+      if (args === null || typeof args !== "object" || Array.isArray(args)) {
+        throw new Error(
+          `Appel de l’outil "${call.name}" refusé : les arguments doivent être un objet JSON.`,
+        );
+      }
+
+      onChunk({
+        type: "tool_call",
+        call: {
+          id: call.id ?? crypto.randomUUID(),
+          name: call.name,
+          args,
+        },
+      });
     }
+
     pendingCalls.clear();
+  }
+
+  function processEvent(rawEvent: string): void {
+    const event = rawEvent.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+    const dataLines = event
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart());
+
+    if (dataLines.length === 0) {
+      return;
+    }
+
+    const payload = dataLines.join("\n").trim();
+
+    if (!payload) {
+      return;
+    }
+
+    if (payload === "[DONE]") {
+      flushToolCalls();
+      return;
+    }
+
+    let json: {
+      choices?: Array<{
+        delta?: {
+          content?: string;
+          tool_calls?: Array<{
+            index: number;
+            id?: string;
+            function?: {
+              name?: string;
+              arguments?: string;
+            };
+          }>;
+        };
+        finish_reason?: string | null;
+      }>;
+    };
+
+    try {
+      json = JSON.parse(payload);
+    } catch {
+      throw new Error("Flux du fournisseur invalide : événement SSE non JSON.");
+    }
+
+    const choice = json.choices?.[0];
+    const delta = choice?.delta;
+
+    if (typeof delta?.content === "string") {
+      onChunk({
+        type: "text",
+        delta: delta.content,
+      });
+    }
+
+    for (const toolCall of delta?.tool_calls ?? []) {
+      if (!Number.isInteger(toolCall.index) || toolCall.index < 0) {
+        throw new Error(
+          "Flux du fournisseur invalide : index d’appel d’outil incorrect.",
+        );
+      }
+
+      const existing = pendingCalls.get(toolCall.index) ?? {
+        args: "",
+      };
+
+      if (toolCall.id) {
+        existing.id = toolCall.id;
+      }
+
+      if (toolCall.function?.name) {
+        existing.name = toolCall.function.name;
+      }
+
+      if (toolCall.function?.arguments) {
+        existing.args += toolCall.function.arguments;
+      }
+
+      pendingCalls.set(toolCall.index, existing);
+    }
+
+    if (choice?.finish_reason === "tool_calls") {
+      flushToolCalls();
+    }
   }
 
   for (;;) {
     const { done, value } = await reader.read();
-    if (done) break;
+
+    if (done) {
+      break;
+    }
+
     buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, "\n");
+
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
+
     for (const event of events) {
-      const dataLine = event.split("\n").find((l) => l.startsWith("data:"));
-      if (!dataLine) continue;
-      const payload = dataLine.slice(5).trim();
-      if (payload === "[DONE]") continue;
-      const json = JSON.parse(payload);
-      const choice = json.choices?.[0];
-      const delta = choice?.delta;
-      if (delta?.content) onChunk({ type: "text", delta: delta.content });
-      if (delta?.tool_calls) {
-        for (const tc of delta.tool_calls as {
-          index: number;
-          id?: string;
-          function?: { name?: string; arguments?: string };
-        }[]) {
-          const existing = pendingCalls.get(tc.index) ?? { args: "" };
-          if (tc.id) existing.id = tc.id;
-          if (tc.function?.name) existing.name = tc.function.name;
-          if (tc.function?.arguments) existing.args += tc.function.arguments;
-          pendingCalls.set(tc.index, existing);
-        }
-      }
-      if (choice?.finish_reason === "tool_calls") flushToolCalls();
+      processEvent(event);
     }
   }
+
+  buffer += decoder.decode();
+
+  if (buffer.trim()) {
+    processEvent(buffer);
+  }
+
   flushToolCalls();
 }
