@@ -66,9 +66,11 @@ describe("edge proxy guard", () => {
   it("accepts Vercel's catch-all route parameter but rejects other queries", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => jsonUpstream()));
     expect(await handler(request("models?path=models"))).toHaveProperty("status", 200);
-    expect(await handler(request("models?path=models&path=%5B...path%5D")))
+    expect(await handler(request("models?...path=models"))).toHaveProperty("status", 200);
+    expect(await handler(request("models?path=models&...path=models")))
       .toHaveProperty("status", 200);
     expect(await handler(request("models?path=models&debug=true"))).toHaveProperty("status", 400);
+    expect(await handler(request("models?...path=chat"))).toHaveProperty("status", 400);
   });
 
   it("rejects missing and injection-prone secrets without reflecting them", async () => {
