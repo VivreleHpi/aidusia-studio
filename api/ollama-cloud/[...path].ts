@@ -1,4 +1,4 @@
-import { createEdgeProxyHandler } from "../_shared/edgeProxy";
+import { createEdgeProxyHandler } from "../_shared/edgeProxy.js";
 
 export const config = { runtime: "edge" };
 
