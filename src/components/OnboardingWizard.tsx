@@ -126,8 +126,10 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
   }, [mobile]);
 
   useEffect(() => {
-    void runProbes();
-  }, [runProbes]);
+    void probeWebGpu()
+      .then(setWebgpu)
+      .finally(() => setChecking(false));
+  }, []);
 
   function finish() {
     markOnboarded();

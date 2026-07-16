@@ -67,6 +67,12 @@ const STRINGS = {
     namePlaceholder: "Nom (ex. Recherche web)",
     urlPlaceholder: "URL MCP — https://…",
     tokenPlaceholder: "Jeton d'authentification (optionnel)",
+    secretSessionOnly:
+      "Le jeton est conservé uniquement dans cette session du navigateur.",
+    secretMissing:
+      "Le jeton de ce connecteur n’est plus disponible. Supprimez-le puis reconnectez-le.",
+    secretInUrl:
+      "Les paramètres et secrets dans l’URL sont interdits. Utilisez le champ jeton.",
     unreachable: "Serveur injoignable",
     invalidUrl: "Utilisez une URL HTTP ou HTTPS valide.",
     httpsRequired: "Un connecteur distant doit utiliser HTTPS. HTTP est réservé à localhost.",
@@ -119,6 +125,10 @@ const STRINGS = {
     namePlaceholder: "Name (e.g. Web search)",
     urlPlaceholder: "MCP URL — https://…",
     tokenPlaceholder: "Authentication token (optional)",
+    secretSessionOnly: "The token is stored only for this browser session.",
+    secretMissing:
+      "This connector token is no longer available. Remove and reconnect it.",
+    secretInUrl: "URL parameters and embedded secrets are forbidden. Use the token field.",
     unreachable: "Server unreachable",
     invalidUrl: "Use a valid HTTP or HTTPS URL.",
     httpsRequired: "A remote connector must use HTTPS. HTTP is reserved for localhost.",
@@ -141,6 +151,14 @@ interface ServerState {
 }
 
 async function probe(server: McpServer): Promise<Omit<ServerState, "server">> {
+  if (server.requiresSecret && !server.headers) {
+    return {
+      status: "error",
+      tools: [],
+      error: "__MCP_SECRET_MISSING__",
+    };
+  }
+
   try {
     await initialize(server);
     const tools = await listTools(server);
@@ -198,6 +216,10 @@ export function McpPanel({ onClose }: McpPanelProps) {
       setAddError(s.invalidUrl);
       return;
     }
+    if (parsedUrl.username || parsedUrl.password || parsedUrl.search || parsedUrl.hash) {
+      setAddError(s.secretInUrl);
+      return;
+    }
     const headers = token.trim() ? { Authorization: `Bearer ${token.trim()}` } : undefined;
     const transportViolation = mcpTransportViolation({ url: parsedUrl.toString(), headers });
     if (transportViolation) {
@@ -206,11 +228,19 @@ export function McpPanel({ onClose }: McpPanelProps) {
     }
     setAdding(true);
     setAddError(null);
-    const server = addMcpServer({
-      name: name.trim(),
-      url: parsedUrl.toString(),
-      headers,
-    });
+    let server: McpServer;
+
+    try {
+      server = addMcpServer({
+        name: name.trim(),
+        url: parsedUrl.toString(),
+        headers,
+      });
+    } catch (error) {
+      setAdding(false);
+      setAddError(error instanceof Error ? error.message : s.unreachable);
+      return;
+    }
     const result = await probe(server);
     if (result.status === "error") {
       setAddError(result.error ?? s.unreachable);
@@ -326,6 +356,7 @@ export function McpPanel({ onClose }: McpPanelProps) {
                 placeholder={s.tokenPlaceholder}
                 className="rounded-lg border border-border bg-card px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
               />
+              <p className="text-[11px] text-muted-foreground">{s.secretSessionOnly}</p>
               {addError && <p className="text-xs text-destructive">{addError}</p>}
               <div className="flex items-center gap-2">
                 <button
@@ -369,7 +400,11 @@ export function McpPanel({ onClose }: McpPanelProps) {
                           {status === "ok" && (
                             <span className="text-success">{s.toolsAvailable(tools.length)}</span>
                           )}
-                          {status === "error" && <span className="text-destructive">{error}</span>}
+                          {status === "error" && (
+                            <span className="text-destructive">
+                              {error === "__MCP_SECRET_MISSING__" ? s.secretMissing : error}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

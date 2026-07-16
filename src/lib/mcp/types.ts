@@ -1,9 +1,23 @@
-export interface McpServer {
+export type McpHeaders = Record<string, string>;
+
+export interface McpServerMetadata {
   id: string;
   name: string;
   url: string;
-  // En-tetes optionnels (ex. Authorization) envoyes a chaque appel.
-  headers?: Record<string, string>;
+
+  /**
+   * Indique que le connecteur attend normalement un secret.
+   * La valeur du secret n’est jamais stockée avec les métadonnées.
+   */
+  requiresSecret: boolean;
+}
+
+export interface McpServer extends McpServerMetadata {
+  /**
+   * Headers reconstruits depuis le stockage de session.
+   * Ils ne doivent jamais être écrits dans localStorage.
+   */
+  headers?: McpHeaders;
 }
 
 export interface McpTool {

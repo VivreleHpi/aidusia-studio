@@ -11,6 +11,7 @@ const apiKeys = vi.hoisted(() => ({
 }));
 
 const mcp = vi.hoisted(() => ({
+  isMcpSecretStorageKey: (key: string) => key.startsWith("aidusia_mcp_secret_"),
   listMcpServers: vi.fn(),
   MCP_SERVERS_STORAGE_KEY: "aidusia_mcp_servers",
 }));
@@ -50,6 +51,10 @@ describe("userData", () => {
     localStorage.setItem("aidusia_mcp_servers", JSON.stringify(mcp.listMcpServers()));
     sessionStorage.setItem("aidusia_chat_drafts_v1", "{\"c1\":\"draft\"}");
     sessionStorage.setItem("aidusia_key_mistral", "sk-secret-session");
+    sessionStorage.setItem(
+      "aidusia_mcp_secret_test-server",
+      JSON.stringify({ Authorization: "Bearer mcp-secret" }),
+    );
 
     const { exportUserData } = await import("@/lib/userData");
     const payload = JSON.parse(await (await exportUserData()).text());
@@ -73,6 +78,8 @@ describe("userData", () => {
     expect(serialized).not.toContain("sk-secret-local");
     expect(serialized).not.toContain("sk-secret-session");
     expect(serialized).not.toContain("Bearer secret");
+    expect(serialized).not.toContain("aidusia_mcp_secret_test-server");
+    expect(serialized).not.toContain("Bearer mcp-secret");
   });
 
   it("deletes IndexedDB, API keys and AIDUSIA browser storage", async () => {
