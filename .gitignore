@@ -14,6 +14,7 @@ coverage
 playwright-report
 test-results
 *.local
+/.claude/settings.local.json
 
 # Artefact du smoke test OCR (scripts/smoke-ocr.mjs decompresse le .traineddata
 # a la racine quand cachePath="." - jamais a committer, les .gz self-hostes

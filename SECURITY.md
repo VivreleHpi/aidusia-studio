@@ -91,10 +91,16 @@ pas à lui seul une vulnérabilité du Studio.
 ### Contrôles présents
 
 Le projet utilise notamment TypeScript, une CSP, des ressources visuelles
-auto-hébergées, un scan anti-fuite, le chiffrement AES-GCM des exports et des
-limites de validation à l’import. Les conversations restent dans IndexedDB et
-la persistance des clés peut être désactivée. Les deux proxies sont stateless
-dans le code du dépôt.
+auto-hébergées, le chiffrement AES-GCM des exports et des limites de validation
+à l’import. Les conversations restent dans IndexedDB et la persistance des clés
+peut être désactivée. Les deux proxies sont stateless dans le code du dépôt.
+
+Les headers MCP sont séparés des métadonnées persistantes et les tokens MCP sont
+limités à la session du navigateur. Le client valide au runtime les enveloppes
+JSON-RPC, les outils, les arguments et les résultats, avec une taille maximale
+pour les réponses. La CI complète ces contrôles avec Gitleaks, Dependency Review
+et `npm audit`. Ces protections réduisent l’exposition sans empêcher toute
+compromission.
 
 Pour MCP, chaque action doit être présentée à l’utilisateur avant envoi, avec le
 serveur, l’outil, une estimation de risque et un aperçu expurgé des arguments.

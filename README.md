@@ -64,6 +64,8 @@ Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, an
 
 Les serveurs MCP ajoutent des outils qu'un modèle peut appeler pendant une conversation. **N'ajoutez que des serveurs de confiance, avec des comptes de test et les privilèges minimaux.** Leurs définitions d'outils sont transmises au modèle choisi. Avant chaque appel, une confirmation affiche le serveur, l'outil, une estimation heuristique du risque et un aperçu expurgé des arguments ; le résultat autorisé est ensuite renvoyé au modèle. Refuser n'envoie aucun appel d'outil.
 
+Les métadonnées des connecteurs sont conservées localement. Les headers et jetons MCP sont conservés uniquement dans `sessionStorage` et disparaissent à la fermeture complète de la session du navigateur. Le connecteur devra alors être reconnecté.
+
 <details>
 <summary>Pourquoi cette prudence, et ce que la confirmation ne garantit pas</summary>
 
@@ -95,11 +97,13 @@ npm run lint       # oxlint
 npm test           # tests unitaires (Vitest)
 npm run smoke      # smoke tests (Otsu, throttling)
 npm run build      # build de production
-npm run leak-scan  # scan anti-fuite de secrets
+npm run brand-scan # contrôle d'isolation de marque
 npm run e2e        # E2E + accessibilité (Playwright + Axe)
 ```
 
 Les tests unitaires, smoke et E2E/accessibilité sont intégrés à la CI. Les E2E nécessitent le navigateur Playwright (`npx playwright install chromium`). Voir [CONTRIBUTING.md](./CONTRIBUTING.md) et [CHANGELOG.md](./CHANGELOG.md).
+
+Le contrôle `brand-scan` vérifie uniquement l’isolation du dépôt vis-à-vis des autres produits AIDUSIA. La recherche de secrets réels est assurée séparément par Gitleaks dans GitHub Actions.
 
 ## Sécurité
 

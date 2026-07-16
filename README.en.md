@@ -95,7 +95,7 @@ npm run lint       # oxlint
 npm test           # unit tests (Vitest)
 npm run smoke      # smoke tests (Otsu, throttling)
 npm run build      # production build
-npm run leak-scan  # secret-leak scan
+npm run brand-scan # brand-isolation check
 npm run e2e        # E2E + accessibility (Playwright + Axe)
 ```
 

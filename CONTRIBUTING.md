@@ -21,7 +21,7 @@ npm run lint
 npm test
 npm run smoke
 npm run build
-npm run leak-scan
+npm run brand-scan
 npm run e2e
 ```
 
