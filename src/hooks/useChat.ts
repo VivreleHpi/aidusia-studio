@@ -88,46 +88,17 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
     abortRef.current?.abort();
   }, []);
 
-  const sendMessage = useCallback(
+  // Coeur du streaming, partage entre l'envoi d'un message et la
+  // regeneration : `updated` doit deja se terminer par `assistantMessage`
+  // (vide), persiste et affiche par l'appelant.
+  const runAssistantTurn = useCallback(
     async (
-      conversationId: string,
-      content: string,
+      updated: Conversation,
+      assistantMessage: StoredMessage,
       providerId: string,
       model: string,
       systemPrompt?: string,
-      images?: string[],
     ) => {
-      setError(null);
-      const conversation = await getConversation(conversationId);
-      if (!conversation) return;
-
-      const userMessage: StoredMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content,
-        createdAt: Date.now(),
-        images,
-      };
-      let assistantMessage: StoredMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-        providerId,
-        model,
-      };
-
-      const isFirstMessage = conversation.messages.length === 0;
-      const updated: Conversation = {
-        ...conversation,
-        title: isFirstMessage ? titleFromFirstMessage(content, lang) : conversation.title,
-        messages: [...conversation.messages, userMessage, assistantMessage],
-        updatedAt: Date.now(),
-      };
-      await saveConversation(updated);
-      onUpdated(updated);
-      onListChanged();
-
       const provider = getProvider(providerId);
       const apiKey = getApiKey(providerId);
       const controller = new AbortController();
@@ -291,5 +262,91 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
     [onUpdated, onListChanged, lang],
   );
 
-  return { sendMessage, stop, streaming, error };
+  const sendMessage = useCallback(
+    async (
+      conversationId: string,
+      content: string,
+      providerId: string,
+      model: string,
+      systemPrompt?: string,
+      images?: string[],
+    ) => {
+      setError(null);
+      const conversation = await getConversation(conversationId);
+      if (!conversation) return;
+
+      const userMessage: StoredMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content,
+        createdAt: Date.now(),
+        images,
+      };
+      const assistantMessage: StoredMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "",
+        createdAt: Date.now(),
+        providerId,
+        model,
+      };
+
+      const isFirstMessage = conversation.messages.length === 0;
+      const updated: Conversation = {
+        ...conversation,
+        title: isFirstMessage ? titleFromFirstMessage(content, lang) : conversation.title,
+        messages: [...conversation.messages, userMessage, assistantMessage],
+        updatedAt: Date.now(),
+      };
+      await saveConversation(updated);
+      onUpdated(updated);
+      onListChanged();
+
+      await runAssistantTurn(updated, assistantMessage, providerId, model, systemPrompt);
+    },
+    [runAssistantTurn, onUpdated, onListChanged, lang],
+  );
+
+  // Regenere la reponse : rejoue la generation a partir du dernier message
+  // utilisateur, avec le fournisseur/modele actuellement selectionnes. Les
+  // messages posterieurs (ancienne reponse, resultats d'outils) sont
+  // remplaces - meme semantique que le "Regenerer" des chats classiques.
+  const regenerate = useCallback(
+    async (conversationId: string, providerId: string, model: string, systemPrompt?: string) => {
+      setError(null);
+      const conversation = await getConversation(conversationId);
+      if (!conversation) return;
+
+      let lastUserIndex = -1;
+      for (let i = conversation.messages.length - 1; i >= 0; i--) {
+        if (conversation.messages[i].role === "user") {
+          lastUserIndex = i;
+          break;
+        }
+      }
+      if (lastUserIndex === -1) return;
+
+      const assistantMessage: StoredMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "",
+        createdAt: Date.now(),
+        providerId,
+        model,
+      };
+      const updated: Conversation = {
+        ...conversation,
+        messages: [...conversation.messages.slice(0, lastUserIndex + 1), assistantMessage],
+        updatedAt: Date.now(),
+      };
+      await saveConversation(updated);
+      onUpdated(updated);
+      onListChanged();
+
+      await runAssistantTurn(updated, assistantMessage, providerId, model, systemPrompt);
+    },
+    [runAssistantTurn, onUpdated, onListChanged],
+  );
+
+  return { sendMessage, regenerate, stop, streaming, error };
 }

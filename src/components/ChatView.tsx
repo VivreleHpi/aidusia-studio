@@ -24,6 +24,8 @@ import {
   IconCheck,
   IconChevronDown,
   IconCopy,
+  IconRefresh,
+  IconShare,
   IconImage,
   IconKey,
   IconList,
@@ -96,6 +98,9 @@ const STRINGS = {
     badgeKeys: "Votre clé, vos règles",
     badgeOpenSource: "Open source",
     copyAnswer: "Copier la réponse",
+    shareAnswer: "Partager la réponse",
+    shareFilename: "aidusia-reponse.md",
+    regenerateAnswer: "Régénérer la réponse",
     toolResultFrom: "Résultat de",
     toolFallback: "l'outil",
     toolCallPrefix: "Appel de",
@@ -149,6 +154,9 @@ const STRINGS = {
     badgeKeys: "Your key, your rules",
     badgeOpenSource: "Open source",
     copyAnswer: "Copy response",
+    shareAnswer: "Share response",
+    shareFilename: "aidusia-response.md",
+    regenerateAnswer: "Regenerate response",
     toolResultFrom: "Result from",
     toolFallback: "the tool",
     toolCallPrefix: "Calling",
@@ -232,13 +240,46 @@ function CopyButton({ text }: { text: string }) {
       }}
       title={s.copyAnswer}
       aria-label={s.copyAnswer}
-      className="rounded-md p-1 text-muted-foreground/70 opacity-0 transition hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
+      className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
     >
       {copied ? (
         <IconCheck className="h-3.5 w-3.5 text-success" />
       ) : (
         <IconCopy className="h-3.5 w-3.5" />
       )}
+    </button>
+  );
+}
+
+function ShareButton({ text }: { text: string }) {
+  const { lang } = useLang();
+  const s = STRINGS[lang];
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        // Partage natif quand le navigateur le propose (mobile surtout) ;
+        // sinon telechargement de la reponse en Markdown, comme DataPanel.
+        if (typeof navigator.share === "function") {
+          try {
+            await navigator.share({ text });
+            return;
+          } catch (err) {
+            if ((err as Error).name === "AbortError") return; // annule par l'utilisateur
+          }
+        }
+        const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = s.shareFilename;
+        link.click();
+        URL.revokeObjectURL(url);
+      }}
+      title={s.shareAnswer}
+      aria-label={s.shareAnswer}
+      className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+    >
+      <IconShare className="h-3.5 w-3.5" />
     </button>
   );
 }
@@ -267,6 +308,7 @@ interface ChatViewProps {
   error: string | null;
   onSend: (content: string, images?: string[]) => void | Promise<void>;
   onStop: () => void;
+  onRegenerate: () => void | Promise<void>;
   providerId: string;
   model: string;
   onChangeProvider: (providerId: string, model: string) => void;
@@ -281,6 +323,7 @@ export function ChatView({
   error,
   onSend,
   onStop,
+  onRegenerate,
   providerId,
   model,
   onChangeProvider,
@@ -694,8 +737,27 @@ export function ChatView({
                         <span>{s.aiGenerated} · {label}</span>
                         {m.model && <span className="font-mono opacity-80">· {m.model}</span>}
                         {m.content && !streaming && (
-                          <span className="ml-auto">
+                          <span
+                            className={`ml-auto flex items-center gap-0.5 ${
+                              isLastAssistant
+                                ? ""
+                                : "opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
+                            }`}
+                          >
                             <CopyButton text={m.content} />
+                            <ShareButton text={m.content} />
+                            {isLastAssistant && (
+                              <button
+                                type="button"
+                                onClick={() => void onRegenerate()}
+                                disabled={streaming || modelReadiness.status !== "ready"}
+                                title={s.regenerateAnswer}
+                                aria-label={s.regenerateAnswer}
+                                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground disabled:opacity-40"
+                              >
+                                <IconRefresh className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </span>
                         )}
                       </div>
@@ -711,7 +773,7 @@ export function ChatView({
                 >
                   <p className="wrap-break-word">{error}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {lastSubmissionRef.current?.draftKey === draftKeyRef.current && (
+                    {lastSubmissionRef.current?.draftKey === draftKeyRef.current ? (
                       <button
                         type="button"
                         onClick={retryLastMessage}
@@ -720,6 +782,20 @@ export function ChatView({
                       >
                         {s.retryMessage}
                       </button>
+                    ) : (
+                      // Regeneration echouee : plus de reponse a la fin de la
+                      // conversation ni de soumission a rejouer - on propose
+                      // de relancer la generation depuis le dernier message.
+                      conversation.messages.at(-1)?.role === "user" && (
+                        <button
+                          type="button"
+                          onClick={() => void onRegenerate()}
+                          disabled={streaming || modelReadiness.status !== "ready"}
+                          className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs transition duration-150 hover:bg-destructive/15 active:scale-[0.98] disabled:opacity-40"
+                        >
+                          {s.regenerateAnswer}
+                        </button>
+                      )
                     )}
                     <button
                       type="button"

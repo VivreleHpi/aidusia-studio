@@ -124,7 +124,7 @@ function App() {
     requestAnimationFrame(() => modalReturnFocusRef.current?.focus());
   }, [tourOpen]);
 
-  const { sendMessage, stop, streaming, error } = useChat(setCurrent, refresh);
+  const { sendMessage, regenerate, stop, streaming, error } = useChat(setCurrent, refresh);
 
   const handleGlobalKeydown = useCallback(
     (e: KeyboardEvent) => {
@@ -164,6 +164,13 @@ function App() {
       id = created.id;
     }
     await sendMessage(id, content, providerId, model, undefined, images);
+  }
+
+  async function handleRegenerate() {
+    // Rejoue la derniere reponse avec le fournisseur/modele actuellement
+    // selectionnes (permet aussi de comparer deux modeles sur un meme prompt).
+    if (!currentId) return;
+    await regenerate(currentId, providerId, model, undefined);
   }
 
   async function handlePurgeAll() {
@@ -290,6 +297,7 @@ function App() {
           error={error}
           onSend={handleSend}
           onStop={stop}
+          onRegenerate={handleRegenerate}
           providerId={providerId}
           model={model}
           onChangeProvider={(p, m) => {
