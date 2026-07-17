@@ -10,6 +10,8 @@ const STRINGS = {
   fr: {
     dialogLabel: "Présentation d'AIDUSIA Studio",
     close: "Fermer",
+    legalNotice: "Mentions légales",
+    privacy: "Confidentialité",
     tagline: "Une fenêtre ouverte sur l'IA, pensée pour la confidentialité.",
     steps: [
       {
@@ -38,6 +40,8 @@ const STRINGS = {
   en: {
     dialogLabel: "About AIDUSIA Studio",
     close: "Close",
+    legalNotice: "Legal notice",
+    privacy: "Privacy",
     tagline: "An open window onto AI, designed with privacy in mind.",
     steps: [
       {
@@ -127,7 +131,15 @@ export function AboutModal({ onClose }: AboutModalProps) {
           {s.disclaimer}
         </div>
 
-        <div className="mt-5 flex justify-end border-t border-border pt-4">
+        <div className="mt-5 flex justify-between items-center border-t border-border pt-4">
+          <nav className="flex gap-3 text-xs text-muted-foreground">
+            <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+              {s.legalNotice}
+            </a>
+            <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+              {s.privacy}
+            </a>
+          </nav>
           <button
             type="button"
             onClick={onClose}

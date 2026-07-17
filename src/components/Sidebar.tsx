@@ -51,6 +51,8 @@ const STRINGS = {
     language: "Langue",
     themeToggle: "Basculer le thème",
     collapseSidebar: "Rabattre le panneau",
+    legalNotice: "Mentions légales",
+    privacy: "Confidentialité",
   },
   en: {
     newConversation: "New conversation",
@@ -80,6 +82,8 @@ const STRINGS = {
     language: "Language",
     themeToggle: "Toggle theme",
     collapseSidebar: "Collapse sidebar",
+    legalNotice: "Legal notice",
+    privacy: "Privacy",
   },
 };
 
@@ -464,6 +468,14 @@ export function Sidebar({
             </button>
           </div>
         </div>
+        <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground/70">
+          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="transition hover:text-foreground">
+            {s.legalNotice}
+          </a>
+          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="transition hover:text-foreground">
+            {s.privacy}
+          </a>
+        </nav>
       </div>
       </aside>
     </>

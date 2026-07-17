@@ -1,6 +1,6 @@
 # Mentions légales
 
-Dernière mise à jour : 14 juillet 2026.
+Dernière mise à jour : 17 juillet 2026.
 
 ## Éditeur
 
@@ -11,7 +11,7 @@ professionnel peut ne pas rendre publiques certaines coordonnées (nom civil,
 domicile), à condition de les avoir communiquées à son hébergeur. L'éditeur
 est identifiable publiquement comme suit :
 
-- GitHub : [Guizr](https://github.com/Guizr)
+- GitHub : [VivreleHpi](https://github.com/VivreleHpi)
 - LinkedIn : h-mushin
 - Contact : vivrelehpi@gmail.com
 
@@ -26,6 +26,7 @@ Vercel Inc.
 Covina, CA 91723
 États-Unis
 https://vercel.com
+Contact : privacy@vercel.com — https://vercel.com/legal
 
 ## Propriété intellectuelle
 
