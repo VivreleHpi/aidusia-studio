@@ -468,7 +468,7 @@ export function Sidebar({
             </button>
           </div>
         </div>
-        <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground/70">
+        <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground">
           <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="transition hover:text-foreground">
             {s.legalNotice}
           </a>
