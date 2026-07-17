@@ -1,5 +1,11 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { providers } from "@/providers";
+import {
+  addCustomProvider,
+  createCustomProvider,
+  listCustomProviderConfigs,
+  removeCustomProvider,
+} from "@/providers/custom";
 import {
   DEFAULT_OLLAMA_BASE_URL,
   getOllamaBaseUrl,
@@ -53,6 +59,16 @@ const STRINGS = {
     confirm: "Continuer",
     passphraseTitle: "Phrase secrète",
     passphrasePlaceholder: "Phrase secrète",
+    customSectionTitle: "Ajouter un fournisseur (API compatible OpenAI)",
+    customNote:
+      "Branchez tout service exposant une API compatible OpenAI — z.ai, DeepSeek, Together, LM Studio local… L'appel part de votre navigateur : le service doit autoriser le CORS, et il doit exposer /models et /chat/completions.",
+    customNamePlaceholder: "Nom (ex. z.ai)",
+    customUrlPlaceholder: "URL de base (ex. https://api.z.ai/api/paas/v4)",
+    customAdd: "Ajouter",
+    customRemoveProvider: "Retirer ce fournisseur",
+    customInvalidUrl: "URL invalide — https:// requis (http uniquement pour localhost), sans identifiants.",
+    customInvalidLabel: "Donnez un nom court à ce fournisseur (40 caractères max).",
+    customTooMany: "Limite de fournisseurs personnalisés atteinte (20).",
   },
   en: {
     dialogLabel: "Providers",
@@ -88,6 +104,16 @@ const STRINGS = {
     confirm: "Continue",
     passphraseTitle: "Passphrase",
     passphrasePlaceholder: "Passphrase",
+    customSectionTitle: "Add a provider (OpenAI-compatible API)",
+    customNote:
+      "Plug in any service exposing an OpenAI-compatible API — z.ai, DeepSeek, Together, local LM Studio… The call goes straight from your browser: the service must allow CORS, and it must expose /models and /chat/completions.",
+    customNamePlaceholder: "Name (e.g. z.ai)",
+    customUrlPlaceholder: "Base URL (e.g. https://api.z.ai/api/paas/v4)",
+    customAdd: "Add",
+    customRemoveProvider: "Remove this provider",
+    customInvalidUrl: "Invalid URL — https:// required (http only for localhost), no embedded credentials.",
+    customInvalidLabel: "Give this provider a short name (max 40 characters).",
+    customTooMany: "Custom provider limit reached (20).",
   },
 } as const;
 
@@ -119,6 +145,16 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const [rows, setRows] = useState<Record<string, ProviderRowState>>(() =>
     Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])),
   );
+  const [customConfigs, setCustomConfigs] = useState(listCustomProviderConfigs);
+  const [customName, setCustomName] = useState("");
+  const [customUrl, setCustomUrl] = useState("");
+  const [customError, setCustomError] = useState<string | null>(null);
+  // Intégrés + personnalisés : la même boucle de rendu sert les deux, seule la
+  // suppression du fournisseur lui-même est propre aux personnalisés.
+  const allProviders = useMemo(
+    () => [...providers, ...customConfigs.map(createCustomProvider)],
+    [customConfigs],
+  );
   const [persist, setPersist] = useState(isPersistEnabled());
   const [localAiOpen, setLocalAiOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -131,11 +167,13 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   function updateRow(id: string, patch: Partial<ProviderRowState>) {
-    setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    // Un fournisseur personnalisé ajouté après le montage n'a pas encore de
+    // ligne : on la crée à la volée plutôt que d'étaler un `undefined`.
+    setRows((prev) => ({ ...prev, [id]: { ...(prev[id] ?? initialRowState(id)), ...patch } }));
   }
 
   async function runTest(providerId: string, selectOnSuccess = false) {
-    const provider = providers.find((p) => p.id === providerId);
+    const provider = allProviders.find((p) => p.id === providerId);
     if (!provider) return;
     updateRow(providerId, { testing: true, result: null });
     const key = getApiKey(providerId) ?? "";
@@ -175,8 +213,41 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   }
 
   function reloadRows() {
-    setRows(Object.fromEntries(providers.map((p) => [p.id, initialRowState(p.id)])));
+    const configs = listCustomProviderConfigs();
+    setCustomConfigs(configs);
+    setRows(
+      Object.fromEntries(
+        [...providers.map((p) => p.id), ...configs.map((c) => c.id)].map((id) => [id, initialRowState(id)]),
+      ),
+    );
     setPersist(isPersistEnabled());
+  }
+
+  function handleAddCustom() {
+    try {
+      const config = addCustomProvider(customName, customUrl);
+      setCustomConfigs(listCustomProviderConfigs());
+      setCustomName("");
+      setCustomUrl("");
+      setCustomError(null);
+      updateRow(config.id, { editing: true });
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setCustomError(
+        code === "INVALID_LABEL" ? s.customInvalidLabel : code === "TOO_MANY_PROVIDERS" ? s.customTooMany : s.customInvalidUrl,
+      );
+    }
+  }
+
+  function handleRemoveCustom(providerId: string) {
+    removeCustomProvider(providerId);
+    clearApiKey(providerId);
+    setCustomConfigs(listCustomProviderConfigs());
+    setRows((prev) => {
+      const next = { ...prev };
+      delete next[providerId];
+      return next;
+    });
   }
 
   async function handleExport() {
@@ -282,8 +353,9 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
           </div>
 
           <div className="mb-6 rounded-xl border border-border divide-y divide-border">
-            {providers.map((provider) => {
-              const row = rows[provider.id];
+            {allProviders.map((provider) => {
+              const row = rows[provider.id] ?? initialRowState(provider.id);
+              const custom = customConfigs.find((c) => c.id === provider.id);
               const off = providerDisabledOnDevice(provider.id, lang);
               const displayName = providerDisplayLabel(provider.id, lang) ?? provider.label;
               const configured = provider.requiresApiKey
@@ -374,13 +446,30 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           {s.remove}
                         </button>
                       )}
+                      {custom && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustom(provider.id)}
+                          aria-label={`${s.customRemoveProvider} — ${displayName}`}
+                          title={s.customRemoveProvider}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {providerTagline(provider.id, lang) && (
-                    <p className="mt-0.5 pl-4 text-xs text-muted-foreground/70">
-                      {providerTagline(provider.id, lang)}
+                  {custom ? (
+                    <p className="mt-0.5 truncate pl-4 font-mono text-xs text-muted-foreground/70">
+                      {custom.baseUrl}
                     </p>
+                  ) : (
+                    providerTagline(provider.id, lang) && (
+                      <p className="mt-0.5 pl-4 text-xs text-muted-foreground/70">
+                        {providerTagline(provider.id, lang)}
+                      </p>
+                    )
                   )}
                   {off.disabled ? (
                     <p className="mt-0.5 wrap-break-word pl-4 text-xs text-muted-foreground">{off.reason}</p>
@@ -412,6 +501,43 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                 </div>
               );
             })}
+          </div>
+
+          <div className="mb-6 rounded-xl border border-dashed border-border p-4">
+            <p className="text-sm font-medium">{s.customSectionTitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{s.customNote}</p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                placeholder={s.customNamePlaceholder}
+                aria-label={s.customNamePlaceholder}
+                className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring sm:w-40"
+              />
+              <input
+                type="url"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddCustom(); }}
+                placeholder={s.customUrlPlaceholder}
+                aria-label={s.customUrlPlaceholder}
+                className="flex-1 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustom}
+                disabled={!customName.trim() || !customUrl.trim()}
+                className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition duration-150 active:scale-[0.98] disabled:opacity-40"
+              >
+                {s.customAdd}
+              </button>
+            </div>
+            {customError && (
+              <p role="alert" className="mt-2 text-xs text-destructive">
+                {customError}
+              </p>
+            )}
           </div>
         </div>
 

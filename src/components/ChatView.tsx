@@ -13,7 +13,7 @@ import { extractTextFromImage } from "@/lib/ocr";
 import { prepareVisionImage, validateImageFile } from "@/lib/imageSafety";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
-import { providers } from "@/providers";
+import { listProviders, providers } from "@/providers";
 import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/browserLocal";
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
@@ -195,7 +195,12 @@ const STRINGS = {
 
 function providerLabel(providerId: string | undefined, lang: Lang): string | null {
   if (!providerId) return null;
-  const fallback = providers.find((p) => p.id === providerId)?.label ?? providerId;
+  // Intégrés d'abord (gratuit), puis fournisseurs personnalisés (lecture
+  // localStorage) — un id inconnu (fournisseur supprimé) garde l'id brut.
+  const fallback =
+    providers.find((p) => p.id === providerId)?.label ??
+    listProviders().find((p) => p.id === providerId)?.label ??
+    providerId;
   return providerDisplayLabel(providerId, lang) ?? fallback;
 }
 

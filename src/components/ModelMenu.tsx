@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { providers } from "@/providers";
+import { listProviders } from "@/providers";
 import type { ProviderModel } from "@/providers/types";
 import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
@@ -96,7 +96,10 @@ export function ModelMenu({
   // ne bloque PAS le changement, mais on avertit (le moteur se rechargera).
   const localBound = providerId === "browser" && Boolean(lockedLocalModel);
 
-  const provider = providers.find((p) => p.id === providerId) ?? providers[0];
+  // Recalculé à chaque rendu : la liste inclut les fournisseurs personnalisés,
+  // qui peuvent être ajoutés/retirés pendant que ce menu est monté.
+  const providerList = listProviders();
+  const provider = providerList.find((p) => p.id === providerId) ?? providerList[0];
   const missingKey = provider.requiresApiKey && !getApiKey(providerId);
   const selected = models.find((m) => m.id === model);
   const providerName = useCallback(
@@ -237,7 +240,7 @@ export function ModelMenu({
                 {s.providerSection}
               </p>
               <div className="grid grid-cols-2 gap-1">
-              {providers.map((p) => {
+              {providerList.map((p) => {
                 const active = p.id === providerId;
                 const ready = !p.requiresApiKey || Boolean(getApiKey(p.id));
                 const off = providerDisabledOnDevice(p.id, lang);

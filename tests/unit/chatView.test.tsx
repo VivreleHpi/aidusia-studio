@@ -11,7 +11,7 @@ const provider = vi.hoisted(() => ({
   listModels: vi.fn(async () => [{ id: "model-1", label: "Model 1" }]),
 }));
 
-vi.mock("@/providers", () => ({ providers: [provider] }));
+vi.mock("@/providers", () => ({ providers: [provider], listProviders: () => [provider] }));
 vi.mock("@/providers/browserLocal", () => ({
   LOCAL_AI_PROGRESS_EVENT: "aidusia:test-local-ai",
 }));

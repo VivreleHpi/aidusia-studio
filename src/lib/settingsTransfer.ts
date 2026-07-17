@@ -4,6 +4,12 @@
 // inexploitable, y compris pour nous (aucune clé ni mot de passe ne quitte
 // jamais ce module vers un serveur).
 import { providers } from "@/providers";
+import {
+  isValidCustomProviderConfig,
+  listCustomProviderConfigs,
+  restoreCustomProvider,
+  type CustomProviderConfig,
+} from "@/providers/custom";
 import { getApiKey, isPersistEnabled, setApiKey, setPersistEnabled } from "@/lib/apiKeys";
 import { getOllamaBaseUrl, setOllamaBaseUrl } from "@/providers/ollama";
 
@@ -33,6 +39,9 @@ interface ExportedSettingsV1 {
   lang: string | null;
   theme: string | null;
   persist: boolean;
+  // Absent des exports historiques : les fournisseurs personnalisés (nom +
+  // URL de base) voyagent avec leurs clés depuis l'ajout de cette capacité.
+  customProviders?: CustomProviderConfig[];
 }
 
 // Format du fichier .aidusia sur disque : l'enveloppe (kdf, sel, iv) est en
@@ -86,7 +95,21 @@ function validatePayload(value: unknown): ExportedSettingsV1 {
     throw new Error("Invalid theme");
   }
 
-  const allowedProviders = new Set(providers.map((provider) => provider.id));
+  const customProviders: CustomProviderConfig[] = [];
+  if (value.customProviders !== undefined) {
+    if (!Array.isArray(value.customProviders) || value.customProviders.length > 20) {
+      throw new Error("Invalid custom providers");
+    }
+    for (const entry of value.customProviders) {
+      if (!isValidCustomProviderConfig(entry)) throw new Error("Invalid custom providers");
+      customProviders.push(entry);
+    }
+  }
+
+  const allowedProviders = new Set([
+    ...providers.map((provider) => provider.id),
+    ...customProviders.map((provider) => provider.id),
+  ]);
   for (const [providerId, secret] of Object.entries(value.keys)) {
     if (!allowedProviders.has(providerId) || typeof secret !== "string" || secret.length > MAX_SECRET_LENGTH) {
       throw new Error("Invalid key entry");
@@ -116,14 +139,18 @@ async function deriveKey(passphrase: string, salt: Uint8Array, iterations: numbe
 }
 
 export async function exportSettings(passphrase: string): Promise<Blob> {
+  const customProviders = listCustomProviderConfigs();
   const payload: ExportedSettingsV1 = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    keys: Object.fromEntries(providers.map((p) => [p.id, getApiKey(p.id) ?? ""])),
+    keys: Object.fromEntries(
+      [...providers.map((p) => p.id), ...customProviders.map((c) => c.id)].map((id) => [id, getApiKey(id) ?? ""]),
+    ),
     ollamaUrl: getOllamaBaseUrl(),
     lang: localStorage.getItem(LANG_STORAGE_KEY),
     theme: localStorage.getItem(THEME_STORAGE_KEY),
     persist: isPersistEnabled(),
+    customProviders,
   };
 
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
@@ -195,6 +222,9 @@ export async function importSettings(file: File, passphrase: string): Promise<vo
   // cles importees soient elles-memes ecrites en localStorage si demande.
   setPersistEnabled(payload.persist);
   if (payload.ollamaUrl) setOllamaBaseUrl(payload.ollamaUrl);
+  // Restaurer les configs personnalisées AVANT les clés : une clé custom-* ne
+  // sert à rien sans le fournisseur qui la porte.
+  for (const config of payload.customProviders ?? []) restoreCustomProvider(config);
   for (const [providerId, value] of Object.entries(payload.keys ?? {})) {
     if (value) setApiKey(providerId, value);
   }
