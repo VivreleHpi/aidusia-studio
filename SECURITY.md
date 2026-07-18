@@ -2,11 +2,14 @@
 
 ## Versions prises en charge
 
-Aucune version stable n’est publiée à ce jour (`package.json` est en version
-`0.0.0`). La branche `main` est la seule ligne suivie. Un correctif de
-sécurité peut donc nécessiter une mise à jour vers le dernier commit ou le
-dernier déploiement. Cette politique sera remplacée par une matrice de versions
-lors de la première version stable.
+| Version | Prise en charge |
+|---|---|
+| 0.1.x (dernière version publiée) | ✅ |
+| < 0.1.0 | ❌ |
+
+La branche `main` reste la seule ligne de développement : un correctif de
+sécurité est livré en publiant une nouvelle version depuis `main` et en
+redéployant. Le déploiement public suit toujours le dernier commit de `main`.
 
 ## Signaler une vulnérabilité
 
