@@ -6,7 +6,7 @@
    pendant une génération ni sur une erreur, et se tait définitivement après
    un refus explicite ou deux reports. */
 
-const STORAGE_KEY = "aidusia_star_prompt_v1";
+const STORAGE_KEY = "aidusia_star_prompt_v1"; // gitleaks:allow — nom de clé localStorage, pas un secret
 const FIRST_THRESHOLD = 3; // réponses réussies avant le premier affichage
 const SNOOZE_RESPONSES = 8; // « Plus tard » = revoir dans 8 réponses
 const MAX_SNOOZES = 2; // au-delà, on considère que la réponse est non

@@ -1,0 +1,5 @@
+# Faux positifs gitleaks (règle generic-api-key) : "aidusia_star_prompt_v1"
+# est un NOM de clé localStorage, pas une valeur secrète. Les lignes portent
+# aussi un commentaire inline `gitleaks:allow` pour les commits futurs.
+fc7726e306bb8e26f814204e00a1d006d9e3271a:src/lib/starPrompt.ts:generic-api-key:9
+fc7726e306bb8e26f814204e00a1d006d9e3271a:tests/unit/starPrompt.test.ts:generic-api-key:10

@@ -7,7 +7,7 @@ import {
   snoozeStarPrompt,
 } from "@/lib/starPrompt";
 
-const KEY = "aidusia_star_prompt_v1";
+const KEY = "aidusia_star_prompt_v1"; // gitleaks:allow — nom de clé localStorage, pas un secret
 
 beforeEach(() => localStorage.clear());
 
