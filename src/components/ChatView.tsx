@@ -18,6 +18,8 @@ import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/brows
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
+import { StarPrompt } from "@/components/StarPrompt";
+import { REPO_URL } from "@/lib/repo";
 import {
   IconArrowUp,
   IconBook,
@@ -42,7 +44,6 @@ import {
 /* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
 const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
 
-const REPO_URL = "https://github.com/VivreleHpi/aidusia-studio";
 const DRAFT_STORAGE_KEY = "aidusia_chat_drafts_v1";
 const NEW_CONVERSATION_DRAFT_KEY = "__new_conversation__";
 
@@ -891,6 +892,7 @@ export function ChatView({
           {dictation.listening && (
             <p className="px-2 text-xs text-warning">{s.dictationWarning}</p>
           )}
+          <StarPrompt streaming={streaming} error={error} />
           {pendingImage && (
             <div className="glass flex items-center gap-2 rounded-xl p-2 text-xs">
               <img src={pendingImage.previewUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />

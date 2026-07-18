@@ -5,7 +5,13 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ## [Non publié]
 
-Rien pour le moment.
+### Ajouté
+
+- Rappel discret de soutien (étoile GitHub) : apparaît uniquement après trois
+  réponses menées à terme, jamais pendant une génération ; « Plus tard » le
+  reporte de huit réponses, un refus ou deux reports l'arrêtent
+  définitivement. Aucune requête réseau, état local uniquement (couvert par
+  l'export et la remise à zéro des données).
 
 ## [0.1.0] — 2026-07-18
 
