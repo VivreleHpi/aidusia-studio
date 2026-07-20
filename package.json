@@ -21,8 +21,8 @@
     "security:audit": "npm audit --audit-level=high"
   },
   "dependencies": {
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@mlc-ai/web-llm": "^0.2.84",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
