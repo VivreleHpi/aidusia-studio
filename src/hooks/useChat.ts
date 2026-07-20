@@ -10,6 +10,7 @@ import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/clie
 import type { McpServer } from "@/lib/mcp/types";
 import { requestToolApproval } from "@/lib/mcp/approval";
 import { selectMessagesForContext } from "@/lib/contextWindow";
+import { buildSystemPrompt } from "@/lib/systemContext";
 
 function titleFromFirstMessage(content: string, lang: Parameters<typeof newConversationTitle>[0]): string {
   const trimmed = content.trim().slice(0, 60);
@@ -145,7 +146,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
           await provider.chatStream(
             {
               model,
-              systemPrompt,
+              systemPrompt: buildSystemPrompt(providerId, lang, systemPrompt),
               signal: controller.signal,
               tools: toolDefs.length > 0 ? toolDefs : undefined,
               // Les assistants vides (laisses par une generation echouee ou
