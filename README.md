@@ -10,6 +10,10 @@
 
 ![Parcours complet d'AIDUSIA Studio](docs/demo.gif)
 
+**Même conversation, deux fournisseurs** — on répond d'abord avec un modèle Ollama local, puis on bascule sur Groq (cloud) sans perdre le fil :
+
+![Même chat, IA locale (Ollama) puis IA cloud (Groq)](docs/demo-local-cloud.gif)
+
 > ℹ️ « Stocké localement » ne veut pas dire « jamais transmis » : selon la fonction utilisée, des données partent vers un fournisseur cloud, un proxy du projet, un serveur MCP ou le service de dictée du navigateur. Le détail est plus bas et dans [PRIVACY.md](./PRIVACY.md).
 
 ## Démarrage rapide

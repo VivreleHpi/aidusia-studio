@@ -10,6 +10,10 @@
 
 ![Full AIDUSIA Studio walkthrough](docs/demo.gif)
 
+**Same conversation, two providers** — answer first with a local Ollama model, then switch to Groq (cloud) without losing the thread:
+
+![Same chat, local AI (Ollama) then cloud AI (Groq)](docs/demo-local-cloud.gif)
+
 > ℹ️ "Stored locally" does not mean "never transmitted": depending on the feature, data may go to a cloud provider, one of the project's proxies, an MCP server, or the browser's speech service. Details below and in [PRIVACY.md](./PRIVACY.md).
 
 ## Quick start
