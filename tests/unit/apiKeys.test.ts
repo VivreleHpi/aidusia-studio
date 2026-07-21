@@ -29,13 +29,35 @@ describe("API key persistence", () => {
   });
 
   it("persists only after explicit opt-in and keeps the session copy on opt-out", () => {
-    setPersistEnabled(true);
     setApiKey("openai", "persistent-secret");
+    expect(localStorage.getItem(KEY)).toBeNull();
+
+    setPersistEnabled(true);
     expect(localStorage.getItem(KEY)).toBe("persistent-secret");
 
     setPersistEnabled(false);
     expect(localStorage.getItem(KEY)).toBeNull();
     expect(sessionStorage.getItem(KEY)).toBe("persistent-secret");
     expect(getApiKey("openai")).toBe("persistent-secret");
+  });
+
+  it("moves a legacy local-only key into the current session before opting out", () => {
+    localStorage.setItem(KEY, "legacy-secret");
+
+    setPersistEnabled(false);
+
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(sessionStorage.getItem(KEY)).toBe("legacy-secret");
+    expect(getApiKey("openai")).toBe("legacy-secret");
+  });
+
+  it("does not overwrite a newer session key when disabling persistence", () => {
+    localStorage.setItem(KEY, "old-persisted-secret");
+    sessionStorage.setItem(KEY, "new-session-secret");
+
+    setPersistEnabled(false);
+
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(sessionStorage.getItem(KEY)).toBe("new-session-secret");
   });
 });

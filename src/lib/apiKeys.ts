@@ -30,11 +30,27 @@ export function isPersistEnabled(): boolean {
 export function setPersistEnabled(enabled: boolean) {
   if (enabled) {
     localStorage.setItem(PERSIST_FLAG_KEY, "true");
+    // Le choix s'applique aussi aux cles deja saisies pendant cette session.
+    // Sans cette migration, activer l'option apres configuration affichait
+    // bien le toggle comme actif, mais les cles disparaissaient tout de meme
+    // a la fermeture du navigateur.
+    for (const key of Object.keys(sessionStorage)) {
+      if (!key.startsWith(API_KEY_STORAGE_PREFIX)) continue;
+      const value = sessionStorage.getItem(key);
+      if (value !== null) localStorage.setItem(key, value);
+    }
   } else {
     localStorage.setItem(PERSIST_FLAG_KEY, "false");
-    // Migration cle -> memoire de session uniquement : purge le stockage durable.
+    // Conserver dans la session les cles historiques qui n'existent que dans
+    // localStorage avant de purger le stockage durable. Une copie de session
+    // deja presente reste prioritaire, comme dans getApiKey().
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(API_KEY_STORAGE_PREFIX)) localStorage.removeItem(key);
+      if (!key.startsWith(API_KEY_STORAGE_PREFIX)) continue;
+      const value = localStorage.getItem(key);
+      if (sessionStorage.getItem(key) === null && value !== null) {
+        sessionStorage.setItem(key, value);
+      }
+      localStorage.removeItem(key);
     }
   }
 }
