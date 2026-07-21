@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export const MOCK_SERVICES_URL =
   process.env.AIDUSIA_E2E_MOCK_URL ?? "http://127.0.0.1:4174";
@@ -13,14 +13,29 @@ export async function prepareApp(page: Page): Promise<void> {
   await expect(page.getByRole("main")).toBeVisible();
 }
 
-export async function openSettings(page: Page): Promise<void> {
+async function waitForMobileDrawerToSettle(page: Page): Promise<void> {
+  const drawer = page.locator("#aidusia-sidebar");
+  await expect
+    .poll(async () => (await drawer.boundingBox())?.x ?? Number.NEGATIVE_INFINITY)
+    .toBeGreaterThanOrEqual(-1);
+}
+
+export async function openSettings(page: Page): Promise<Locator> {
   const settings = page.getByRole("button", { name: "Settings" });
   const mobileMenu = page.getByRole("button", { name: "Toggle menu" });
   const closeMenu = page.getByRole("button", { name: "Close menu" });
-  if (await mobileMenu.isVisible() && !(await closeMenu.isVisible())) {
-    await mobileMenu.click();
+  if (await mobileMenu.isVisible()) {
+    if ((await mobileMenu.getAttribute("aria-expanded")) !== "true") {
+      await mobileMenu.click();
+    }
+    await expect(closeMenu).toBeVisible();
+    // `toBeVisible` inclut un element encore translate hors ecran. Attendre la
+    // fin reelle des 200 ms evite qu'un clic tres precoce tombe sur le backdrop
+    // et referme le tiroir au lieu d'ouvrir Parametres.
+    await waitForMobileDrawerToSettle(page);
   }
   await settings.click();
+  return settings;
 }
 
 export async function openProviders(page: Page): Promise<void> {

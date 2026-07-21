@@ -1,13 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-
-async function openSettings(page: import("@playwright/test").Page) {
-  const settings = page.getByRole("button", { name: "Settings" });
-  const mobileMenu = page.getByRole("button", { name: "Toggle menu" });
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
-  await settings.click();
-  return settings;
-}
+import { openSettings } from "./helpers/app";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

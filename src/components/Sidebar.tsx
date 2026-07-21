@@ -10,6 +10,7 @@ import {
   IconGear,
   IconHelp,
   IconKey,
+  IconList,
   IconMoon,
   IconPanelLeft,
   IconPlug,
@@ -21,12 +22,26 @@ import {
 } from "@/components/Icons";
 
 export const FOCUS_SEARCH_EVENT = "aidusia:focus-search";
+export const SIDEBAR_ID = "aidusia-sidebar";
+
+const SETTINGS_POPOVER_ID = "aidusia-sidebar-settings";
+const MOBILE_VIEWPORT_QUERY = "(max-width: 767px)";
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 const STRINGS = {
   fr: {
     newConversation: "Nouvelle conversation",
     searchPlaceholder: "Rechercher une conversation",
     clearSearch: "Effacer la recherche",
+    tools: "Outils",
+    compareAis: "Comparer les IA",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
     deleteConfirm: (title: string) => `Supprimer « ${title} » ? Cette action est irréversible.`,
@@ -53,11 +68,14 @@ const STRINGS = {
     collapseSidebar: "Rabattre le panneau",
     legalNotice: "Mentions légales",
     privacy: "Confidentialité",
+    mainNavigation: "Navigation principale",
   },
   en: {
     newConversation: "New conversation",
     searchPlaceholder: "Search conversations",
     clearSearch: "Clear search",
+    tools: "Tools",
+    compareAis: "Compare AIs",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
     deleteConfirm: (title: string) => `Delete "${title}"? This cannot be undone.`,
@@ -84,14 +102,17 @@ const STRINGS = {
     collapseSidebar: "Collapse sidebar",
     legalNotice: "Legal notice",
     privacy: "Privacy",
+    mainNavigation: "Main navigation",
   },
 };
 
 interface SidebarProps {
   conversations: Conversation[];
   currentId: string | null;
+  activeView: "chat" | "compare";
   onSelect: (id: string) => void;
   onCreate: () => void;
+  onOpenCompare: () => void;
   onDelete: (id: string) => void;
   onOpenAbout: () => void;
   onOpenFaq: () => void;
@@ -111,6 +132,38 @@ const DAY_MS = 86_400_000;
 
 type BucketKey = "today" | "yesterday" | "last7" | "last30" | "older";
 const BUCKET_ORDER: BucketKey[] = ["today", "yesterday", "last7", "last30", "older"];
+
+function useMobileViewport(): boolean {
+  const read = () =>
+    typeof window.matchMedia === "function" && window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
+  const [mobile, setMobile] = useState(read);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(MOBILE_VIEWPORT_QUERY);
+    const update = () => setMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return mobile;
+}
+
+function focusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => {
+      const style = window.getComputedStyle(element);
+      return (
+        element.tabIndex >= 0 &&
+        !element.hidden &&
+        element.getAttribute("aria-hidden") !== "true" &&
+        style.display !== "none" &&
+        style.visibility !== "hidden"
+      );
+    },
+  );
+}
 
 function bucketKey(updatedAt: number, now: number): BucketKey {
   const startOfToday = new Date(now).setHours(0, 0, 0, 0);
@@ -136,8 +189,10 @@ function groupConversations(conversations: Conversation[]): [BucketKey, Conversa
 export function Sidebar({
   conversations,
   currentId,
+  activeView,
   onSelect,
   onCreate,
+  onOpenCompare,
   onDelete,
   onOpenAbout,
   onOpenFaq,
@@ -154,7 +209,12 @@ export function Sidebar({
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const isMobileViewport = useMobileViewport();
   const searchRef = useRef<HTMLInputElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsPopoverRef = useRef<HTMLDivElement>(null);
   const { lang, setLang } = useLang();
   const { theme, setTheme } = useTheme();
   const s = STRINGS[lang];
@@ -164,6 +224,70 @@ export function Sidebar({
     window.addEventListener(FOCUS_SEARCH_EVENT, focusSearch);
     return () => window.removeEventListener(FOCUS_SEARCH_EVENT, focusSearch);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport || !open) return;
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTimer = window.setTimeout(() => mobileCloseRef.current?.focus(), 0);
+
+    function handleDrawerKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !drawer) return;
+
+      const items = focusableElements(drawer);
+      if (items.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    drawer.addEventListener("keydown", handleDrawerKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      drawer.removeEventListener("keydown", handleDrawerKeyDown);
+      if (previouslyFocused?.isConnected) {
+        window.setTimeout(() => previouslyFocused.focus(), 0);
+      }
+    };
+  }, [isMobileViewport, onClose, open]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const focusTimer = window.setTimeout(() => {
+      settingsPopoverRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+    }, 0);
+
+    function handleSettingsKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSettingsOpen(false);
+      window.setTimeout(() => settingsTriggerRef.current?.focus(), 0);
+    }
+
+    document.addEventListener("keydown", handleSettingsKeyDown, true);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleSettingsKeyDown, true);
+    };
+  }, [settingsOpen]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -183,20 +307,38 @@ export function Sidebar({
     onClose();
   }
 
+  function handleOpenCompare() {
+    onOpenCompare();
+    onClose();
+  }
+
+  function closeSettingsAndRestoreFocus() {
+    setSettingsOpen(false);
+    window.setTimeout(() => settingsTriggerRef.current?.focus(), 0);
+  }
+
   const menuItemClass =
     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition duration-150 hover:bg-accent/10";
+  const mobileDrawerHidden = isMobileViewport && !open;
 
   return (
     <>
       {open && (
-        <button
-          type="button"
-          aria-label={s.closeMenu}
+        <div
+          aria-hidden="true"
           onClick={onClose}
           className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm md:hidden"
         />
       )}
       <aside
+        id={SIDEBAR_ID}
+        ref={drawerRef}
+        role={isMobileViewport && open ? "dialog" : undefined}
+        aria-modal={isMobileViewport && open ? "true" : undefined}
+        aria-label={s.mainNavigation}
+        aria-hidden={mobileDrawerHidden ? "true" : undefined}
+        inert={mobileDrawerHidden ? true : undefined}
+        tabIndex={isMobileViewport && open ? -1 : undefined}
         className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:hidden" : "md:static md:z-auto md:w-64 md:translate-x-0"}`}
@@ -212,12 +354,26 @@ export function Sidebar({
         <button
           type="button"
           onClick={onToggleCollapse}
+          tabIndex={isMobileViewport ? -1 : undefined}
+          aria-hidden={isMobileViewport ? "true" : undefined}
           aria-label={s.collapseSidebar}
           title={s.collapseSidebar}
           className="ml-auto hidden h-7 w-7 place-items-center rounded-lg text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 md:grid"
         >
           <IconPanelLeft className="h-4 w-4" />
         </button>
+        {isMobileViewport ? (
+          <button
+            ref={mobileCloseRef}
+            type="button"
+            onClick={onClose}
+            aria-label={s.closeMenu}
+            title={s.closeMenu}
+            className="ml-auto grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground active:scale-95 md:hidden"
+          >
+            <IconX className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
       <div className="p-3 pt-1" data-tour="new-conversation">
@@ -273,6 +429,24 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-3">
+        <div className="mb-2">
+          <p className="px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {s.tools}
+          </p>
+          <button
+            type="button"
+            onClick={handleOpenCompare}
+            aria-current={activeView === "compare" ? "page" : undefined}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition ${
+              activeView === "compare"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
+            }`}
+          >
+            <IconList className="h-4 w-4 shrink-0" />
+            <span>{s.compareAis}</span>
+          </button>
+        </div>
         {grouped.map(([key, items]) => (
           <div key={key} className="mb-2">
             <p className="px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -282,7 +456,7 @@ export function Sidebar({
               <div
                 key={c.id}
                 className={`group mb-0.5 flex items-center rounded-md px-2 py-2 text-sm transition ${
-                  c.id === currentId
+                  activeView === "chat" && c.id === currentId
                     ? "bg-accent/15 text-foreground"
                     : "text-sidebar-foreground hover:bg-accent/10"
                 }`}
@@ -290,6 +464,9 @@ export function Sidebar({
                 <button
                   type="button"
                   onClick={() => handleSelect(c.id)}
+                  aria-current={
+                    activeView === "chat" && c.id === currentId ? "page" : undefined
+                  }
                   className="flex-1 truncate text-left"
                   title={c.title}
                 >
@@ -321,13 +498,17 @@ export function Sidebar({
       <div className="relative border-t border-sidebar-border p-2">
         {settingsOpen && (
           <>
-            <button
-              type="button"
-              aria-label={s.closeMenu}
-              onClick={() => setSettingsOpen(false)}
+            <div
+              aria-hidden="true"
+              onClick={closeSettingsAndRestoreFocus}
               className="fixed inset-0 z-40 cursor-default"
             />
-            <div className="modal-in absolute bottom-full left-2 z-50 mb-2 w-56 rounded-lg border border-border/60 bg-card/95 p-1.5 text-sm shadow-xl backdrop-blur-xl">
+            <div
+              id={SETTINGS_POPOVER_ID}
+              ref={settingsPopoverRef}
+              aria-label={s.settings}
+              className="modal-in absolute bottom-full left-2 z-50 mb-2 w-56 rounded-lg border border-border/60 bg-card/95 p-1.5 text-sm shadow-xl backdrop-blur-xl"
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -416,11 +597,16 @@ export function Sidebar({
         )}
         <div className="flex items-center gap-1">
           <button
+            ref={settingsTriggerRef}
             type="button"
             data-tour="settings-menu"
-            onClick={() => setSettingsOpen((v) => !v)}
+            onClick={() => {
+              if (settingsOpen) closeSettingsAndRestoreFocus();
+              else setSettingsOpen(true);
+            }}
             aria-label={s.settings}
             aria-expanded={settingsOpen ? "true" : "false"}
+            aria-controls={SETTINGS_POPOVER_ID}
             className="flex flex-1 items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-sidebar-foreground transition hover:bg-accent/10"
           >
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15">
