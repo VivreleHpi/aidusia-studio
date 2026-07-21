@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useChat } from "@/hooks/useChat";
 import type { Conversation } from "@/lib/db";
@@ -21,19 +21,39 @@ vi.mock("@/lib/i18n", () => ({
 }));
 vi.mock("@/lib/mcp/servers", () => ({ listMcpServers: () => [] }));
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function emptyConversation(): Conversation {
+  return {
+    id: "conversation-1",
+    title: "Nouvelle conversation",
+    createdAt: 1,
+    updatedAt: 1,
+    messages: [],
+  };
+}
+
 describe("useChat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("emet des snapshots immutables pendant le streaming", async () => {
-    const conversation: Conversation = {
-      id: "conversation-1",
-      title: "Nouvelle conversation",
-      createdAt: 1,
-      updatedAt: 1,
-      messages: [],
-    };
+    const conversation = emptyConversation();
     db.getConversation.mockResolvedValue(conversation);
     db.saveConversation.mockResolvedValue(undefined);
     provider.chatStream.mockImplementation(async (_params, _key, onChunk) => {
@@ -58,6 +78,27 @@ describe("useChat", () => {
     expect(streamed).toContain("AB");
     expect(streamed.at(-1)).toBe("ABC");
     expect(new Set(updates).size).toBe(updates.length);
+  });
+
+  it("absorbe l'échec d'une persistance intermédiaire quand la sauvegarde finale réussit", async () => {
+    db.getConversation.mockResolvedValue(emptyConversation());
+    db.saveConversation
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("Quota temporaire"))
+      .mockResolvedValueOnce(undefined);
+    provider.chatStream.mockImplementation(async (_params, _key, onChunk) => {
+      onChunk({ type: "text", delta: "Réponse complète" });
+    });
+
+    const { result } = renderHook(() => useChat(vi.fn(), vi.fn()));
+    await act(async () => {
+      await expect(
+        result.current.sendMessage("conversation-1", "Question", "fake", "model-1"),
+      ).resolves.toBeUndefined();
+    });
+
+    expect(db.saveConversation).toHaveBeenCalledTimes(3);
+    expect(result.current.streaming).toBe(false);
   });
 
   it("regenere depuis le dernier message user et remplace l'ancienne reponse", async () => {
@@ -194,5 +235,108 @@ describe("useChat", () => {
     expect(db.saveConversation).not.toHaveBeenCalled();
     expect(updates).toHaveLength(0);
     expect(onListChanged).not.toHaveBeenCalled();
+  });
+
+  it("verrouille synchroniquement un run et laisse stop viser son contrôleur", async () => {
+    const read = deferred<Conversation | undefined>();
+    db.getConversation.mockReturnValueOnce(read.promise);
+    db.saveConversation.mockResolvedValue(undefined);
+
+    let activeSignal!: AbortSignal;
+    provider.chatStream.mockImplementation((params) => {
+      activeSignal = params.signal!;
+      return new Promise<void>((_resolve, reject) => {
+        if (activeSignal.aborted) {
+          reject(new DOMException("Arrêté", "AbortError"));
+          return;
+        }
+        activeSignal.addEventListener(
+          "abort",
+          () => reject(new DOMException("Arrêté", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+
+    const updates: Conversation[] = [];
+    const { result } = renderHook(() => useChat((value) => updates.push(value), vi.fn()));
+    let firstRun!: Promise<void>;
+    let overlappingRun!: Promise<void>;
+
+    act(() => {
+      firstRun = result.current.sendMessage(
+        "conversation-1",
+        "Premier message",
+        "fake",
+        "model-1",
+      );
+      // Le même verrou couvre aussi la régénération : cet appel ne doit même
+      // pas effectuer une deuxième lecture IndexedDB.
+      overlappingRun = result.current.regenerate("conversation-1", "fake", "model-2");
+    });
+
+    expect(db.getConversation).toHaveBeenCalledTimes(1);
+    expect(db.saveConversation).not.toHaveBeenCalled();
+    expect(provider.chatStream).not.toHaveBeenCalled();
+    expect(result.current.streaming).toBe(true);
+
+    read.resolve(emptyConversation());
+    await waitFor(() => expect(provider.chatStream).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.stop());
+    expect(activeSignal.aborted).toBe(true);
+    await act(async () => {
+      await Promise.all([firstRun, overlappingRun]);
+    });
+    expect(result.current.streaming).toBe(false);
+
+    expect(db.getConversation).toHaveBeenCalledTimes(1);
+    expect(provider.chatStream.mock.calls[0][0]).toMatchObject({ model: "model-1" });
+    const firstSaved = db.saveConversation.mock.calls[0][0] as Conversation;
+    expect(firstSaved.messages.filter((message) => message.role === "user")).toHaveLength(1);
+    expect(firstSaved.messages.find((message) => message.role === "user")?.content).toBe(
+      "Premier message",
+    );
+    expect(updates).not.toHaveLength(0);
+  });
+
+  it("libère le verrou lorsque la conversation est absente", async () => {
+    db.getConversation
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(emptyConversation());
+    db.saveConversation.mockResolvedValue(undefined);
+    provider.chatStream.mockImplementation(async (_params, _key, onChunk) => {
+      onChunk({ type: "text", delta: "Réponse" });
+    });
+
+    const { result } = renderHook(() => useChat(vi.fn(), vi.fn()));
+    await act(async () => {
+      await result.current.sendMessage("absente", "Ignoré", "fake", "model-1");
+      await result.current.sendMessage("conversation-1", "Accepté", "fake", "model-1");
+    });
+
+    expect(db.getConversation).toHaveBeenCalledTimes(2);
+    expect(provider.chatStream).toHaveBeenCalledTimes(1);
+  });
+
+  it("libère le verrou après une erreur précédant le streaming", async () => {
+    db.getConversation
+      .mockRejectedValueOnce(new Error("IndexedDB indisponible"))
+      .mockResolvedValueOnce(emptyConversation());
+    db.saveConversation.mockResolvedValue(undefined);
+    provider.chatStream.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useChat(vi.fn(), vi.fn()));
+    await act(async () => {
+      await expect(
+        result.current.sendMessage("conversation-1", "Premier", "fake", "model-1"),
+      ).rejects.toThrow("IndexedDB indisponible");
+    });
+    await act(async () => {
+      await result.current.sendMessage("conversation-1", "Second", "fake", "model-1");
+    });
+
+    expect(db.getConversation).toHaveBeenCalledTimes(2);
+    expect(provider.chatStream).toHaveBeenCalledTimes(1);
   });
 });

@@ -84,6 +84,29 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Verrou impératif, distinct de l'état React `streaming` : sa mutation est
+  // synchrone et protège donc aussi la fenêtre précédant le premier `await`
+  // (lecture IndexedDB + persistance initiale).
+  const runLockedRef = useRef(false);
+
+  const acquireRun = useCallback((): AbortController | null => {
+    if (runLockedRef.current) return null;
+    runLockedRef.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setStreaming(true);
+    return controller;
+  }, []);
+
+  const releaseRun = useCallback((controller: AbortController): void => {
+    // Le verrou interdit actuellement tout chevauchement. Le contrôle
+    // d'identité évite néanmoins qu'un ancien finally efface un futur run si
+    // cette politique évolue.
+    if (abortRef.current !== controller) return;
+    abortRef.current = null;
+    runLockedRef.current = false;
+    setStreaming(false);
+  }, []);
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
@@ -98,13 +121,11 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       assistantMessage: StoredMessage,
       providerId: string,
       model: string,
+      controller: AbortController,
       systemPrompt?: string,
     ) => {
       const provider = getProvider(providerId);
       const apiKey = getApiKey(providerId);
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setStreaming(true);
 
       let lastPersist = 0;
       let pendingRender: number | null = null;
@@ -130,7 +151,10 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         const now = Date.now();
         if (now - lastPersist > PERSIST_INTERVAL_MS) {
           lastPersist = now;
-          void saveConversation({ ...updated, updatedAt: now });
+          void saveConversation({ ...updated, updatedAt: now }).catch(() => {
+            // Écriture intermédiaire best-effort : la sauvegarde finale est
+            // attendue dans le finally et reste la source d'erreur autoritaire.
+          });
         }
       }
 
@@ -243,8 +267,6 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
           cancelFrame(pendingRender);
           pendingRender = null;
         }
-        setStreaming(false);
-        abortRef.current = null;
         // Ne jamais persister un assistant reste vide (echec/interruption) -
         // et purger ceux que d'anciennes versions ont laisses.
         const finalConversation = {
@@ -272,40 +294,47 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
       systemPrompt?: string,
       images?: string[],
     ) => {
-      setError(null);
-      const conversation = await getConversation(conversationId);
-      if (!conversation) return;
+      const controller = acquireRun();
+      if (!controller) return;
 
-      const userMessage: StoredMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content,
-        createdAt: Date.now(),
-        images,
-      };
-      const assistantMessage: StoredMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-        providerId,
-        model,
-      };
+      try {
+        setError(null);
+        const conversation = await getConversation(conversationId);
+        if (!conversation) return;
 
-      const isFirstMessage = conversation.messages.length === 0;
-      const updated: Conversation = {
-        ...conversation,
-        title: isFirstMessage ? titleFromFirstMessage(content, lang) : conversation.title,
-        messages: [...conversation.messages, userMessage, assistantMessage],
-        updatedAt: Date.now(),
-      };
-      await saveConversation(updated);
-      onUpdated(updated);
-      onListChanged();
+        const userMessage: StoredMessage = {
+          id: crypto.randomUUID(),
+          role: "user",
+          content,
+          createdAt: Date.now(),
+          images,
+        };
+        const assistantMessage: StoredMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "",
+          createdAt: Date.now(),
+          providerId,
+          model,
+        };
 
-      await runAssistantTurn(updated, assistantMessage, providerId, model, systemPrompt);
+        const isFirstMessage = conversation.messages.length === 0;
+        const updated: Conversation = {
+          ...conversation,
+          title: isFirstMessage ? titleFromFirstMessage(content, lang) : conversation.title,
+          messages: [...conversation.messages, userMessage, assistantMessage],
+          updatedAt: Date.now(),
+        };
+        await saveConversation(updated);
+        onUpdated(updated);
+        onListChanged();
+
+        await runAssistantTurn(updated, assistantMessage, providerId, model, controller, systemPrompt);
+      } finally {
+        releaseRun(controller);
+      }
     },
-    [runAssistantTurn, onUpdated, onListChanged, lang],
+    [acquireRun, releaseRun, runAssistantTurn, onUpdated, onListChanged, lang],
   );
 
   // Regenere la reponse : rejoue la generation a partir du dernier message
@@ -314,39 +343,46 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
   // remplaces - meme semantique que le "Regenerer" des chats classiques.
   const regenerate = useCallback(
     async (conversationId: string, providerId: string, model: string, systemPrompt?: string) => {
-      setError(null);
-      const conversation = await getConversation(conversationId);
-      if (!conversation) return;
+      const controller = acquireRun();
+      if (!controller) return;
 
-      let lastUserIndex = -1;
-      for (let i = conversation.messages.length - 1; i >= 0; i--) {
-        if (conversation.messages[i].role === "user") {
-          lastUserIndex = i;
-          break;
+      try {
+        setError(null);
+        const conversation = await getConversation(conversationId);
+        if (!conversation) return;
+
+        let lastUserIndex = -1;
+        for (let i = conversation.messages.length - 1; i >= 0; i--) {
+          if (conversation.messages[i].role === "user") {
+            lastUserIndex = i;
+            break;
+          }
         }
+        if (lastUserIndex === -1) return;
+
+        const assistantMessage: StoredMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "",
+          createdAt: Date.now(),
+          providerId,
+          model,
+        };
+        const updated: Conversation = {
+          ...conversation,
+          messages: [...conversation.messages.slice(0, lastUserIndex + 1), assistantMessage],
+          updatedAt: Date.now(),
+        };
+        await saveConversation(updated);
+        onUpdated(updated);
+        onListChanged();
+
+        await runAssistantTurn(updated, assistantMessage, providerId, model, controller, systemPrompt);
+      } finally {
+        releaseRun(controller);
       }
-      if (lastUserIndex === -1) return;
-
-      const assistantMessage: StoredMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-        providerId,
-        model,
-      };
-      const updated: Conversation = {
-        ...conversation,
-        messages: [...conversation.messages.slice(0, lastUserIndex + 1), assistantMessage],
-        updatedAt: Date.now(),
-      };
-      await saveConversation(updated);
-      onUpdated(updated);
-      onListChanged();
-
-      await runAssistantTurn(updated, assistantMessage, providerId, model, systemPrompt);
     },
-    [runAssistantTurn, onUpdated, onListChanged],
+    [acquireRun, releaseRun, runAssistantTurn, onUpdated, onListChanged],
   );
 
   return { sendMessage, regenerate, stop, streaming, error };
