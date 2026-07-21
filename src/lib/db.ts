@@ -26,18 +26,47 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
+  const pending = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let rejected = false;
+    const rejectOpen = (error: unknown) => {
+      rejected = true;
+      reject(error);
+    };
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_CONVERSATIONS)) {
         db.createObjectStore(STORE_CONVERSATIONS, { keyPath: "id" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      // `blocked` peut etre suivi plus tard d'un succes lorsque l'autre onglet
+      // libere sa connexion. L'appelant a deja recu l'erreur recuperable : ne
+      // pas laisser cette connexion tardive ouverte en arriere-plan.
+      if (rejected) {
+        db.close();
+        return;
+      }
+      // Une migration ou suppression lancee depuis un autre onglet ne doit
+      // pas rester bloquee par cette connexion. Le prochain acces rouvrira
+      // automatiquement la base a la bonne version.
+      db.onversionchange = () => {
+        db.close();
+        if (dbPromise === pending) dbPromise = null;
+      };
+      resolve(db);
+    };
+    request.onerror = () => rejectOpen(request.error ?? new Error("IndexedDB open failed"));
+    request.onblocked = () => rejectOpen(new Error("IndexedDB open blocked"));
   });
-  return dbPromise;
+  dbPromise = pending;
+  // Ne pas memoriser une promesse rejetee : le bouton « Reessayer » doit
+  // pouvoir retenter l'ouverture apres une permission ou un blocage transitoire.
+  void pending.catch(() => {
+    if (dbPromise === pending) dbPromise = null;
+  });
+  return pending;
 }
 
 async function withStore<T>(
@@ -46,11 +75,33 @@ async function withStore<T>(
 ): Promise<T> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CONVERSATIONS, mode);
-    const store = tx.objectStore(STORE_CONVERSATIONS);
-    const request = fn(store);
-    request.onsuccess = () => resolve(request.result as T);
-    request.onerror = () => reject(request.error);
+    let settled = false;
+    let result: T;
+
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error ?? new Error("IndexedDB transaction failed"));
+    };
+
+    try {
+      const tx = db.transaction(STORE_CONVERSATIONS, mode);
+      const store = tx.objectStore(STORE_CONVERSATIONS);
+      const request = fn(store);
+      request.onsuccess = () => {
+        result = request.result as T;
+      };
+      request.onerror = () => fail(request.error);
+      tx.oncomplete = () => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+      tx.onerror = () => fail(tx.error);
+      tx.onabort = () => fail(tx.error ?? new Error("IndexedDB transaction aborted"));
+    } catch (error) {
+      fail(error);
+    }
   });
 }
 
