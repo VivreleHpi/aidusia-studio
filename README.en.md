@@ -16,6 +16,8 @@
 
 > ℹ️ "Stored locally" does not mean "never transmitted": depending on the feature, data may go to a cloud provider, one of the project's proxies, an MCP server, or the browser's speech service. Details below and in [PRIVACY.md](./PRIVACY.md).
 
+> AI can make mistakes. Check important information.
+
 ## Quick start
 
 ```bash
@@ -45,6 +47,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 | Image analysis | ✅ (vision-capable Ollama) | Image sent to the configured Ollama instance |
 | Web Speech dictation | ✅ (when supported by the browser) | May use a remote browser/OS speech service |
 | HTTP MCP connectors | 🧪 | Requests to configured MCP servers |
+| Two-model comparison and synthesis | ✅ | Question sent separately to both models; synthesis also sends both answers to the selected model |
 | Settings export/import | ✅ | Passphrase-encrypted local file |
 | Installable PWA and offline shell | ✅ | Application resources cached locally |
 | Offline cloud chat | ❌ | A provider connection remains necessary |
@@ -54,14 +57,14 @@ API, model, WebGPU, and speech support vary by browser, device, region, and prov
 ## Privacy
 
 - Conversations are stored in IndexedDB on this device.
-- Keys are held in `sessionStorage` and, by default, also in `localStorage`. Persistent storage can be disabled in the interface.
+- API keys are held in `sessionStorage` by default. Optional persistence in `localStorage` can be enabled by the user. Existing installations may retain their historical preference after migration.
 - No account, analytics, or advertising cookie. Fonts, icons, and OCR files are self-hosted.
 - Exported settings are encrypted client-side (AES-GCM, key derived from the passphrase via PBKDF2). Security depends on the strength of that passphrase.
 
 <details>
 <summary>When does data leave the device?</summary>
 
-When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when you request them. Full details in [PRIVACY.md](./PRIVACY.md).
+When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. A comparison sends only the question to both selected models, without conversation history or MCP tools. If you request a synthesis, the question and both answers are sent to the selected model. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when you request them. Full details in [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## MCP connectors: security warning

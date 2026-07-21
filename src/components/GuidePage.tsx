@@ -38,7 +38,7 @@ const STRINGS = {
     download: "Télécharger ↗",
     privacyTitle: "Confidentialité, en détail",
     privacyText:
-      "Conversations et clés restent uniquement dans ce navigateur (IndexedDB et localStorage). Les appels partent directement de votre navigateur vers le fournisseur choisi, avec votre propre clé — sauf OpenAI et Ollama Cloud, qui bloquent les requêtes directes depuis un navigateur (vérifié empiriquement). Pour ces deux-là, un petit proxy stateless et sans log relaie l'appel ; son code est dans ce même dépôt et vérifiable ligne par ligne.",
+      "Conversations et clés restent uniquement dans ce navigateur : les conversations dans IndexedDB, et les clés dans sessionStorage par défaut. Vous pouvez activer leur persistance dans localStorage. Les appels partent directement de votre navigateur vers le fournisseur choisi, avec votre propre clé — sauf OpenAI et Ollama Cloud, qui bloquent les requêtes directes depuis un navigateur (vérifié empiriquement). Pour ces deux-là, un petit proxy stateless et sans log relaie l'appel ; son code est dans ce même dépôt et vérifiable ligne par ligne.",
     limitsTitle: "Limites connues",
     limits: [
       "L'OCR (extraction de texte d'image) est 100% local mais conçu pour le texte imprimé — mauvais sur l'écriture manuscrite, quelle que soit la qualité de la photo.",
@@ -75,7 +75,7 @@ const STRINGS = {
     download: "Download ↗",
     privacyTitle: "Privacy, in detail",
     privacyText:
-      "Conversations and keys stay only in this browser (IndexedDB and localStorage). Requests go directly from your browser to your chosen provider, with your own key — except OpenAI and Ollama Cloud, which block direct browser requests (verified empirically). For those two, a small stateless, no-log proxy relays the call; its code lives in this same repository, auditable line by line.",
+      "Conversations and keys stay only in this browser: conversations in IndexedDB, and keys in sessionStorage by default. You can enable their persistence in localStorage. Requests go directly from your browser to your chosen provider, with your own key — except OpenAI and Ollama Cloud, which block direct browser requests (verified empirically). For those two, a small stateless, no-log proxy relays the call; its code lives in this same repository, auditable line by line.",
     limitsTitle: "Known limitations",
     limits: [
       "OCR (extracting text from images) is 100% local but built for printed text — poor at handwriting, whatever the photo quality.",

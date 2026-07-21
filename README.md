@@ -16,6 +16,8 @@
 
 > ℹ️ « Stocké localement » ne veut pas dire « jamais transmis » : selon la fonction utilisée, des données partent vers un fournisseur cloud, un proxy du projet, un serveur MCP ou le service de dictée du navigateur. Le détail est plus bas et dans [PRIVACY.md](./PRIVACY.md).
 
+> Les IA peuvent faire des erreurs. Vérifiez les informations importantes.
+
 ## Démarrage rapide
 
 ```bash
@@ -45,6 +47,7 @@ Légende : ✅ livré · 🧪 livré, expérimental · ❌ non disponible
 | Analyse d'image | ✅ (Ollama vision) | Image envoyée à l'instance Ollama configurée |
 | Dictée Web Speech | ✅ (si le navigateur la prend en charge) | Peut utiliser le service distant du navigateur/OS |
 | Connecteurs MCP HTTP | 🧪 | Requêtes vers les serveurs MCP configurés |
+| Comparaison et synthèse de deux modèles | ✅ | Question envoyée séparément aux deux modèles ; la synthèse renvoie aussi leurs deux réponses au modèle choisi |
 | Export/import des réglages | ✅ | Fichier local chiffré par phrase secrète |
 | PWA installable et shell hors ligne | ✅ | Ressources applicatives mises en cache localement |
 | Chat cloud hors ligne | ❌ | Une connexion au fournisseur reste nécessaire |
@@ -61,7 +64,7 @@ La disponibilité d'une API, d'un modèle, de WebGPU ou de la dictée varie selo
 <details>
 <summary>Quand des données quittent-elles l'appareil ?</summary>
 
-Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou activez MCP, les données nécessaires sont transmises. Avec MCP, les définitions d'outils sont présentées au modèle choisi et le résultat d'un appel autorisé lui est renvoyé pour poursuivre la réponse. Les modèles locaux du navigateur sont téléchargés depuis l'infrastructure de distribution de WebLLM, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
+Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou activez MCP, les données nécessaires sont transmises. Une comparaison envoie uniquement la question aux deux modèles sélectionnés, sans historique ni outil MCP. Si vous demandez une synthèse, la question et les deux réponses sont transmises au modèle choisi. Avec MCP, les définitions d'outils sont présentées au modèle choisi et le résultat d'un appel autorisé lui est renvoyé pour poursuivre la réponse. Les modèles locaux du navigateur sont téléchargés depuis l'infrastructure de distribution de WebLLM, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## Connecteurs MCP : avertissement de sécurité

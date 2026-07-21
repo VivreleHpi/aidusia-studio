@@ -62,7 +62,7 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "Mes clés API sont-elles conservées si je ferme le navigateur ?",
-        a: "Par défaut, oui (localStorage), mais vous pouvez désactiver cette persistance dans le panneau \"Fournisseurs\" si vous préférez ressaisir vos clés à chaque session.",
+        a: "Par défaut, non : elles restent dans sessionStorage et disparaissent à la fermeture complète de la session du navigateur. Vous pouvez activer leur conservation dans localStorage depuis le panneau \"Fournisseurs\". Une ancienne installation peut conserver sa préférence historique après migration.",
       },
       {
         q: "Est-ce la version complète du produit AIDUSIA ?",
@@ -121,7 +121,7 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "Are my API keys kept if I close the browser?",
-        a: "By default, yes (localStorage), but you can turn off this persistence in the \"Providers\" panel if you'd rather re-enter your keys each session.",
+        a: "By default, no: they remain in sessionStorage and disappear when the browser session is fully closed. You can enable storage in localStorage from the \"Providers\" panel. An existing installation may retain its historical preference after migration.",
       },
       {
         q: "Is this the full AIDUSIA product?",
