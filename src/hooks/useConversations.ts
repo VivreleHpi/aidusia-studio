@@ -7,6 +7,7 @@ import {
   saveConversation,
 } from "@/lib/db";
 import { newConversationTitle, useLang } from "@/lib/i18n";
+import { deleteChatDraft } from "@/lib/chatDrafts";
 
 export function useConversations() {
   const { lang } = useLang();
@@ -54,6 +55,7 @@ export function useConversations() {
   const removeConversation = useCallback(
     async (id: string) => {
       await deleteConversation(id);
+      deleteChatDraft(id);
       const all = await refresh();
       if (currentId === id) {
         setCurrentId(all[0]?.id ?? null);

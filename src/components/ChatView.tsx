@@ -9,13 +9,17 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
-import { extractTextFromImage } from "@/lib/ocr";
 import { prepareVisionImage, validateImageFile } from "@/lib/imageSafety";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
 import { listProviders, providers } from "@/providers";
 import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "@/providers/browserLocal";
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
+import {
+  loadChatDrafts,
+  NEW_CONVERSATION_DRAFT_KEY,
+  saveChatDrafts,
+} from "@/lib/chatDrafts";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
@@ -44,9 +48,6 @@ import {
 /* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
 const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
 
-const DRAFT_STORAGE_KEY = "aidusia_chat_drafts_v1";
-const NEW_CONVERSATION_DRAFT_KEY = "__new_conversation__";
-
 interface PendingImage {
   base64: string;
   previewUrl: string;
@@ -57,26 +58,6 @@ interface LastSubmission {
   content: string;
   sentContent: string;
   image: PendingImage | null;
-}
-
-function loadDrafts(): Record<string, string> {
-  try {
-    const value = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? "{}");
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-    return Object.fromEntries(
-      Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-    );
-  } catch {
-    return {};
-  }
-}
-
-function saveDrafts(drafts: Record<string, string>) {
-  try {
-    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
-  } catch {
-    // Le composer reste utilisable si le stockage prive/quota est indisponible.
-  }
 }
 
 const STRINGS = {
@@ -127,6 +108,7 @@ const STRINGS = {
     stop: "Arrêter la génération",
     send: "Envoyer",
     hint: "↵ envoyer · ⇧↵ retour à la ligne",
+    disclaimer: "Les IA peuvent faire des erreurs. Vérifiez les informations importantes.",
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
@@ -135,6 +117,8 @@ const STRINGS = {
     chooseModelAction: "Choisir un modèle",
     retryMessage: "Réessayer",
     aiGenerated: "Généré par IA",
+    markdownImageBlocked: "Image Markdown bloquée pour protéger votre confidentialité",
+    openMarkdownImage: "Ouvrir l’image externe dans un nouvel onglet",
   },
   en: {
     welcome: (hour: number) =>
@@ -183,6 +167,7 @@ const STRINGS = {
     stop: "Stop generating",
     send: "Send",
     hint: "↵ send · ⇧↵ new line",
+    disclaimer: "AI can make mistakes. Check important information.",
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
     localAiLoading: "Preparing the local model (downloaded once, then cached)…",
@@ -191,6 +176,8 @@ const STRINGS = {
     chooseModelAction: "Choose a model",
     retryMessage: "Retry",
     aiGenerated: "AI-generated",
+    markdownImageBlocked: "Markdown image blocked to protect your privacy",
+    openMarkdownImage: "Open the external image in a new tab",
   },
 } as const;
 
@@ -203,6 +190,52 @@ function providerLabel(providerId: string | undefined, lang: Lang): string | nul
     listProviders().find((p) => p.id === providerId)?.label ??
     providerId;
   return providerDisplayLabel(providerId, lang) ?? fallback;
+}
+
+function safeMarkdownImageHref(src: string | undefined): string | null {
+  if (!src || src.length > 2_048) return null;
+  try {
+    const url = new URL(src, window.location.href);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Une réponse de modèle est du contenu non fiable. Ne jamais créer de balise
+ * `img` depuis son Markdown : elle déclencherait une requête avant toute action
+ * utilisateur. Les pièces jointes locales suivent un autre chemin contrôlé et
+ * n'ont pas besoin du rendu d'images Markdown.
+ */
+function BlockedMarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  const { lang } = useLang();
+  const s = STRINGS[lang];
+  const safeHref = safeMarkdownImageHref(src);
+
+  return (
+    <span
+      role="note"
+      className="inline-flex flex-wrap items-center gap-x-2 rounded-md border border-border bg-foreground/5 px-2 py-1 text-xs text-muted-foreground"
+    >
+      <span>
+        [{s.markdownImageBlocked}{alt?.trim() ? ` : ${alt.trim()}` : ""}]
+      </span>
+      {safeHref ? (
+        <a
+          href={safeHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          referrerPolicy="no-referrer"
+          className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+        >
+          {s.openMarkdownImage}
+        </a>
+      ) : null}
+    </span>
+  );
 }
 
 const markdownComponents = {
@@ -219,6 +252,7 @@ const markdownComponents = {
       {children}
     </a>
   ),
+  img: BlockedMarkdownImage,
   code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
     const isBlock = Boolean(className);
     return isBlock ? (
@@ -339,7 +373,7 @@ export function ChatView({
 }: ChatViewProps) {
   const draftKey = conversation?.id ?? NEW_CONVERSATION_DRAFT_KEY;
   const draftsRef = useRef<Record<string, string> | null>(null);
-  if (draftsRef.current === null) draftsRef.current = loadDrafts();
+  if (draftsRef.current === null) draftsRef.current = loadChatDrafts();
   const draftKeyRef = useRef(draftKey);
   const [draft, setDraft] = useState(() => draftsRef.current?.[draftKey] ?? "");
   const [ocrBusy, setOcrBusy] = useState(false);
@@ -383,7 +417,7 @@ export function ChatView({
     if (value) drafts[key] = value;
     else delete drafts[key];
     draftsRef.current = drafts;
-    saveDrafts(drafts);
+    saveChatDrafts(drafts);
   }
 
   function updateDraft(update: SetStateAction<string>, key = draftKeyRef.current) {
@@ -583,6 +617,9 @@ export function ChatView({
     setOcrProgress(0);
     try {
       validateImageFile(file, lang);
+      // Le module OCR (et donc Tesseract/WASM) n'entre dans le graphe charge
+      // qu'au moment ou l'utilisateur choisit effectivement une image.
+      const { extractTextFromImage } = await import("@/lib/ocr");
       const text = await extractTextFromImage(file, lang === "fr" ? "fra" : "eng", setOcrProgress);
       updateDraft((prev) => (prev ? `${prev}\n\n${text}` : text));
     } catch (err) {
@@ -1018,8 +1055,9 @@ export function ChatView({
               </div>
             </div>
           </div>
-          <p className="hidden text-center text-[11px] text-muted-foreground sm:block">
-            {s.hint}
+          <p className="text-center text-[10px] leading-4 text-muted-foreground sm:text-[11px]">
+            <span className="hidden sm:inline">{s.hint} · </span>
+            {s.disclaimer}
           </p>
         </div>
       </form>

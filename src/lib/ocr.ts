@@ -1,4 +1,3 @@
-import { createWorker } from "tesseract.js";
 import { preprocessForOcr } from "./imagePreprocess";
 
 // OCR 100% local (WASM, tesseract.js) : aucune image n'est jamais envoyee a
@@ -21,6 +20,9 @@ export async function extractTextFromImage(
   // OCR lui-meme fonctionne correctement - vecu en pratique.
   const preprocessed = await preprocessForOcr(file);
 
+  // Garde aussi cette frontiere ici : un autre appelant peut importer les
+  // utilitaires OCR sans telecharger/evaluer Tesseract avant une extraction.
+  const { createWorker } = await import("tesseract.js");
   const worker = await createWorker(lang, 1, {
     workerPath: WORKER_PATH,
     corePath: CORE_PATH,

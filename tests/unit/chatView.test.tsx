@@ -3,12 +3,17 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatView } from "@/components/ChatView";
 import type { Conversation } from "@/lib/db";
+import { LangProvider } from "@/lib/i18n";
 
 const provider = vi.hoisted(() => ({
   id: "fake",
   label: "Fake",
   requiresApiKey: false,
   listModels: vi.fn(async () => [{ id: "model-1", label: "Model 1" }]),
+}));
+
+const ocr = vi.hoisted(() => ({
+  extractTextFromImage: vi.fn(),
 }));
 
 vi.mock("@/providers", () => ({ providers: [provider], listProviders: () => [provider] }));
@@ -19,7 +24,7 @@ vi.mock("@/hooks/useVisionCapability", () => ({ useVisionCapability: () => false
 vi.mock("@/hooks/useDictation", () => ({
   useDictation: () => ({ supported: false, listening: false, start: vi.fn(), stop: vi.fn() }),
 }));
-vi.mock("@/lib/ocr", () => ({ extractTextFromImage: vi.fn() }));
+vi.mock("@/lib/ocr", () => ocr);
 vi.mock("@/lib/imageSafety", () => ({
   prepareVisionImage: vi.fn(),
   validateImageFile: vi.fn(),
@@ -66,7 +71,16 @@ describe("ChatView recovery", () => {
   beforeEach(() => {
     localStorage.clear();
     provider.listModels.mockClear();
+    ocr.extractTextFromImage.mockReset();
     Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it("affiche l'avertissement de fiabilité près du composer", () => {
+    render(<Harness current={conversation("a")} />);
+
+    expect(
+      screen.getByText("Les IA peuvent faire des erreurs. Vérifiez les informations importantes."),
+    ).toBeVisible();
   });
 
   it("isole et restaure les brouillons de chaque conversation", async () => {
@@ -99,6 +113,20 @@ describe("ChatView recovery", () => {
     expect(input).toHaveValue("Message important");
     expect(screen.getByRole("button", { name: "Réessayer" })).toBeEnabled();
   });
+
+  it("charge et execute l'OCR seulement apres la selection d'une image", async () => {
+    ocr.extractTextFromImage.mockResolvedValue("Texte extrait");
+    render(<Harness current={conversation("a")} />);
+
+    expect(ocr.extractTextFromImage).not.toHaveBeenCalled();
+
+    const input = screen.getByLabelText("Choisir une image pour l'OCR");
+    const file = new File(["image"], "document.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(ocr.extractTextFromImage).toHaveBeenCalledWith(file, "fra", expect.any(Function)));
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue("Texte extrait"));
+  });
 });
 
 describe("ChatView actions sur les réponses", () => {
@@ -127,6 +155,75 @@ describe("ChatView actions sur les réponses", () => {
 
     expect(screen.getByRole("button", { name: "Copier la réponse" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Partager la réponse" })).toBeInTheDocument();
+  });
+
+  it("remplace un pixel Markdown distant par un lien explicite sans créer d'image", () => {
+    const current = conversation("a");
+    current.messages.push({
+      id: "a1",
+      role: "assistant",
+      content: "Avant ![pixel de suivi](https://tracker.example/pixel.gif?user=42) après",
+      createdAt: 2,
+      providerId: "fake",
+      model: "model-1",
+    });
+
+    const { container } = render(<Harness current={current} />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      screen.getByText(/Image Markdown bloquée pour protéger votre confidentialité : pixel de suivi/),
+    ).toBeVisible();
+    const link = screen.getByRole("link", {
+      name: "Ouvrir l’image externe dans un nouvel onglet",
+    });
+    expect(link).toHaveAttribute("href", "https://tracker.example/pixel.gif?user=42");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAttribute("referrerpolicy", "no-referrer");
+  });
+
+  it("bloque aussi une image avec URL relative au protocole", () => {
+    const current = conversation("a");
+    current.messages.push({
+      id: "a1",
+      role: "assistant",
+      content: "![balise invisible](//tracker.example/relative-pixel.png)",
+      createdAt: 2,
+      providerId: "fake",
+      model: "model-1",
+    });
+
+    const { container } = render(<Harness current={current} />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByRole("link", { name: "Ouvrir l’image externe dans un nouvel onglet" })).toHaveAttribute(
+      "href",
+      `${window.location.protocol}//tracker.example/relative-pixel.png`,
+    );
+  });
+
+  it("ne propose aucun lien pour un schéma d'image non sûr et localise le placeholder", () => {
+    localStorage.setItem("aidusia_lang", "en");
+    const current = conversation("a");
+    current.messages.push({
+      id: "a1",
+      role: "assistant",
+      content: "![unsafe image](javascript:alert(document.domain))",
+      createdAt: 2,
+      providerId: "fake",
+      model: "model-1",
+    });
+
+    const { container } = render(
+      <LangProvider>
+        <Harness current={current} />
+      </LangProvider>,
+    );
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText(/Markdown image blocked to protect your privacy : unsafe image/)).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Open the external image in a new tab" })).toBeNull();
   });
 
   it("n'affiche le bouton régénérer que sous le dernier message assistant", () => {
