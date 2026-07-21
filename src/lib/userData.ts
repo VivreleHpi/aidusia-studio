@@ -7,6 +7,9 @@ import {
 } from "@/lib/mcp/servers";
 
 const APP_KEY_PREFIX = "aidusia_";
+export const AIDUSIA_CACHE_PREFIX = "aidusia-shell-";
+const AIDUSIA_SERVICE_WORKER_PATH = "/sw.js";
+const AIDUSIA_SERVICE_WORKER_SCOPE_PATH = "/";
 
 interface ExportedStorage {
   local: Record<string, string>;
@@ -85,16 +88,59 @@ function clearAppStorage(storage: Storage): void {
   }
 }
 
-async function clearOriginCaches(): Promise<void> {
-  if (!("caches" in window)) return;
-  const keys = await caches.keys();
-  await Promise.all(keys.map((key) => caches.delete(key)));
+export function isAidusiaCacheName(cacheName: string): boolean {
+  return cacheName.startsWith(AIDUSIA_CACHE_PREFIX);
 }
 
-async function unregisterServiceWorkers(): Promise<void> {
+type ServiceWorkerRegistrationIdentity = Pick<
+  ServiceWorkerRegistration,
+  "scope" | "active" | "waiting" | "installing"
+>;
+
+/**
+ * Identifie strictement l'enregistrement cree par registerServiceWorker().
+ * Une registration ambigue (scope different, script etranger en attente ou
+ * URL non canonique) est preservee : l'effacement ne doit jamais revendiquer
+ * une ressource qui pourrait appartenir a une autre application de l'origine.
+ */
+export function isAidusiaServiceWorkerRegistration(
+  registration: ServiceWorkerRegistrationIdentity,
+  origin = window.location.origin,
+): boolean {
+  try {
+    const expectedScope = new URL(AIDUSIA_SERVICE_WORKER_SCOPE_PATH, origin).href;
+    if (new URL(registration.scope).href !== expectedScope) return false;
+
+    const expectedScript = new URL(AIDUSIA_SERVICE_WORKER_PATH, origin).href;
+    const workers = [registration.active, registration.waiting, registration.installing].filter(
+      (worker): worker is ServiceWorker => worker !== null,
+    );
+
+    return (
+      workers.length > 0 &&
+      workers.every((worker) => new URL(worker.scriptURL).href === expectedScript)
+    );
+  } catch {
+    // Une URL mal formee ou incomplete n'est jamais une raison suffisante
+    // pour supprimer un enregistrement potentiellement etranger.
+    return false;
+  }
+}
+
+async function clearAidusiaCaches(): Promise<void> {
+  if (!("caches" in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(isAidusiaCacheName).map((key) => caches.delete(key)));
+}
+
+async function unregisterAidusiaServiceWorker(): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
   const registrations = await navigator.serviceWorker.getRegistrations();
-  await Promise.all(registrations.map((registration) => registration.unregister()));
+  await Promise.all(
+    registrations
+      .filter((registration) => isAidusiaServiceWorkerRegistration(registration))
+      .map((registration) => registration.unregister()),
+  );
 }
 
 export async function deleteAllUserData(): Promise<void> {
@@ -102,5 +148,5 @@ export async function deleteAllUserData(): Promise<void> {
   clearAllApiKeys();
   clearAppStorage(localStorage);
   clearAppStorage(sessionStorage);
-  await Promise.all([clearOriginCaches(), unregisterServiceWorkers()]);
+  await Promise.all([clearAidusiaCaches(), unregisterAidusiaServiceWorker()]);
 }

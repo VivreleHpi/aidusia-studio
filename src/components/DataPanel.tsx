@@ -17,7 +17,7 @@ const STRINGS = {
     exportButton: "Exporter mes données",
     deleteTitle: "Suppression complète",
     deleteBody:
-      "Supprime conversations, brouillons, préférences, clés API, serveurs MCP, caches PWA et service worker de ce navigateur.",
+      "Supprime conversations, brouillons, préférences, clés API, serveurs MCP, caches PWA et service worker AIDUSIA de ce navigateur. Les ressources des autres applications partageant cette origine sont conservées.",
     confirmLabel: "Tapez SUPPRIMER pour confirmer",
     confirmWord: "SUPPRIMER",
     deleteButton: "Tout supprimer",
@@ -37,7 +37,7 @@ const STRINGS = {
     exportButton: "Export my data",
     deleteTitle: "Full deletion",
     deleteBody:
-      "Deletes conversations, drafts, preferences, API keys, MCP servers, PWA caches and service worker from this browser.",
+      "Deletes conversations, drafts, preferences, API keys, MCP servers, and AIDUSIA's PWA caches and service worker from this browser. Resources belonging to other apps sharing this origin are preserved.",
     confirmLabel: "Type DELETE to confirm",
     confirmWord: "DELETE",
     deleteButton: "Delete everything",
