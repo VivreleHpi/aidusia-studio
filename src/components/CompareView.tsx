@@ -53,6 +53,7 @@ const STRINGS = {
     enterHint: "Entrée pour comparer · Maj + Entrée pour une nouvelle ligne",
     chooseModels: "Choisissez deux modèles disponibles pour lancer la comparaison.",
     disclaimer: "Les IA peuvent faire des erreurs. Vérifiez les informations importantes.",
+    privacySummary: "Ce qui est envoyé aux modèles",
     privacy:
       "Seule cette question est traitée par les deux modèles. La synthèse envoie la question et les deux réponses au modèle choisi. Aucun historique ni outil MCP n’est envoyé, et rien n’est sauvegardé automatiquement.",
   },
@@ -85,6 +86,7 @@ const STRINGS = {
     enterHint: "Enter to compare · Shift + Enter for a new line",
     chooseModels: "Choose two available models to start comparing.",
     disclaimer: "AI can make mistakes. Verify important information.",
+    privacySummary: "What is sent to the models",
     privacy:
       "Only this question is processed by both models. Synthesis sends the question and both responses to the selected model. No conversation history or MCP tool is sent, and nothing is saved automatically.",
   },
@@ -258,7 +260,7 @@ function ResultCard({
   return (
     <article
       aria-labelledby={cardId}
-      className="glass flex min-h-72 min-w-0 flex-col overflow-hidden rounded-2xl"
+      className="glass flex min-h-44 min-w-0 flex-col overflow-hidden rounded-2xl sm:min-h-72"
     >
       <header className="flex min-h-14 items-center gap-3 border-b border-border/60 px-4 py-3">
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -283,7 +285,7 @@ function ResultCard({
         aria-busy={streaming}
       >
         {!result || result.status === "idle" ? (
-          <div className="grid h-full min-h-44 place-items-center text-center text-sm text-muted-foreground">
+          <div className="grid h-full min-h-20 place-items-center text-center text-sm text-muted-foreground sm:min-h-44">
             <div>
               <IconSparkles className="mx-auto mb-2 h-5 w-5 text-primary/60" />
               <p>{waiting}</p>
@@ -568,7 +570,18 @@ export function CompareView({
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
         <div className="mx-auto w-full max-w-6xl">
           <div className="mb-3 flex flex-wrap items-start gap-2">
-            <p className="flex min-w-0 flex-1 items-start gap-2 text-[11px] leading-4 text-muted-foreground">
+            {/* Sur téléphone, la note complète occupait un tiers de l'écran :
+                elle devient un disclosure, sans rien retirer de l'information. */}
+            <details className="min-w-0 flex-1 text-[11px] leading-4 text-muted-foreground sm:hidden">
+              <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                <IconLock className="h-3.5 w-3.5 shrink-0" />
+                <span className="underline decoration-dotted underline-offset-2">
+                  {s.privacySummary}
+                </span>
+              </summary>
+              <p className="mt-1.5 pl-5.5">{s.privacy}</p>
+            </details>
+            <p className="hidden min-w-0 flex-1 items-start gap-2 text-[11px] leading-4 text-muted-foreground sm:flex">
               <IconLock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{s.privacy}</span>
             </p>
@@ -648,7 +661,9 @@ export function CompareView({
 
       <div className="shrink-0 border-t border-border/60 bg-background/80 px-3 py-3 backdrop-blur-xl sm:px-5">
         <form onSubmit={submit} className="mx-auto w-full max-w-4xl">
-          <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-2">
+          {/* Mobile : A et B empilés pleine largeur, bouton d'échange sur le
+              côté (row-span-2). Dès sm : les trois colonnes sur une ligne. */}
+          <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-2">
             <fieldset
               disabled={actionsBusy}
               className="glass flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 disabled:opacity-60"
@@ -674,7 +689,7 @@ export function CompareView({
               disabled={actionsBusy}
               aria-label={s.swap}
               title={s.swap}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
+              className="row-span-2 grid h-10 w-10 shrink-0 place-items-center self-center rounded-xl text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 sm:row-span-1"
             >
               <IconRefresh className="h-4 w-4 rotate-90" />
             </button>

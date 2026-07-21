@@ -144,9 +144,14 @@ describe("CompareView", () => {
     expect(
       screen.getByText("Les IA peuvent faire des erreurs. Vérifiez les informations importantes."),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/La synthèse envoie la question et les deux réponses au modèle choisi/),
-    ).toHaveTextContent("rien n’est sauvegardé automatiquement");
+    // La note existe en deux rendus : disclosure mobile et paragraphe desktop.
+    const privacyNotes = screen.getAllByText(
+      /La synthèse envoie la question et les deux réponses au modèle choisi/,
+    );
+    expect(privacyNotes).toHaveLength(2);
+    for (const note of privacyNotes) {
+      expect(note).toHaveTextContent("rien n’est sauvegardé automatiquement");
+    }
   });
 
   it("synthétise les deux réponses avec le modèle A puis permet d'utiliser la synthèse", async () => {

@@ -88,6 +88,11 @@ export function ModelMenu({
   const [loading, setLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Le panneau est aligné du côté du déclencheur qui offre le plus de place :
+  // ancré à droite près du bord droit, à gauche sinon. Sans cela, un menu de
+  // 320px ouvert depuis la moitié gauche d'un écran de téléphone sort de l'écran.
+  const [alignLeft, setAlignLeft] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { lang } = useLang();
   const s = STRINGS[lang];
@@ -177,9 +182,18 @@ export function ModelMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerId, lockedLocalModel, reloadRequest]);
 
+  const alignPanel = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setAlignLeft(rect.left + rect.width / 2 < window.innerWidth / 2);
+  }, []);
+
   useEffect(() => {
-    if (openRequest > 0) setOpen(true);
-  }, [openRequest]);
+    if (openRequest > 0) {
+      alignPanel();
+      setOpen(true);
+    }
+  }, [alignPanel, openRequest]);
 
   useEffect(() => {
     if (open) {
@@ -202,14 +216,17 @@ export function ModelMenu({
   }
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative flex min-w-0">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          alignPanel();
+          setOpen((v) => !v);
+        }}
         aria-label={s.buttonLabel}
         aria-expanded={open ? "true" : "false"}
         data-tour="provider-bar"
-        className="flex h-11 max-w-52 items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95 sm:h-9"
+        className="flex h-11 min-w-0 max-w-full items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95 sm:h-9 sm:max-w-52"
       >
         {(missingKey || modelsError) && (
           <span
@@ -234,7 +251,11 @@ export function ModelMenu({
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="modal-in absolute bottom-full right-0 z-50 mb-2 flex w-80 flex-col overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl">
+          <div
+            className={`modal-in absolute bottom-full z-50 mb-2 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl ${
+              alignLeft ? "left-0" : "right-0"
+            }`}
+          >
             <div className="p-1.5">
               <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
                 {s.providerSection}
