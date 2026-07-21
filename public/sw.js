@@ -11,9 +11,13 @@
    La page envoie aussi la liste des ressources qu'elle a chargees (message
    "cache-assets") : filet de securite complementaire au precache. */
 
-// v4 purge les anciens caches v3, susceptibles de contenir des GET /api mis
-// en cache avant que la frontiere ci-dessous soit appliquee.
-const CACHE = "aidusia-shell-v4";
+// inject-precache.mjs remplace la revision a chaque contenu de build distinct.
+// Un nouveau deploiement ecrit ainsi dans un cache neuf avant de supprimer
+// l'ancien a l'activation. Le fallback ne sert qu'en developpement, ou sw.js
+// n'est pas passe par le script d'injection.
+const CACHE_PREFIX = "aidusia-shell-";
+const CACHE_VERSION = self.__CACHE_VERSION__ || "dev";
+const CACHE = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 // Le service worker ne doit jamais devenir un cache HTTP generaliste. En
 // particulier, les deux proxies Edge same-origin transportent des cles dans
@@ -45,23 +49,30 @@ function canStore(response) {
   return response.ok && !/(?:^|,)\s*no-store\b/i.test(response.headers.get("cache-control") || "");
 }
 
-// Liste des assets du build (index.html, JS/CSS hashes, polices, icones),
+// Liste du shell du build (index.html, JS/CSS hashes, polices, icones),
 // injectee au build par scripts/inject-precache.mjs. Precachee des l'install
-// pour que le hors-ligne (mode avion) marche apres UNE seule visite en ligne,
-// sans dependre du timing de chargement de la page. Le gros chunk web-llm en
-// est exclu (cache a la demande quand on utilise l'IA locale).
+// pour que le chat et les reglages fonctionnent hors ligne apres UNE seule
+// visite. Les fonctions optionnelles lourdes sont exclues : web-llm est cache
+// quand l'IA locale est choisie ; Tesseract (worker, WASM et langue) est cache
+// fichier par fichier par la strategie runtime lors du premier OCR en ligne.
 const PRECACHE = self.__PRECACHE__ || ["/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then(async (cache) => {
-      // addAll echoue en bloc si UN asset manque : on tolere les absences.
-      await Promise.all(
-        PRECACHE.map((url) =>
-          cache.add(new Request(url, { cache: "reload" })).catch(() => {}),
+    caches
+      .open(CACHE)
+      .then((cache) =>
+        // Une installation partielle ne doit pas remplacer un ancien shell
+        // encore utilisable hors-ligne. Une prochaine tentative repartira du
+        // cache de build vide supprime dans le catch ci-dessous.
+        Promise.all(
+          PRECACHE.map((url) => cache.add(new Request(url, { cache: "reload" }))),
         ),
-      );
-    }),
+      )
+      .catch(async (error) => {
+        await caches.delete(CACHE);
+        throw error;
+      }),
   );
 });
 
@@ -70,7 +81,9 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k.startsWith("aidusia-shell") && k !== CACHE).map((k) => caches.delete(k))),
+        Promise.all(
+          keys.filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE).map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim()),
   );

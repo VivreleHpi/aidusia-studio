@@ -14,9 +14,17 @@ interface Harness {
   };
   fetchMock: ReturnType<typeof vi.fn>;
   skipWaiting: ReturnType<typeof vi.fn>;
+  caches: {
+    open: ReturnType<typeof vi.fn>;
+    keys: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    match: ReturnType<typeof vi.fn>;
+  };
 }
 
-function loadServiceWorker(): Harness {
+function loadServiceWorker(
+  options: { cacheVersion?: string; cacheKeys?: string[]; precache?: string[] } = {},
+): Harness {
   const handlers = new Map<string, Handler>();
   const cache = {
     add: vi.fn(async () => undefined),
@@ -26,7 +34,8 @@ function loadServiceWorker(): Harness {
   const fetchMock = vi.fn();
   const skipWaiting = vi.fn();
   const self = {
-    __PRECACHE__: [],
+    __CACHE_VERSION__: options.cacheVersion,
+    __PRECACHE__: options.precache ?? [],
     location: { origin: "https://aidusia.test" },
     clients: { claim: vi.fn(async () => undefined) },
     skipWaiting,
@@ -34,7 +43,7 @@ function loadServiceWorker(): Harness {
   };
   const caches = {
     open: vi.fn(async () => cache),
-    keys: vi.fn(async () => []),
+    keys: vi.fn(async () => options.cacheKeys ?? []),
     delete: vi.fn(async () => true),
     match: vi.fn(async () => undefined),
   };
@@ -50,7 +59,7 @@ function loadServiceWorker(): Harness {
     fetch: fetchMock,
     self,
   });
-  return { handlers, cache, fetchMock, skipWaiting };
+  return { handlers, cache, fetchMock, skipWaiting, caches };
 }
 
 function request(url: string, destination = "") {
@@ -149,9 +158,73 @@ describe("service worker cache boundary", () => {
     expect(harness.cache.put).toHaveBeenCalledWith(req, expect.any(Response));
   });
 
+  it("caches a same-origin Tesseract resource on its first use", async () => {
+    harness.fetchMock.mockResolvedValueOnce(
+      new Response("wasm", { headers: { "Cache-Control": "public, max-age=31536000" } }),
+    );
+    // Les fichiers Tesseract sont charges via fetch(), souvent sans
+    // `request.destination`. Leur extension doit suffire pour activer le
+    // cache runtime meme s'ils sont absents du precache initial.
+    const req = request(
+      "https://aidusia.test/tesseract/tesseract-core-simd-lstm.wasm",
+    );
+    const event = dispatchFetch(fetchHandler, req);
+
+    expect(event.respondWith).toHaveBeenCalledOnce();
+    await event.response();
+    expect(harness.fetchMock).toHaveBeenCalledExactlyOnceWith(req);
+    expect(harness.cache.put).toHaveBeenCalledExactlyOnceWith(req, expect.any(Response));
+  });
+
   it("activates a waiting update only after an explicit user message", () => {
     expect(harness.skipWaiting).not.toHaveBeenCalled();
     harness.handlers.get("message")!({ data: { type: "skip-waiting" } });
     expect(harness.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("removes obsolete AIDUSIA shell caches without touching foreign WebLLM caches", async () => {
+    harness = loadServiceWorker({
+      cacheVersion: "build-new",
+      cacheKeys: [
+        "aidusia-shell-v4",
+        "aidusia-shell-build-old",
+        "aidusia-shell-build-new",
+        "webllm/model-cache",
+        "transformers-cache",
+      ],
+    });
+    const pending: Promise<unknown>[] = [];
+
+    harness.handlers.get("activate")!({
+      waitUntil: (value: Promise<unknown>) => pending.push(value),
+    });
+    await Promise.all(pending);
+
+    expect(harness.caches.delete.mock.calls).toEqual([
+      ["aidusia-shell-v4"],
+      ["aidusia-shell-build-old"],
+    ]);
+  });
+
+  it("rejects an incomplete install and removes only its partial build cache", async () => {
+    harness = loadServiceWorker({
+      cacheVersion: "build-incomplete",
+      // Le navigateur resout naturellement les URLs relatives au service
+      // worker ; le constructeur Request de Node exige ici des URLs absolues.
+      precache: ["https://aidusia.test/", "https://aidusia.test/assets/app.js"],
+    });
+    harness.cache.add
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("asset unavailable"));
+    const pending: Promise<unknown>[] = [];
+
+    harness.handlers.get("install")!({
+      waitUntil: (value: Promise<unknown>) => pending.push(value),
+    });
+
+    await expect(Promise.all(pending)).rejects.toThrow("asset unavailable");
+    expect(harness.caches.delete).toHaveBeenCalledExactlyOnceWith(
+      "aidusia-shell-build-incomplete",
+    );
   });
 });
