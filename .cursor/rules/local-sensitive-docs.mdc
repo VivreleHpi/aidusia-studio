@@ -1,0 +1,17 @@
+---
+description: Ne jamais versionner ni pousser roadmap, plans UI et MD locaux sensibles
+alwaysApply: true
+---
+
+# Documents Markdown sensibles (local only)
+
+Ne jamais `git add`, commit, push ou ouvrir en PR :
+
+- `ROADMAP.md`, `ROADMAP*.md`
+- `PLAN-*.md` (dont `PLAN-UI.md`, `PLAN-UI-HISTORIQUE.md`)
+- `docs/private/**`
+- `*.local.md`
+
+Ces fichiers sont dans `.gitignore`. Travailler à partir d’eux en local si besoin, mais n’y faire référence dans aucun Markdown public, et ne jamais les renommer pour contourner l’ignore.
+
+Avant tout commit : vérifier `git status` — aucun de ces chemins ne doit être staged. Détail : `AGENTS.md`.

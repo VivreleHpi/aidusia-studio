@@ -35,3 +35,10 @@ test-results
 
 .vercel
 .env*
+
+# Plans / roadmap / notes locales — jamais committer ni pousser (voir AGENTS.md)
+/ROADMAP.md
+/ROADMAP.*.md
+/PLAN-*.md
+/docs/private/
+*.local.md
