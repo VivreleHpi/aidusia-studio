@@ -1,5 +1,7 @@
 # AIDUSIA Studio
 
+🔗 **[Try it live](https://aidusia-studio.vercel.app)**
+
 🇫🇷 [Version française](./README.md)
 
 **Try local and cloud AI models straight from your browser — no account, no tracking, with your own keys and a documented data path.**
@@ -39,7 +41,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 | Feature | Status | Where does data go? |
 |---|---|---|
 | Local Ollama chat | ✅ | To the configured Ollama URL, usually your machine |
-| In-browser AI (WebLLM/WebGPU) | 🧪 (mobile) | Weights downloaded on request; inference on device |
+| In-browser AI (WebLLM/WebGPU) | ✅ | Weights downloaded on request; inference on device |
 | Anthropic, Gemini, Mistral, OpenRouter, Groq, xAI (Grok) | ✅ | Direct browser → provider connection |
 | OpenAI | ✅ | Through `/api/openai/`, then OpenAI |
 | Ollama Cloud | ✅ | Through `/api/ollama-cloud/`, then Ollama Cloud |

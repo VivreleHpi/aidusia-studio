@@ -51,34 +51,43 @@ const MODEL_SIZES_GB: Record<string, { f16: number; f32: number }> = {
   "gemma-2-2b-it-q4f16_1-MLC": { f16: 1.4, f32: 2.0 },
 };
 
-const WEBGPU_MISSING =
-  "WebGPU indisponible sur ce navigateur. Il faut Chrome/Edge 121+ (y compris Android) " +
-  "ou Safari 26 (iOS/macOS), avec l'accélération matérielle activée — voir le Gouverneur " +
-  "Matériel dans le panneau Fournisseurs.";
+const WEBGPU_MISSING: Record<Lang, string> = {
+  fr:
+    "WebGPU indisponible sur ce navigateur. Il faut Chrome/Edge 121+ (y compris Android) " +
+    "ou Safari 26 (iOS/macOS), avec l'accélération matérielle activée — voir le Gouverneur " +
+    "Matériel dans le panneau Fournisseurs.",
+  en:
+    "WebGPU is unavailable in this browser. You need Chrome/Edge 121+ (including Android) " +
+    "or Safari 26 (iOS/macOS), with hardware acceleration enabled — see the Hardware Governor " +
+    "in the Providers panel.",
+};
 
 /* Le remede depend du navigateur : dire exactement quoi faire vaut mieux
    qu'un constat generique. */
-function webgpuMissingMessage(): string {
+function webgpuMissingMessage(lang: Lang): string {
   const ua = navigator.userAgent;
   if (/SamsungBrowser/i.test(ua)) {
-    return (
-      "Samsung Internet ne supporte pas encore WebGPU : ouvrez le Studio dans Chrome " +
-      "sur ce téléphone pour utiliser l'IA locale."
-    );
+    return lang === "fr"
+      ? "Samsung Internet ne supporte pas encore WebGPU : ouvrez le Studio dans Chrome " +
+          "sur ce téléphone pour utiliser l'IA locale."
+      : "Samsung Internet doesn't support WebGPU yet: open the Studio in Chrome on this " +
+          "phone to use on-device AI.";
   }
   if (/iPhone|iPad|iPod/i.test(ua)) {
-    return (
-      "L'IA locale dans le navigateur exige Safari 26 (iOS 26) ou plus récent. " +
-      "Mettez iOS à jour, puis rouvrez le Studio dans Safari."
-    );
+    return lang === "fr"
+      ? "L'IA locale dans le navigateur exige Safari 26 (iOS 26) ou plus récent. " +
+          "Mettez iOS à jour, puis rouvrez le Studio dans Safari."
+      : "In-browser AI requires Safari 26 (iOS 26) or newer. Update iOS, then reopen " +
+          "the Studio in Safari.";
   }
   if (/Firefox/i.test(ua)) {
-    return (
-      "WebGPU n'est pas encore activé dans Firefox : ouvrez le Studio dans Chrome " +
-      "ou Edge pour utiliser l'IA locale."
-    );
+    return lang === "fr"
+      ? "WebGPU n'est pas encore activé dans Firefox : ouvrez le Studio dans Chrome " +
+          "ou Edge pour utiliser l'IA locale."
+      : "WebGPU isn't enabled in Firefox yet: open the Studio in Chrome or Edge to use " +
+          "on-device AI.";
   }
-  return WEBGPU_MISSING;
+  return WEBGPU_MISSING[lang];
 }
 
 type Engine = import("@mlc-ai/web-llm").MLCEngineInterface;
@@ -94,7 +103,7 @@ let f16Supported: boolean | null = null;
    les variantes q4f16 telechargent puis echouent a la compilation, sans
    message utile. On bascule alors sur les variantes q4f32 du meme modele
    (memes poids logiques, ~30% plus lourdes en VRAM). */
-async function supportsF16(): Promise<boolean> {
+export async function supportsF16(): Promise<boolean> {
   if (f16Supported !== null) return f16Supported;
   try {
     const gpu = (navigator as unknown as { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
@@ -106,11 +115,11 @@ async function supportsF16(): Promise<boolean> {
   return f16Supported;
 }
 
-function f32VariantOf(modelId: string): string {
+export function f32VariantOf(modelId: string): string {
   return modelId.replace("q4f16_1", "q4f32_1");
 }
 
-async function resolveModelId(modelId: string): Promise<string> {
+export async function resolveModelId(modelId: string): Promise<string> {
   if (await supportsF16()) return modelId;
   return f32VariantOf(modelId);
 }
@@ -184,7 +193,7 @@ async function getEngine(model: string): Promise<Engine> {
 const LIGHTEST_MODEL_ID = MODEL_META[0].id;
 const LIGHTEST_MODEL_LABEL = "Llama 3.2 1B";
 
-function isMemoryError(detail: string): boolean {
+export function isMemoryError(detail: string): boolean {
   return /out of memory|oom|mapasync|unmapped|gpubuffer|buffer was unmapped|device.*(lost|destroyed)|allocation failed/i.test(
     detail,
   );
@@ -194,25 +203,33 @@ function isMemoryError(detail: string): boolean {
    modele perdu (onglet gele, device repris) ou buffer/allocation GPU rate de
    facon transitoire. Une seule reprise — si ca echoue encore, c'est
    probablement que le modele est trop lourd pour cet appareil. */
-function shouldRetry(detail: string): boolean {
+export function shouldRetry(detail: string): boolean {
   return (
     /model not loaded|instance.*destroyed/i.test(detail) || isMemoryError(detail)
   );
 }
 
-function wrapGenerationError(detail: string, model: string): Error {
+export function wrapGenerationError(detail: string, model: string, lang: Lang): Error {
   const isLightest = model === LIGHTEST_MODEL_ID || model === f32VariantOf(LIGHTEST_MODEL_ID);
   if (isMemoryError(detail) && !isLightest) {
     return new Error(
-      `Ce modèle est trop lourd pour la mémoire GPU de cet appareil. Choisissez le ` +
-        `modèle le plus léger (« ${LIGHTEST_MODEL_LABEL} — léger ») dans le sélecteur ` +
-        `en bas, il est fait pour les téléphones. Détail : ${detail}`,
+      lang === "fr"
+        ? `Ce modèle est trop lourd pour la mémoire GPU de cet appareil. Choisissez le ` +
+            `modèle le plus léger (« ${LIGHTEST_MODEL_LABEL} — léger ») dans le sélecteur ` +
+            `en bas, il est fait pour les téléphones. Détail : ${detail}`
+        : `This model is too heavy for this device's GPU memory. Choose the lightest ` +
+            `model ("${LIGHTEST_MODEL_LABEL} — light") in the selector below — it's ` +
+            `built for phones. Detail: ${detail}`,
     );
   }
   return new Error(
-    "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
-      "déchargé par le système). Rechargez la page, et si besoin fermez d'autres onglets " +
-      `pour libérer la mémoire. Détail : ${detail}`,
+    lang === "fr"
+      ? "L'IA locale a échoué pendant la génération (mémoire GPU insuffisante ou onglet " +
+          "déchargé par le système). Rechargez la page, et si besoin fermez d'autres onglets " +
+          `pour libérer la mémoire. Détail : ${detail}`
+      : "On-device AI failed during generation (insufficient GPU memory, or the tab was " +
+          "unloaded by the system). Reload the page, and close other tabs if needed to " +
+          `free up memory. Detail: ${detail}`,
   );
 }
 
@@ -288,8 +305,8 @@ export const browserLocalProvider: ChatProvider = {
   requiresApiKey: false,
 
   async listModels(): Promise<ProviderModel[]> {
-    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
     const lang = getStoredLang();
+    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage(lang));
     // Sur mobile, les modeles plus lourds que le 1B risquent de depasser la
     // memoire GPU du telephone : on ne les BLOQUE PAS (l'utilisateur peut
     // essayer), on l'AVERTIT simplement (triangle ⚠). Retour utilisateur.
@@ -308,12 +325,15 @@ export const browserLocalProvider: ChatProvider = {
   async testKey(): Promise<KeyTestResult> {
     const probe = await probeWebGpu();
     if (!probe.supported) {
+      // "Aucun adaptateur" = navigator.gpu existe mais aucun GPU compatible
+      // n'a repondu (accel. materielle desactivee, driver non supporte...) :
+      // aussi frequent en pratique que l'API totalement absente, et couvert
+      // par le meme message actionnable plutot que le detail brut en francais.
+      const noGpuApi = probe.detail === "WebGPU non expose par ce navigateur";
+      const noAdapter = probe.detail === "Aucun adaptateur WebGPU disponible";
       return {
         ok: false,
-        reason:
-          probe.detail === "WebGPU non expose par ce navigateur"
-            ? webgpuMissingMessage()
-            : probe.detail,
+        reason: noGpuApi || noAdapter ? webgpuMissingMessage(getStoredLang()) : probe.detail,
       };
     }
     return { ok: true };
@@ -352,15 +372,19 @@ async function runGeneration(
   _apiKey: string | undefined,
   onChunk: (chunk: StreamChunk) => void,
 ): Promise<void> {
-    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage());
+    const lang = getStoredLang();
+    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage(lang));
     let eng: Engine;
     try {
       eng = await getEngine(params.model);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
-        "Impossible d'initialiser l'IA locale sur cet appareil (téléchargement " +
-          `interrompu, adaptateur WebGPU refusé ou mémoire insuffisante). Détail : ${detail}`,
+        lang === "fr"
+          ? "Impossible d'initialiser l'IA locale sur cet appareil (téléchargement " +
+              `interrompu, adaptateur WebGPU refusé ou mémoire insuffisante). Détail : ${detail}`
+          : "Couldn't initialize on-device AI on this device (interrupted download, " +
+              `WebGPU adapter refused, or insufficient memory). Detail: ${detail}`,
       );
     }
 
@@ -400,7 +424,7 @@ async function runGeneration(
       // rate de facon transitoire ("Buffer was unmapped..."). Les poids sont
       // deja en cache : on reconstruit le moteur et on reessaie UNE fois, sans
       // deranger l'utilisateur — seulement si rien n'a encore ete emis.
-      if (!shouldRetry(detail) || emitted) throw wrapGenerationError(detail, params.model);
+      if (!shouldRetry(detail) || emitted) throw wrapGenerationError(detail, params.model, lang);
       await destroyEngine();
       try {
         eng = await getEngine(params.model);
@@ -410,6 +434,7 @@ async function runGeneration(
         throw wrapGenerationError(
           retryErr instanceof Error ? retryErr.message : String(retryErr),
           params.model,
+          lang,
         );
       }
     } finally {

@@ -1,5 +1,7 @@
 # AIDUSIA Studio
 
+🔗 **[Essayer en ligne](https://aidusia-studio.vercel.app)**
+
 🇬🇧 [English version](./README.en.md)
 
 **Testez des modèles d'IA locaux et cloud depuis votre navigateur — sans compte, sans mouchard, avec vos propres clés et un chemin de données documenté.**
@@ -39,7 +41,7 @@ Légende : ✅ livré · 🧪 livré, expérimental · ❌ non disponible
 | Fonctionnalité | Statut | Où vont les données ? |
 |---|---|---|
 | Chat Ollama local | ✅ | Vers l'URL Ollama configurée, généralement votre machine |
-| IA locale navigateur (WebLLM/WebGPU) | 🧪 (mobile) | Poids téléchargés à la demande ; inférence sur l'appareil |
+| IA locale navigateur (WebLLM/WebGPU) | ✅ | Poids téléchargés à la demande ; inférence sur l'appareil |
 | Anthropic, Gemini, Mistral, OpenRouter, Groq, xAI (Grok) | ✅ | Connexion directe navigateur → fournisseur |
 | OpenAI | ✅ | Via le proxy Edge `/api/openai/`, puis OpenAI |
 | Ollama Cloud | ✅ | Via le proxy Edge `/api/ollama-cloud/`, puis Ollama Cloud |

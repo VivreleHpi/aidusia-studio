@@ -28,6 +28,10 @@ et le versionnage sémantique depuis sa première version publiée.
   française et anglaise.
 - Navigation mobile de la barre latérale rendue entièrement utilisable au
   clavier : focus contenu, Échap, boucle Tab et états ARIA explicites.
+- IA locale navigateur : couverture de tests renforcée (bascule f16→f32,
+  reprise après erreur mémoire GPU, arrêt d'un flux, messages d'indisponibilité
+  WebGPU) et messages d'erreur désormais bilingues (français/anglais) — retrait
+  du statut expérimental sur mobile.
 
 ### Corrigé
 
