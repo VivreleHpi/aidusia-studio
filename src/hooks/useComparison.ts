@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiKey } from "@/lib/apiKeys";
 import { describeFetchError } from "@/lib/fetchError";
 import type { Lang } from "@/lib/i18n";
-import { buildSystemPrompt } from "@/lib/systemContext";
+import { buildSystemPrompt, isLocalProvider } from "@/lib/systemContext";
 import { getProvider } from "@/providers";
 import type { ChatProvider } from "@/providers/types";
 
@@ -11,7 +11,7 @@ export interface ComparisonTarget {
   model: string;
 }
 
-export type ComparisonStatus = "idle" | "streaming" | "done" | "error";
+export type ComparisonStatus = "idle" | "queued" | "streaming" | "done" | "error";
 
 export interface ComparisonResult {
   target: ComparisonTarget;
@@ -21,12 +21,30 @@ export interface ComparisonResult {
   durationMs?: number;
   firstTextMs?: number;
   interrupted?: boolean;
+  /** Horodatage de démarrage réel de ce modèle (≠ du lancement en séquentiel). */
+  startedAt?: number;
+  /** Mesures fournies par le moteur lui-même, quand il les expose. */
+  outputTokens?: number;
+  tokensPerSecond?: number;
+}
+
+export interface CompareOptions {
+  /** Lance B seulement quand A a fini : mesures non faussées par la concurrence. */
+  sequential?: boolean;
+}
+
+/**
+ * Deux modèles sur le même appareil se disputent GPU, mémoire et CPU : en
+ * parallèle, les temps sont faussés et un téléphone peut manquer de mémoire
+ * (deux moteurs locaux ≈ 2 Go). On les enchaîne donc, comme en benchmark.
+ */
+export function shouldRunSequentially(targets: ComparisonTarget[], benchmark: boolean): boolean {
+  return benchmark || targets.every((target) => isLocalProvider(target.providerId));
 }
 
 interface ActiveComparison {
   controller: AbortController;
   runId: number;
-  startedAt: number;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -74,11 +92,15 @@ export function useComparison(lang: Lang) {
     activeRef.current = null;
 
     if (!mountedRef.current) return;
-    const durationMs = Date.now() - active.startedAt;
+    const now = Date.now();
     setResults((current) =>
-      current.map((result) =>
-        result.status === "streaming" ? { ...result, status: "done", durationMs, interrupted: true } : result,
-      ),
+      current.map((result) => {
+        if (result.status === "streaming") {
+          return { ...result, status: "done", durationMs: now - (result.startedAt ?? now), interrupted: true };
+        }
+        if (result.status === "queued") return { ...result, status: "done", interrupted: true };
+        return result;
+      }),
     );
     setRunning(false);
   }, []);
@@ -91,7 +113,7 @@ export function useComparison(lang: Lang) {
   }, [stop]);
 
   const compare = useCallback(
-    async (prompt: string, targets: ComparisonTarget[]): Promise<void> => {
+    async (prompt: string, targets: ComparisonTarget[], options: CompareOptions = {}): Promise<void> => {
       if (targets.length !== 2) {
         throw new Error("La comparaison requiert exactement deux modèles.");
       }
@@ -101,15 +123,17 @@ export function useComparison(lang: Lang) {
       activeRef.current?.controller.abort();
       const runId = ++nextRunIdRef.current;
       const controller = new AbortController();
-      const startedAt = Date.now();
-      activeRef.current = { controller, runId, startedAt };
+      activeRef.current = { controller, runId };
+      const sequential = options.sequential === true;
+      const launchedAt = Date.now();
 
       const targetSnapshots = targets.map((target) => ({ ...target }));
       setResults(
-        targetSnapshots.map((target) => ({
+        targetSnapshots.map((target, index) => ({
           target,
-          status: "streaming",
+          status: sequential && index > 0 ? "queued" : "streaming",
           content: "",
+          startedAt: sequential && index > 0 ? undefined : launchedAt,
         })),
       );
       setRunning(true);
@@ -118,6 +142,9 @@ export function useComparison(lang: Lang) {
         let provider: ChatProvider | undefined;
         const targetStartedAt = Date.now();
         let receivedText = false;
+        updateResult(runId, index, (current) =>
+          current.status === "queued" ? { ...current, status: "streaming", startedAt: targetStartedAt } : current,
+        );
 
         try {
           provider = getProvider(target.providerId);
@@ -131,6 +158,14 @@ export function useComparison(lang: Lang) {
             },
             apiKey,
             (chunk) => {
+              if (chunk.type === "usage") {
+                updateResult(runId, index, (current) => ({
+                  ...current,
+                  outputTokens: chunk.outputTokens,
+                  tokensPerSecond: chunk.tokensPerSecond ?? current.tokensPerSecond,
+                }));
+                return;
+              }
               if (chunk.type !== "text" || !chunk.delta) return;
               const firstTextMs = receivedText ? undefined : Date.now() - targetStartedAt;
               receivedText = true;
@@ -142,17 +177,20 @@ export function useComparison(lang: Lang) {
             },
           );
 
+          // Mesuré ici, pas dans l'updater : React peut l'exécuter plus tard.
+          const durationMs = Date.now() - targetStartedAt;
           updateResult(runId, index, (current) => ({
             ...current,
             status: "done",
-            durationMs: Date.now() - targetStartedAt,
+            durationMs,
           }));
         } catch (error) {
+          const durationMs = Date.now() - targetStartedAt;
           if (isAbortError(error)) {
             updateResult(runId, index, (current) => ({
               ...current,
               status: "done",
-              durationMs: Date.now() - targetStartedAt,
+              durationMs,
             }));
             return;
           }
@@ -162,14 +200,23 @@ export function useComparison(lang: Lang) {
             ...current,
             status: "error",
             error: describeFetchError(error, targetLabel),
-            durationMs: Date.now() - targetStartedAt,
+            durationMs,
           }));
         }
       };
 
-      // Les deux promesses sont créées avant l'attente : une erreur ou un
-      // stream lent ne bloque jamais le démarrage ni le rendu de l'autre.
-      await Promise.allSettled(targetSnapshots.map(runTarget));
+      if (sequential) {
+        // runTarget ne rejette jamais (erreurs converties en résultat) : B
+        // démarre même si A a échoué, sauf si le comparatif a été arrêté.
+        for (const [index, target] of targetSnapshots.entries()) {
+          if (!isCurrentRun(runId) || controller.signal.aborted) break;
+          await runTarget(target, index);
+        }
+      } else {
+        // Les deux promesses sont créées avant l'attente : une erreur ou un
+        // stream lent ne bloque jamais le démarrage ni le rendu de l'autre.
+        await Promise.allSettled(targetSnapshots.map(runTarget));
+      }
 
       if (isCurrentRun(runId)) {
         activeRef.current = null;

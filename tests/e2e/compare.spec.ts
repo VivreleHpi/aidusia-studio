@@ -79,7 +79,7 @@ test("opens the comparison workspace from the mobile drawer without overflow", a
 
   await expect(page.getByRole("heading", { name: "Compare AI models" })).toBeVisible();
   await page.getByRole("button", { name: "Benchmark mode" }).click();
-  await expect(page.getByText(/Time to first text/)).toBeVisible();
+  await expect(page.getByText(/answer one after the other/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

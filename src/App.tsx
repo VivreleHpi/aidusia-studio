@@ -9,6 +9,9 @@ import {
 } from "react";
 import { Sidebar, FOCUS_SEARCH_EVENT, SIDEBAR_ID } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
+import { ConfirmHost } from "@/components/ConfirmHost";
+import { requestConfirm } from "@/lib/confirm";
+import { readLastModel, saveLastModel } from "@/lib/lastModel";
 import { isMobile, shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { IconPanelLeft } from "@/components/Icons";
@@ -60,8 +63,11 @@ const DEFAULT_PROVIDER = isMobile() ? "browser" : "ollama";
 
 const STRINGS = {
   fr: {
+    purgeTitle: "Effacer toutes les conversations ?",
     purgeConfirm:
       "Effacer définitivement toutes les conversations ? Cette action est irréversible.",
+    purgeAction: "Tout effacer",
+    cancel: "Annuler",
     toggleMenu: "Basculer le menu",
     expandSidebar: "Ouvrir le panneau",
     loading: "Chargement de vos conversations…",
@@ -73,7 +79,10 @@ const STRINGS = {
     loadingComparison: "Chargement de l’espace de comparaison…",
   },
   en: {
+    purgeTitle: "Delete all conversations?",
     purgeConfirm: "Permanently delete all conversations? This cannot be undone.",
+    purgeAction: "Delete all",
+    cancel: "Cancel",
     toggleMenu: "Toggle menu",
     expandSidebar: "Open sidebar",
     loading: "Loading your conversations…",
@@ -107,8 +116,9 @@ function App() {
   const loadedConversationIdRef = useRef<string | null>(null);
   const activeChatRunRef = useRef<ActiveChatRun | null>(null);
   const [activeView, setActiveView] = useState<WorkspaceView>("chat");
-  const [providerId, setProviderId] = useState(DEFAULT_PROVIDER);
-  const [model, setModel] = useState("");
+  const [initialSelection] = useState(() => readLastModel(DEFAULT_PROVIDER));
+  const [providerId, setProviderId] = useState(initialSelection.providerId);
+  const [model, setModel] = useState(initialSelection.model);
   const [providersOpen, setProvidersOpen] = useState(false);
   const [keysVersion, setKeysVersion] = useState(0);
   const [onboarding, setOnboarding] = useState(shouldShowOnboarding);
@@ -255,8 +265,21 @@ function App() {
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
+  useEffect(() => {
+    saveLastModel({ providerId, model });
+  }, [providerId, model]);
+
+  const currentRef = useRef(current);
+  currentRef.current = current;
+
   const createChat = useCallback(async () => {
     setActiveView("chat");
+    // La conversation affichée est encore vide : la réutiliser plutôt que
+    // d'empiler des « Nouvelle conversation » vides dans l'historique.
+    const shown = currentRef.current;
+    if (shown && shown.id === activeConversationIdRef.current && shown.messages.length === 0) {
+      return shown;
+    }
     setConversationCreationPending(true);
     try {
       const conversation = await createConversation();
@@ -345,7 +368,14 @@ function App() {
   }
 
   async function handlePurgeAll() {
-    if (!window.confirm(s.purgeConfirm)) {
+    const confirmed = await requestConfirm({
+      title: s.purgeTitle,
+      message: s.purgeConfirm,
+      confirmLabel: s.purgeAction,
+      cancelLabel: s.cancel,
+      tone: "danger",
+    });
+    if (!confirmed) {
       return;
     }
     await stopAndWaitForActiveRun();
@@ -549,6 +579,7 @@ function App() {
           />
         )}
         {aboutOpen && <AboutModal onClose={closeAbout} />}
+        <ConfirmHost />
         {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
         {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}
         {tourOpen && <GuidedTour onFinish={closeTour} />}

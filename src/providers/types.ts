@@ -47,7 +47,11 @@ export interface ToolCall {
 
 export type StreamChunk =
   | { type: "text"; delta: string }
-  | { type: "tool_call"; call: ToolCall };
+  | { type: "tool_call"; call: ToolCall }
+  // Mesure fournie par le moteur lui-meme (jamais estimee), cumulative :
+  // le dernier chunk "usage" recu fait foi. Sert au comparatif ; les autres
+  // consommateurs l'ignorent.
+  | { type: "usage"; outputTokens: number; tokensPerSecond?: number };
 
 export interface ChatStreamParams {
   model: string;

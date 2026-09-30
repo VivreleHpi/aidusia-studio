@@ -280,7 +280,7 @@ function CopyButton({ text }: { text: string }) {
       }}
       title={s.copyAnswer}
       aria-label={s.copyAnswer}
-      className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+      className="inline-grid min-h-11 min-w-11 place-items-center sm:min-h-0 sm:min-w-0 rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
     >
       {copied ? (
         <IconCheck className="h-3.5 w-3.5 text-success" />
@@ -317,7 +317,7 @@ function ShareButton({ text }: { text: string }) {
       }}
       title={s.shareAnswer}
       aria-label={s.shareAnswer}
-      className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+      className="inline-grid min-h-11 min-w-11 place-items-center sm:min-h-0 sm:min-w-0 rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
     >
       <IconShare className="h-3.5 w-3.5" />
     </button>
@@ -775,13 +775,17 @@ export function ChatView({
                     ) : null}
                     {isLastAssistant && streaming && m.content && <span className="typing-cursor" />}
                     {label && (m.content || !streaming) && (
-                      <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                        <span className="h-1 w-1 rounded-full bg-primary/60" />
-                        <span>{s.aiGenerated} · {label}</span>
-                        {m.model && <span className="font-mono opacity-80">· {m.model}</span>}
+                      <div className="mt-1.5 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                        <span className="h-1 w-1 shrink-0 rounded-full bg-primary/60" />
+                        <span className="shrink-0">{s.aiGenerated} · {label}</span>
+                        {m.model && (
+                          <span className="min-w-0 truncate font-mono" title={m.model}>
+                            · {m.model}
+                          </span>
+                        )}
                         {m.content && !streaming && (
                           <span
-                            className={`ml-auto flex items-center gap-0.5 ${
+                            className={`ml-auto flex shrink-0 items-center gap-0.5 ${
                               isLastAssistant
                                 ? ""
                                 : "opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
@@ -796,7 +800,7 @@ export function ChatView({
                                 disabled={streaming || modelReadiness.status !== "ready"}
                                 title={s.regenerateAnswer}
                                 aria-label={s.regenerateAnswer}
-                                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-foreground/10 hover:text-foreground disabled:opacity-40"
+                                className="inline-grid min-h-11 min-w-11 place-items-center sm:min-h-0 sm:min-w-0 rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground disabled:opacity-40"
                               >
                                 <IconRefresh className="h-3.5 w-3.5" />
                               </button>
@@ -962,7 +966,7 @@ export function ChatView({
               }}
               rows={1}
               placeholder={s.placeholder}
-              className="max-h-48 w-full resize-none bg-transparent px-2 pb-2.5 pt-2 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none sm:text-[15px]"
+              className="max-h-48 w-full resize-none bg-transparent px-2 pb-2.5 pt-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-[15px]"
             />
             <div className="flex items-center gap-1">
               <input

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  shouldRunSequentially,
   useComparison,
   type ComparisonResult,
   type ComparisonTarget,
@@ -232,5 +233,78 @@ describe("useComparison", () => {
     expect(signals).toHaveLength(2);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
     await pending;
+  });
+
+  it("en séquentiel, ne démarre B qu'après A et mesure chacun depuis son propre départ", async () => {
+    let clock = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+    const alphaDone = deferred();
+    const betaStarted = vi.fn();
+
+    providerRegistry.set("alpha", mockProvider("alpha", "Alpha", async (_params, _key, onChunk) => {
+      clock = 1_200;
+      onChunk({ type: "text", delta: "Réponse A" });
+      await alphaDone.promise;
+      clock = 5_000;
+    }));
+    providerRegistry.set("beta", mockProvider("beta", "Beta", async (_params, _key, onChunk) => {
+      betaStarted();
+      clock = 5_300;
+      onChunk({ type: "text", delta: "Réponse B" });
+      onChunk({ type: "usage", outputTokens: 40, tokensPerSecond: 20 });
+      clock = 7_000;
+    }));
+
+    const { result } = renderHook(() => useComparison("fr"));
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.compare("Question", targets, { sequential: true });
+    });
+
+    expect(result.current.results[1].status).toBe("queued");
+    await act(async () => {});
+    expect(betaStarted).not.toHaveBeenCalled();
+
+    await act(async () => {
+      alphaDone.resolve();
+      await pending;
+    });
+
+    expect(betaStarted).toHaveBeenCalledTimes(1);
+    expect(result.current.results[0]).toMatchObject({ status: "done", firstTextMs: 200, durationMs: 4_000 });
+    expect(result.current.results[1]).toMatchObject({
+      status: "done",
+      firstTextMs: 300,
+      durationMs: 2_000,
+      outputTokens: 40,
+      tokensPerSecond: 20,
+    });
+  });
+
+  it("arrêter un comparatif séquentiel ne lance pas le modèle en attente", async () => {
+    const betaStarted = vi.fn();
+    providerRegistry.set("alpha", mockProvider("alpha", "Alpha", (params) => new Promise<void>((_resolve, reject) => {
+      params.signal!.addEventListener("abort", () => reject({ name: "AbortError" }));
+    })));
+    providerRegistry.set("beta", mockProvider("beta", "Beta", async () => { betaStarted(); }));
+
+    const { result } = renderHook(() => useComparison("fr"));
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.compare("Question", targets, { sequential: true });
+    });
+    act(() => result.current.stop());
+    await act(async () => pending);
+
+    expect(betaStarted).not.toHaveBeenCalled();
+    expect(result.current.results[1]).toMatchObject({ status: "done", interrupted: true, content: "" });
+  });
+
+  it("enchaîne les modèles quand les deux tournent sur l'appareil ou en benchmark", () => {
+    const local = [{ providerId: "browser", model: "a" }, { providerId: "luciole", model: "b" }];
+    const mixed = [{ providerId: "browser", model: "a" }, { providerId: "anthropic", model: "b" }];
+    expect(shouldRunSequentially(local, false)).toBe(true);
+    expect(shouldRunSequentially(mixed, false)).toBe(false);
+    expect(shouldRunSequentially(mixed, true)).toBe(true);
   });
 });

@@ -7,6 +7,18 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ### Ajouté
 
+- Boîte de confirmation intégrée (feuille basse sur téléphone, accessible au
+  clavier et aux lecteurs d'écran) à la place des `window.confirm` natifs :
+  approbation des outils MCP avec aperçu lisible des arguments, suppressions
+  de conversations, de modèles et de toutes les données.
+- Confirmation avant le premier téléchargement d'un modèle local (Luciole et
+  IA du navigateur), avec vérification de l'espace libre pour Luciole et
+  demande de stockage persistant.
+- Luciole : choix du mode de calcul (automatique ou processeur forcé) pour
+  contourner les pilotes graphiques mobiles qui produisent des réponses
+  incohérentes.
+- Comparateur : débit réel en tokens/s quand le moteur le fournit (Luciole,
+  IA du navigateur, Ollama), à défaut en caractères/s clairement étiquetés.
 - Espace « Comparer les IA » dans la barre latérale : deux réponses en
   parallèle, permutation A/B, synthèse explicite, export Markdown et poursuite
   d’un résultat dans une nouvelle conversation locale.
@@ -21,6 +33,23 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ### Modifié
 
+- Luciole reçoit désormais le bon contexte système (modèle local, et non
+  « modèle cloud ») précédé de son identité, les réglages d'échantillonnage
+  publiés dans son GGUF, un contexte de 2048 tokens sur téléphone (4096
+  ailleurs) avec un historique tronqué en conséquence, des réponses jusqu'à
+  640 tokens signalées quand elles sont coupées, et des messages d'erreur qui
+  distinguent chargement, génération et message trop long.
+- Isolation cross-origin (COOP/COEP) : le calcul de Luciole sur processeur
+  passe en multi-thread au lieu d'un seul thread.
+- Comparateur : deux modèles qui tournent sur l'appareil (et tout comparatif
+  en mode benchmark) répondent l'un après l'autre, chacun chronométré depuis
+  son propre départ ; sur téléphone, le modèle B par défaut est un fournisseur
+  cloud déjà configuré, sinon Luciole.
+- Dernier fournisseur et modèle choisis conservés d'une visite à l'autre ;
+  « Nouvelle conversation » réutilise une conversation encore vide.
+- Mobile : blocs propres à Ollama (commande terminal, test) masqués sur
+  téléphone, cibles tactiles agrandies, barre d'outils du comparateur
+  réorganisée, menu des modèles fermé par Échap.
 - OCR chargé uniquement lors de la sélection d’une image ; runtime Tesseract
   retiré du précache initial mais toujours mis en cache à sa première
   utilisation, pour un précache réduit d’environ 48 %.
@@ -35,6 +64,11 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ### Corrigé
 
+- Contraste insuffisant (WCAG AA) des textes secondaires rendus avec une
+  opacité réduite.
+- Durées du comparateur mesurées à la fin réelle de chaque réponse, et non au
+  moment du rendu.
+- Dépendances de développement mises à jour (`npm audit` sans vulnérabilité).
 - Changement de conversation sécurisé pendant un flux : aucun snapshot tardif
   d’un ancien échange ne peut remplacer la conversation sélectionnée.
 - Réouverture IndexedDB réellement réessayable après un échec transitoire et

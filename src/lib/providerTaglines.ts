@@ -40,8 +40,8 @@ export function providerTagline(providerId: string, lang: Lang): string | null {
   }
   if (providerId === "luciole") {
     return lang === "fr"
-      ? "Bêta locale — 1,02 Go téléchargé depuis Hugging Face au premier message, puis utilisable hors connexion"
-      : "Local beta — downloads 1.02 GB from Hugging Face on first message, then works offline";
+      ? "Bêta locale — 1,02 Go téléchargés depuis Hugging Face après confirmation, puis utilisable hors connexion"
+      : "Local beta — downloads 1.02 GB from Hugging Face after confirmation, then works offline";
   }
   return null;
 }

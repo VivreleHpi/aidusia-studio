@@ -42,7 +42,7 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "Et Luciole 1B sur téléphone ?",
-        a: "Luciole 1B est proposé en bêta comme fournisseur local séparé. Son GGUF officiel Q4 est téléchargé depuis Hugging Face au premier message (environ 1,02 Go), puis exécuté sur l'appareil via wllama. Les réponses ne sont pas envoyées à un serveur d'inférence. La vitesse et la mémoire disponible dépendent du téléphone ; vous pouvez supprimer ses poids dans Fournisseurs → Luciole 1B → Modèles.",
+        a: "Luciole 1B est proposé en bêta comme fournisseur local séparé. Son GGUF officiel Q4 (environ 1,02 Go) est téléchargé depuis Hugging Face après votre confirmation au premier message, puis exécuté sur l'appareil via wllama. Les réponses ne sont pas envoyées à un serveur d'inférence. C'est un petit modèle : il peut se tromper sur les faits, vérifiez les informations importantes. La vitesse dépend du téléphone ; si ses réponses sont incohérentes, passez le calcul sur « Processeur » dans Fournisseurs → Luciole 1B → Modèles, où vous pouvez aussi supprimer ses poids.",
       },
       {
         q: "L'application fonctionne-t-elle sans connexion internet ?",
@@ -105,7 +105,7 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       },
       {
         q: "What about Luciole 1B on a phone?",
-        a: "Luciole 1B is a separate beta local provider. Its official Q4 GGUF downloads from Hugging Face on first message (about 1.02 GB), then runs on the device through wllama. Answers are not sent to an inference server. Speed and available memory depend on the phone; you can remove its weights under Providers → Luciole 1B → Models.",
+        a: "Luciole 1B is a separate beta local provider. Its official Q4 GGUF (about 1.02 GB) downloads from Hugging Face after you confirm on first message, then runs on the device through wllama. Answers are not sent to an inference server. It is a small model: it can get facts wrong, so check important information. Speed depends on the phone; if answers look garbled, switch computation to “Processor” under Providers → Luciole 1B → Models, where you can also remove its weights.",
       },
       {
         q: "Does the app work without an internet connection?",
@@ -160,7 +160,7 @@ export function FaqPanel({ onClose }: FaqPanelProps) {
             type="button"
             onClick={onClose}
             aria-label={s.closeLabel}
-            className="text-muted-foreground hover:text-foreground"
+            className="inline-grid min-h-11 min-w-11 place-items-center text-muted-foreground hover:text-foreground sm:min-h-0 sm:min-w-0"
           >
             ✕
           </button>

@@ -32,7 +32,7 @@ Then choose a mode:
 1. **Local Ollama** — install [Ollama](https://ollama.com/download) and use the Studio on a desktop. From a deployed domain, Ollama must allow that origin through `OLLAMA_ORIGINS`.
    If Ollama is installed but shown as unreachable, follow the [Ollama troubleshooting guide](./docs/OLLAMA.en.md).
 2. **In-browser AI** — select "On-device." Weights are downloaded on request, cached, then run through WebGPU. Performance varies by browser, GPU, and memory, especially on mobile.
-   "Luciole 1B" is also available separately in beta: its official GGUF (~1.02 GB) downloads from Hugging Face on first message and runs locally through wllama. Phone performance still needs validation on each device.
+   "Luciole 1B" is also available separately in beta: its official GGUF (~1.02 GB) downloads from Hugging Face after confirmation (free space checked) and runs locally through wllama, on the graphics card when possible, otherwise multi-threaded on the processor. It is a small model: it can get facts wrong.
 3. **Cloud provider** — add your API key under "Providers." The provider's pricing, quotas, retention, and terms apply.
 
 In **Compare**, enable "Benchmark mode" to see total duration, time to first text, and overall character throughput. You can manually rate each response for accuracy, clarity, and usefulness (1 to 5), then export measurements and ratings as Markdown. Ratings stay on the page and clear with each new comparison; check the facts before rating. Times may include model loading: run the same question again to compare later runs.

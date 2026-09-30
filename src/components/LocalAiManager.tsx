@@ -6,6 +6,7 @@ import {
   type LocalModelStatus,
 } from "@/providers/browserLocal";
 import { useLang } from "@/lib/i18n";
+import { requestConfirm } from "@/lib/confirm";
 
 const STRINGS = {
   fr: {
@@ -15,6 +16,8 @@ const STRINGS = {
       `Téléchargé sur cet appareil (${gb})${f32 ? " — variante compatible avec ce GPU" : ""}. Disponible hors connexion.`,
     notDownloaded: (gb: string) => `Non téléchargé — se téléchargera au premier message (${gb}).`,
     remove: "Supprimer",
+    removeTitle: "Supprimer ce modèle ?",
+    cancel: "Annuler",
     removing: "Suppression…",
     removeConfirm: (label: string) =>
       `Supprimer « ${label} » de cet appareil ?\nIl se retéléchargera au prochain usage.`,
@@ -40,6 +43,8 @@ const STRINGS = {
       `Downloaded on this device (${gb})${f32 ? " — variant compatible with this GPU" : ""}. Available offline.`,
     notDownloaded: (gb: string) => `Not downloaded — will download on first message (${gb}).`,
     remove: "Delete",
+    removeTitle: "Delete this model?",
+    cancel: "Cancel",
     removing: "Deleting…",
     removeConfirm: (label: string) =>
       `Delete “${label}” from this device?\nIt will re-download on next use.`,
@@ -119,14 +124,22 @@ export function LocalAiManager() {
     // Un modele qui finit de charger (progress=1) change son statut "en
     // memoire" : on rafraichit a ce moment-la.
     const onProgress = (e: Event) => {
-      if ((e as CustomEvent<{ progress: number }>).detail?.progress === 1) refresh();
+      const detail = (e as CustomEvent<{ progress: number; source?: string }>).detail;
+      if (detail?.source !== "luciole" && detail?.progress === 1) refresh();
     };
     window.addEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);
     return () => window.removeEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);
   }, [refresh]);
 
   async function handleRemove(m: LocalModelStatus) {
-    if (!window.confirm(s.removeConfirm(m.label))) return;
+    const confirmed = await requestConfirm({
+      title: s.removeTitle,
+      message: s.removeConfirm(m.label),
+      confirmLabel: s.remove,
+      cancelLabel: s.cancel,
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setRemoving(m.id);
     try {
       await deleteLocalModel(m.id);
@@ -206,7 +219,7 @@ export function LocalAiManager() {
       <div className="border-t border-border/60 pt-2">
         <p className="text-xs font-medium">{s.provenanceTitle}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{s.provenance}</p>
-        <p className="mt-1.5 text-xs text-muted-foreground/80">💡 {s.tip}</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">💡 {s.tip}</p>
       </div>
     </div>
   );

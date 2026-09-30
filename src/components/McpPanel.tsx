@@ -284,7 +284,7 @@ export function McpPanel({ onClose }: McpPanelProps) {
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           <p className="mb-1 text-sm text-muted-foreground">{s.intro}</p>
-          <p className="mb-5 text-xs text-muted-foreground/70">{s.corsNote}</p>
+          <p className="mb-5 text-xs text-muted-foreground">{s.corsNote}</p>
 
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {s.popular}

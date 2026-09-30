@@ -2,7 +2,7 @@ import type { Lang } from "@/lib/i18n";
 
 // Fournisseurs qui tournent entierement sur cet appareil (aucun appel reseau
 // vers un tiers pour l'inference) - le reste part vers une API cloud.
-const LOCAL_PROVIDER_IDS = new Set(["ollama", "browser"]);
+const LOCAL_PROVIDER_IDS = new Set(["ollama", "browser", "luciole"]);
 
 export function isLocalProvider(providerId: string): boolean {
   return LOCAL_PROVIDER_IDS.has(providerId);
@@ -16,8 +16,8 @@ function baseContext(providerId: string, lang: Lang): string {
   const local = isLocalProvider(providerId);
   if (lang === "fr") {
     return local
-      ? "Tu es invoque depuis Aidusia Studio, une vitrine minimale et open source. Tu tournes en local sur l'appareil de l'utilisateur (aucune donnee ne quitte cette machine)."
-      : "Tu es invoque depuis Aidusia Studio, une vitrine minimale et open source. Tu es un modele cloud, appele via la cle API de l'utilisateur (BYOK).";
+      ? "Tu es utilisé depuis Aidusia Studio, une vitrine minimale et open source. Tu tournes en local sur l'appareil de l'utilisateur (aucune donnée ne quitte cette machine)."
+      : "Tu es utilisé depuis Aidusia Studio, une vitrine minimale et open source. Tu es un modèle cloud, appelé via la clé API de l'utilisateur (BYOK).";
   }
   return local
     ? "You are invoked from Aidusia Studio, a minimal open-source showcase. You are running locally on the user's device (nothing leaves this machine)."

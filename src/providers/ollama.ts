@@ -137,6 +137,8 @@ function processOllamaLine(
 
   let event: {
     error?: unknown;
+    eval_count?: unknown;
+    eval_duration?: unknown;
     message?: {
       content?: unknown;
       thinking?: unknown;
@@ -158,6 +160,16 @@ function processOllamaLine(
 
   if (typeof event.message?.content === "string") {
     onChunk({ type: "text", delta: event.message.content });
+  }
+
+  // Dernier événement : tokens générés et durée de décodage (ns), mesurés par Ollama.
+  if (typeof event.eval_count === "number" && event.eval_count > 0) {
+    const seconds = typeof event.eval_duration === "number" ? event.eval_duration / 1e9 : 0;
+    onChunk({
+      type: "usage",
+      outputTokens: event.eval_count,
+      tokensPerSecond: seconds > 0 ? event.eval_count / seconds : undefined,
+    });
   }
 
   for (const toolCall of event.message?.tool_calls ?? []) {

@@ -34,7 +34,10 @@ const synthesis = vi.hoisted(() => ({
 }));
 
 vi.mock("@/providers", () => ({ listProviders: () => providerMocks }));
-vi.mock("@/hooks/useComparison", () => ({ useComparison: () => comparison }));
+vi.mock("@/hooks/useComparison", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/useComparison")>()),
+  useComparison: () => comparison,
+}));
 vi.mock("@/hooks/useComparisonSynthesis", () => ({
   useComparisonSynthesis: () => synthesis,
 }));
@@ -94,7 +97,7 @@ describe("CompareView", () => {
     providerMocks.forEach((provider) => provider.listModels.mockClear());
   });
 
-  it("attend deux modèles prêts puis lance le même prompt en parallèle", async () => {
+  it("attend deux modèles prêts puis enchaîne le même prompt sur deux modèles locaux", async () => {
     renderCompare();
 
     const compareButton = screen.getByRole("button", { name: "Comparer" });
@@ -110,7 +113,7 @@ describe("CompareView", () => {
     expect(comparison.compare).toHaveBeenCalledWith("Explique la photosynthèse", [
       { providerId: "ollama", model: "ollama-model" },
       { providerId: "browser", model: "browser-model" },
-    ]);
+    ], { sequential: true });
   });
 
   it("rend le Markdown sans HTML brut ni chargement d'image distante", () => {
@@ -237,7 +240,7 @@ describe("CompareView", () => {
     expect(comparison.compare).toHaveBeenCalledWith("Compare dans l'autre sens", [
       { providerId: "browser", model: "browser-model" },
       { providerId: "ollama", model: "ollama-model" },
-    ]);
+    ], { sequential: true });
   });
 
   it("exporte localement la question, les réponses et la synthèse en Markdown", async () => {

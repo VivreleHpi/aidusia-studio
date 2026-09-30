@@ -1,3 +1,4 @@
+import { requestConfirm } from "@/lib/confirm";
 import type { McpServer, McpToolRisk } from "./types";
 
 const SENSITIVE_KEY = /authorization|cookie|credential|password|secret|token|api[-_]?key/i;
@@ -41,33 +42,33 @@ function argsPreview(args: unknown): string {
 // fiable. Une confirmation par appel est donc volontairement requise, même
 // pour un outil au nom apparemment inoffensif : son serveur reste externe et
 // peut avoir des effets que son nom/sa description ne révèlent pas.
-export function requestToolApproval(request: McpApprovalRequest): boolean {
+export async function requestToolApproval(request: McpApprovalRequest): Promise<boolean> {
   const risk = classifyToolRisk(request.toolName);
-  const preview = argsPreview(request.args);
-  const message = request.lang === "fr"
+  const details = argsPreview(request.args);
+  const fr = request.lang === "fr";
+  const message = fr
     ? [
-        "Autoriser cette action externe ?",
-        "",
         `Connecteur : ${request.server.name}`,
         `Outil : ${request.toolName}`,
         `Risque : ${risk === "high" ? "élevé (écriture/action possible)" : "inconnu"}`,
         "",
-        "Les arguments suivants seront envoyés au serveur MCP :",
-        preview,
-        "",
+        "Les arguments suivants seront envoyés au serveur MCP.",
         "Annulez si cette action n'est pas exactement celle que vous avez demandée.",
       ].join("\n")
     : [
-        "Allow this external action?",
-        "",
         `Connector: ${request.server.name}`,
         `Tool: ${request.toolName}`,
         `Risk: ${risk === "high" ? "high (possible write/action)" : "unknown"}`,
         "",
-        "The following arguments will be sent to the MCP server:",
-        preview,
-        "",
+        "The following arguments will be sent to the MCP server.",
         "Cancel unless this is exactly the action you requested.",
       ].join("\n");
-  return window.confirm(message);
+  return requestConfirm({
+    title: fr ? "Autoriser cette action externe ?" : "Allow this external action?",
+    message,
+    details,
+    confirmLabel: fr ? "Autoriser" : "Allow",
+    cancelLabel: fr ? "Refuser" : "Deny",
+    tone: risk === "high" ? "danger" : "default",
+  });
 }

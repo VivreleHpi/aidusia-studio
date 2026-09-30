@@ -1,5 +1,6 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { probeWebGpu } from "@/lib/hardwareGovernor";
+import { requestConfirm } from "@/lib/confirm";
 import { isMobile } from "@/lib/deviceDetect";
 import { getStoredLang } from "@/lib/i18n";
 import { heavyOnMobileReason } from "@/lib/providerTaglines";
@@ -16,6 +17,8 @@ export const LOCAL_AI_PROGRESS_EVENT = "aidusia:local-ai-progress";
 export interface LocalAiProgress {
   text: string;
   progress: number; // 0..1
+  // Moteur emetteur : les deux moteurs locaux partagent cet evenement.
+  source?: "browser" | "luciole";
 }
 
 // Catalogue prebuilt de web-llm (MLC). Petits modeles quantises q4f16 : choisis
@@ -125,7 +128,7 @@ export async function resolveModelId(modelId: string): Promise<string> {
 }
 
 function emitProgress(detail: LocalAiProgress) {
-  window.dispatchEvent(new CustomEvent<LocalAiProgress>(LOCAL_AI_PROGRESS_EVENT, { detail }));
+  window.dispatchEvent(new CustomEvent<LocalAiProgress>(LOCAL_AI_PROGRESS_EVENT, { detail: { ...detail, source: "browser" } }));
 }
 
 /* Libere le moteur meme s'il est deja mort (device GPU perdu) : l'objectif
@@ -367,6 +370,45 @@ export const browserLocalProvider: ChatProvider = {
 // generations locales (une seule a la fois sur le GPU).
 let generationChain: Promise<void> = Promise.resolve();
 
+/* Premier telechargement d'un modele (0,7 a 2 Go, souvent sur reseau mobile) :
+   accord explicite demande avant toute requete vers HuggingFace. */
+async function ensureDownloadAllowed(modelId: string, lang: Lang): Promise<void> {
+  const actualModel = await resolveModelId(modelId);
+  if (engine && engineModel === actualModel) return;
+  const { hasModelInCache } = await import("@mlc-ai/web-llm");
+  if (await hasModelInCache(actualModel).catch(() => false)) return;
+
+  const meta = MODEL_META.find((m) => m.id === modelId);
+  const sizes = MODEL_SIZES_GB[modelId];
+  const sizeGb = sizes ? (actualModel === modelId ? sizes.f16 : sizes.f32) : null;
+  const size = sizeGb === null
+    ? ""
+    : ` (~${new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-US", { maximumFractionDigits: 1 }).format(sizeGb)} ${lang === "fr" ? "Go" : "GB"})`;
+  const name = meta?.name ?? modelId;
+  const confirmed = await requestConfirm(
+    lang === "fr"
+      ? {
+          title: `Télécharger ${name}${size} ?`,
+          message:
+            "Le modèle est téléchargé une seule fois depuis HuggingFace, puis reste sur cet appareil et fonctionne hors connexion. Wi-Fi recommandé.",
+          confirmLabel: "Télécharger",
+          cancelLabel: "Annuler",
+        }
+      : {
+          title: `Download ${name}${size}?`,
+          message:
+            "The model downloads once from HuggingFace, then stays on this device and works offline. Wi-Fi recommended.",
+          confirmLabel: "Download",
+          cancelLabel: "Cancel",
+        },
+  );
+  if (!confirmed) {
+    throw new Error(lang === "fr" ? `Téléchargement de ${name} annulé.` : `${name} download cancelled.`);
+  }
+  // Sans stockage persistant, un navigateur mobile peut evincer ces poids.
+  await navigator.storage?.persist?.().catch(() => false);
+}
+
 async function runGeneration(
   params: ChatStreamParams,
   _apiKey: string | undefined,
@@ -374,6 +416,8 @@ async function runGeneration(
 ): Promise<void> {
     const lang = getStoredLang();
     if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage(lang));
+    await ensureDownloadAllowed(params.model, lang);
+    if (params.signal?.aborted) return;
     let eng: Engine;
     try {
       eng = await getEngine(params.model);
@@ -405,12 +449,23 @@ async function runGeneration(
 
     let emitted = false;
     const generate = async () => {
-      const stream = await eng.chat.completions.create({ messages, stream: true });
+      const stream = await eng.chat.completions.create({
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
+      });
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content;
         if (delta) {
           emitted = true;
           onChunk({ type: "text", delta });
+        }
+        if (chunk.usage?.completion_tokens) {
+          onChunk({
+            type: "usage",
+            outputTokens: chunk.usage.completion_tokens,
+            tokensPerSecond: chunk.usage.extra?.decode_tokens_per_s,
+          });
         }
       }
     };
