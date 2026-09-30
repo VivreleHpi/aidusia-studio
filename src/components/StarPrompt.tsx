@@ -66,7 +66,7 @@ export function StarPrompt({ streaming, error }: StarPromptProps) {
         <button
           type="button"
           onClick={() => setState(snoozeStarPrompt())}
-          className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground"
+          className="min-h-11 rounded-lg px-2.5 py-1.5 text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground sm:min-h-0"
         >
           {s.later}
         </button>
@@ -75,7 +75,7 @@ export function StarPrompt({ streaming, error }: StarPromptProps) {
           onClick={() => setState(dismissStarPrompt())}
           aria-label={s.never}
           title={s.never}
-          className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground"
+          className="grid h-11 w-11 place-items-center sm:h-7 sm:w-7 rounded-lg text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground"
         >
           <IconX className="h-3.5 w-3.5" />
         </button>

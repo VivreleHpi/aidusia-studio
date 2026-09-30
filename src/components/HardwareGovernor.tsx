@@ -8,6 +8,7 @@ import {
   type OllamaProbe,
   type WebGpuProbe,
 } from "@/lib/hardwareGovernor";
+import { isMobile } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 
 const verdictStyle: Record<string, string> = {
@@ -136,47 +137,50 @@ export function HardwareGovernor({ ollamaBaseUrl }: HardwareGovernorProps) {
         </div>
       </dl>
 
-      <div className="border-t border-border pt-3">
-        <div className="flex items-center justify-between text-sm">
-          <span>{s.ollamaLocal}</span>
-          <div className="flex items-center gap-2">
-            {ollama !== null &&
-              (ollama.reachable ? (
-                <span className="font-mono text-xs text-success">
-                  {s.reachable(ollama.version ?? "?")}
-                </span>
-              ) : (
-                <span className="font-mono text-xs text-destructive">{s.unreachable}</span>
-              ))}
-            <button
-              type="button"
-              onClick={() => void handleOllamaProbe()}
-              disabled={ollamaTesting}
-              className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 disabled:opacity-50"
-            >
-              {ollamaTesting
-                ? lang === "fr"
-                  ? "Test en cours…"
-                  : "Testing…"
-                : lang === "fr"
-                  ? "Tester Ollama"
-                  : "Test Ollama"}
-            </button>
+      {/* Ollama est une application de bureau : rien à tester depuis un téléphone. */}
+      {!isMobile() && (
+        <div className="border-t border-border pt-3">
+          <div className="flex items-center justify-between text-sm">
+            <span>{s.ollamaLocal}</span>
+            <div className="flex items-center gap-2">
+              {ollama !== null &&
+                (ollama.reachable ? (
+                  <span className="font-mono text-xs text-success">
+                    {s.reachable(ollama.version ?? "?")}
+                  </span>
+                ) : (
+                  <span className="font-mono text-xs text-destructive">{s.unreachable}</span>
+                ))}
+              <button
+                type="button"
+                onClick={() => void handleOllamaProbe()}
+                disabled={ollamaTesting}
+                className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 disabled:opacity-50"
+              >
+                {ollamaTesting
+                  ? lang === "fr"
+                    ? "Test en cours…"
+                    : "Testing…"
+                  : lang === "fr"
+                    ? "Tester Ollama"
+                    : "Test Ollama"}
+              </button>
+            </div>
           </div>
+          {ollama && !ollama.reachable && (
+            <p className="mt-1 text-xs text-muted-foreground">{ollama.error}</p>
+          )}
+          {ollama?.reachable && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {ollama.loadedModels.length === 0
+                ? s.noLoadedModels
+                : ollama.loadedModels
+                    .map((m) => `${m.name} (${m.sizeVramGb} ${s.gb} ${s.vram})`)
+                    .join(", ")}
+            </p>
+          )}
         </div>
-        {ollama && !ollama.reachable && (
-          <p className="mt-1 text-xs text-muted-foreground">{ollama.error}</p>
-        )}
-        {ollama?.reachable && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {ollama.loadedModels.length === 0
-              ? s.noLoadedModels
-              : ollama.loadedModels
-                  .map((m) => `${m.name} (${m.sizeVramGb} ${s.gb} ${s.vram})`)
-                  .join(", ")}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }

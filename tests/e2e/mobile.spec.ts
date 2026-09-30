@@ -69,6 +69,40 @@ test("offers Luciole on mobile without downloading it on selection", async ({ pa
   await page.locator('button[aria-label="Close"].fixed.inset-0').click({ position: { x: 1, y: 1 } });
   await openProviders(page);
   await page.getByRole("button", { name: "Models", exact: true }).last().click();
-  await expect(page.getByText("Not downloaded — about 1.02 GB on first message.")).toBeVisible();
+  await expect(page.getByText("Not downloaded — about 1.02 GB, confirmed before downloading.")).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Automatic/ })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("asks before downloading Luciole and sends nothing when the user cancels", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile", "Mobile-only journey");
+  let huggingFaceRequests = 0;
+  await page.route("https://huggingface.co/**", async (route) => {
+    huggingFaceRequests += 1;
+    await route.abort();
+  });
+  await resetMocks(page);
+  await prepareApp(page);
+
+  await page.getByRole("button", { name: "Choose provider and model" }).click();
+  await page.getByRole("button", { name: "Luciole 1B", exact: true }).click();
+  await page.getByRole("button", { name: "Luciole 1B — French (~1.02 GB)" }).click();
+  await page.getByPlaceholder("Write a message…").fill("Bonjour Luciole");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  const consent = page.getByRole("alertdialog", { name: "Download Luciole (1.02 GB)?" });
+  await expect(consent).toBeVisible();
+  await expect(consent).toContainText("Wi-Fi recommended");
+  // Boîte ancrée en bas et entièrement visible sur un écran de téléphone.
+  const box = await consent.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height + 1);
+  expect(box!.width).toBeLessThanOrEqual(viewport.width);
+  await consent.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(consent).toBeHidden();
+  await expect(page.getByText("Luciole download cancelled.")).toBeVisible();
+  // Le brouillon est rendu pour pouvoir réessayer ou changer de modèle.
+  await expect(page.getByPlaceholder("Write a message…")).toHaveValue("Bonjour Luciole");
+  expect(huggingFaceRequests).toBe(0);
 });

@@ -38,7 +38,9 @@ Ne pas présenter un compteur en mémoire dans une fonction Edge comme une prote
 
 La CSP conserve `connect-src 'self' https: http:` parce que les adresses Ollama et MCP sont configurables. Cette compatibilité élargit les destinations réseau autorisées ; le consentement utilisateur, la validation des URLs et les politiques de transport restent donc nécessaires.
 
-`Cross-Origin-Embedder-Policy: require-corp` n’est pas activé sans preuve de compatibilité complète avec WebLLM, OCR, les polices et les téléchargements de modèles.
+`Cross-Origin-Embedder-Policy: require-corp` est activé avec `Cross-Origin-Opener-Policy: same-origin` (isolation cross-origin). Il débloque `SharedArrayBuffer`, donc le calcul multi-thread de Luciole sur processeur. La compatibilité a été vérifiée dans un vrai navigateur, sur le build de production servi avec ces en-têtes : OCR auto-hébergé, polices auto-hébergées, téléchargement et génération WebLLM, téléchargement et génération Luciole, requêtes CORS vers Hugging Face et GitHub, sans aucune requête bloquée. Les mêmes en-têtes sont servis par `vite dev` et `vite preview` pour que les tests E2E s'exécutent dans les conditions de production.
+
+Toute nouvelle ressource tierce chargée sans CORS (image, script, iframe) serait bloquée par cette politique : la charger en `fetch` CORS ou l'auto-héberger.
 
 ## Confidentialité
 

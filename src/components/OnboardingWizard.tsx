@@ -51,7 +51,7 @@ const STRINGS = {
     webgpuNotSupported: "pas encore disponible sur cet appareil",
     mobileOption2AfterSupported: ", en bêta sur mobile : modèle léger conseillé, aucune installation.",
     mobileOption2AfterUnsupported: ", nécessite un navigateur plus récent (Chrome/Edge 121+, Safari 26+).",
-    mobileLuciole: "Luciole 1B (bêta) est aussi proposé en local : environ 1,02 Go à télécharger au premier message.",
+    mobileLuciole: "Luciole 1B (bêta) est aussi proposé en local : environ 1,02 Go à télécharger, avec confirmation avant le téléchargement.",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
     explore: "Explorer sans configurer",
@@ -89,7 +89,7 @@ const STRINGS = {
     webgpuNotSupported: "not yet available on this device",
     mobileOption2AfterSupported: ", in beta on mobile: a lightweight model is recommended, no download.",
     mobileOption2AfterUnsupported: ", requires a newer browser (Chrome/Edge 121+, Safari 26+).",
-    mobileLuciole: "Luciole 1B (beta) is also available locally: about 1.02 GB to download on first message.",
+    mobileLuciole: "Luciole 1B (beta) is also available locally: about 1.02 GB to download, confirmed before downloading.",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
     explore: "Explore without setup",
@@ -169,7 +169,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
               type="button"
               onClick={() => setLang("fr")}
               aria-pressed={lang === "fr" ? "true" : "false"}
-              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+              className={`min-h-11 min-w-11 rounded-md px-1.5 py-1 transition duration-150 sm:min-h-0 sm:min-w-0 ${
                 lang === "fr"
                   ? "bg-accent/15 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -181,7 +181,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
               type="button"
               onClick={() => setLang("en")}
               aria-pressed={lang === "en" ? "true" : "false"}
-              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+              className={`min-h-11 min-w-11 rounded-md px-1.5 py-1 transition duration-150 sm:min-h-0 sm:min-w-0 ${
                 lang === "en"
                   ? "bg-accent/15 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -286,7 +286,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
               finish();
               onOpenProviders();
             } : finish}
-            className="text-xs text-muted-foreground hover:underline"
+            className="min-h-11 text-xs text-muted-foreground hover:underline sm:min-h-0"
           >
             {environmentReady ? s.configureCloudKey : s.explore}
           </button>

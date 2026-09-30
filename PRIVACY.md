@@ -22,7 +22,8 @@ un modèle à télécharger ou une instance Ollama non locale.
 - clés API dans `sessionStorage` par défaut ; une persistance optionnelle dans
   `localStorage` peut être activée par l’utilisateur, et les anciennes installations
   peuvent conserver leur préférence historique après migration ;
-- préférence de persistance, langue, thème, URL Ollama et métadonnées MCP dans
+- préférence de persistance, langue, thème, URL Ollama, dernier fournisseur et
+  modèle choisis, mode de calcul de Luciole et métadonnées MCP dans
   `localStorage` ;
 - brouillons de messages non envoyés dans `localStorage` ; ils sont retirés
   après envoi, avec leur conversation, ou lors d’une remise à zéro ;

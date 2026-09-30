@@ -202,6 +202,20 @@ export function ModelMenu({
     }
   }, [open]);
 
+  // Échap ferme le menu quel que soit l'élément focalisé (pas seulement la
+  // recherche) et rend le focus au bouton déclencheur.
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.focus();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return models;
@@ -257,7 +271,7 @@ export function ModelMenu({
             }`}
           >
             <div className="p-1.5">
-              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 {s.providerSection}
               </p>
               <div className="grid grid-cols-2 gap-1">
@@ -291,14 +305,14 @@ export function ModelMenu({
               })}
               </div>
               {providerTagline(providerId, lang) && (
-                <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground">
                   {providerTagline(providerId, lang)}
                 </p>
               )}
             </div>
 
             <div className="border-t border-border p-1.5">
-              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 {s.modelSection}
               </p>
               {missingKey ? (
@@ -317,7 +331,7 @@ export function ModelMenu({
               ) : modelsError ? (
                 <div className="px-3 py-2 text-xs text-muted-foreground">
                   <p>{s.providerUnavailable(providerName(provider.id, provider.label))}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">{s.configureKey}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">{s.configureKey}</p>
                 </div>
               ) : models.length === 0 ? (
                 <p className="px-3 py-3 text-center text-xs text-muted-foreground">{s.noModels}</p>
@@ -337,7 +351,7 @@ export function ModelMenu({
                         }
                       }}
                       placeholder={s.searchPlaceholder(models.length)}
-                      className="mb-1 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring sm:text-xs"
+                      className="mb-1 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:text-xs"
                     />
                   )}
                   <div className="min-h-0 max-h-56 overflow-y-auto">
@@ -388,7 +402,7 @@ export function ModelMenu({
                       models.find((m) => m.warning)?.warning ??
                       (localBound ? switchModelWarning(lang) : undefined);
                     return note ? (
-                      <p className="flex items-start gap-1 px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+                      <p className="flex items-start gap-1 px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground">
                         <span className="text-warning">⚠</span>
                         <span>{note}</span>
                       </p>

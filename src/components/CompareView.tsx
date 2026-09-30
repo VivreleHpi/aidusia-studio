@@ -13,11 +13,13 @@ import {
   IconSquare,
 } from "@/components/Icons";
 import {
+  shouldRunSequentially,
   useComparison,
   type ComparisonResult,
   type ComparisonTarget,
 } from "@/hooks/useComparison";
 import { useComparisonSynthesis } from "@/hooks/useComparisonSynthesis";
+import { getApiKey } from "@/lib/apiKeys";
 import { isMobile } from "@/lib/deviceDetect";
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
@@ -37,10 +39,13 @@ const STRINGS = {
     failed: "Ce modèle n'a pas pu répondre.",
     duration: (value: string) => `Répondu en ${value}`,
     benchmark: "Mode benchmark",
-    benchmarkHelp: "Temps jusqu'au premier texte et débit global de caractères. Mesures indicatives : le premier essai peut inclure téléchargement et chargement du modèle. Relancez la même question pour comparer à chaud.",
+    benchmarkHelp: "Les deux modèles répondent l'un après l'autre pour ne pas se gêner. Mesures : temps jusqu'au premier texte et débit en tokens/s quand le moteur le fournit (sinon en caractères/s). Le premier essai peut inclure le téléchargement et le chargement du modèle : relancez la même question pour comparer à chaud.",
     firstText: (value: string) => `Premier texte : ${value}`,
     outputLength: (value: string) => `${value} caractères`,
+    outputTokens: (value: string) => `${value} tokens`,
     outputRate: (value: string) => `${value} car./s au total`,
+    tokenRate: (value: string) => `${value} tokens/s`,
+    queued: "En attente : ce modèle démarre quand A a fini, pour ne pas partager la machine.",
     interrupted: "Réponse interrompue : mesures partielles",
     qualityTitle: "Notes manuelles (1 à 5)",
     qualityHelp: "Vérifiez les faits avant de noter. Ces notes restent sur cette page.",
@@ -80,10 +85,13 @@ const STRINGS = {
     failed: "This model could not respond.",
     duration: (value: string) => `Answered in ${value}`,
     benchmark: "Benchmark mode",
-    benchmarkHelp: "Time to first text and overall character throughput. Measurements are indicative: the first run may include a model download and load. Run the same question again to compare warm performance.",
+    benchmarkHelp: "Both models answer one after the other so they don't slow each other down. Measurements: time to first text and throughput in tokens/s when the engine reports it (otherwise characters/s). The first run may include a model download and load: run the same question again to compare warm performance.",
     firstText: (value: string) => `First text: ${value}`,
     outputLength: (value: string) => `${value} characters`,
+    outputTokens: (value: string) => `${value} tokens`,
     outputRate: (value: string) => `${value} chars/s overall`,
+    tokenRate: (value: string) => `${value} tokens/s`,
+    queued: "Waiting: this model starts when A has finished, so they don't share the machine.",
     interrupted: "Response stopped: partial measurements",
     qualityTitle: "Manual ratings (1 to 5)",
     qualityHelp: "Check the facts before rating. These ratings stay on this page.",
@@ -165,10 +173,14 @@ function emptyQualityScores(): [QualityScores, QualityScores] {
 }
 
 function initialTargets(): [ComparisonTarget, ComparisonTarget] {
+  // Sur téléphone, B = le premier fournisseur cloud dont la clé est déjà
+  // saisie ; à défaut Luciole, local et sans clé, plutôt qu'un fournisseur
+  // qui afficherait d'emblée « clé API requise ».
+  const cloudWithKey = listProviders().find((provider) => provider.requiresApiKey && getApiKey(provider.id));
   return isMobile()
     ? [
         { providerId: "browser", model: "" },
-        { providerId: "anthropic", model: "" },
+        { providerId: cloudWithKey?.id ?? "luciole", model: "" },
       ]
     : [
         { providerId: "ollama", model: "" },
@@ -188,10 +200,30 @@ function formatDuration(durationMs: number, lang: Lang): string {
   return `${new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: 1 }).format(durationMs / 1_000)} s`;
 }
 
-function formatOutputRate(result: ComparisonResult, lang: Lang): string | null {
-  if (result.durationMs === undefined || result.durationMs < 100 || result.content.length < 20) return null;
-  const rate = result.content.length / (result.durationMs / 1_000);
-  return new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: 0 }).format(rate);
+/* Débit de génération : d'abord la valeur mesurée par le moteur (tokens/s),
+   sinon tokens comptés par le moteur sur le temps de génération, et en
+   dernier recours des caractères/s, clairement étiquetés comme tels. */
+function formatThroughput(result: ComparisonResult, lang: Lang): string | null {
+  const s = STRINGS[lang];
+  const format = (value: number, digits: number) =>
+    new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: digits }).format(value);
+  if (result.tokensPerSecond && Number.isFinite(result.tokensPerSecond)) {
+    return s.tokenRate(format(result.tokensPerSecond, 1));
+  }
+  if (result.durationMs === undefined || result.durationMs < 100) return null;
+  const generationMs = result.durationMs - (result.firstTextMs ?? 0);
+  if (result.outputTokens && generationMs >= 100) {
+    return s.tokenRate(format(result.outputTokens / (generationMs / 1_000), 1));
+  }
+  if (result.content.length < 20) return null;
+  return s.outputRate(format(result.content.length / (result.durationMs / 1_000), 0));
+}
+
+function formatOutputSize(result: ComparisonResult, lang: Lang): string {
+  const s = STRINGS[lang];
+  const format = new Intl.NumberFormat(localeOf(lang)).format;
+  const chars = s.outputLength(format(result.content.length));
+  return result.outputTokens ? `${s.outputTokens(format(result.outputTokens))} · ${chars}` : chars;
 }
 
 function buildComparisonMarkdown(
@@ -206,13 +238,12 @@ function buildComparisonMarkdown(
   const sections = results.map((result, index) => {
     const content = result.content.trim() || `${s.failed}${result.error ? ` ${result.error}` : ""}`;
     if (!benchmarkEnabled) return `## ${s.response(index)} — ${targetLabel(result.target, lang)}\n\n${content}`;
-    const rate = formatOutputRate(result, lang);
     const metrics = [
       result.interrupted ? s.interrupted : null,
       result.durationMs === undefined ? null : s.duration(formatDuration(result.durationMs, lang)),
       result.firstTextMs === undefined ? null : s.firstText(formatDuration(result.firstTextMs, lang)),
-      s.outputLength(new Intl.NumberFormat(localeOf(lang)).format(result.content.length)),
-      rate ? s.outputRate(rate) : null,
+      formatOutputSize(result, lang),
+      formatThroughput(result, lang),
     ].filter(Boolean).join(" · ");
     const ratings = QUALITY_CRITERIA.map((criterion) =>
       `${s.qualityCriteria[criterion]}: ${qualityScores[index as 0 | 1][criterion] ?? s.noRating}`,
@@ -309,7 +340,7 @@ function ResultCard({
   const title = kind === "synthesis" ? s.synthesis : s.response(index);
   const waiting = kind === "synthesis" ? s.synthesisWaiting : s.waiting;
   const failed = kind === "synthesis" ? s.synthesisFailed : s.failed;
-  const outputRate = result ? formatOutputRate(result, lang) : null;
+  const throughput = result ? formatThroughput(result, lang) : null;
 
   return (
     <article
@@ -362,8 +393,10 @@ function ResultCard({
             <span className="typing-cursor" aria-hidden="true" />
             <span>{s.generating}</span>
           </div>
+        ) : result.status === "queued" ? (
+          <p className="text-muted-foreground">{s.queued}</p>
         ) : doneWithoutContent ? (
-          <p className="text-muted-foreground">{s.emptyResponse}</p>
+          <p className="text-muted-foreground">{result.interrupted ? s.interrupted : s.emptyResponse}</p>
         ) : null}
 
         {result?.status === "error" ? (
@@ -389,10 +422,8 @@ function ResultCard({
                   {result.firstTextMs !== undefined ? (
                     <span>{s.firstText(formatDuration(result.firstTextMs, lang))}</span>
                   ) : null}
-                  <span>{s.outputLength(new Intl.NumberFormat(localeOf(lang)).format(result.content.length))}</span>
-                  {outputRate ? (
-                    <span>{s.outputRate(outputRate)}</span>
-                  ) : null}
+                  <span>{formatOutputSize(result, lang)}</span>
+                  {throughput ? <span>{throughput}</span> : null}
                 </>
               ) : null}
             </div>
@@ -546,7 +577,7 @@ export function CompareView({
   const canExport =
     Boolean(submittedPrompt) &&
     results.length === 2 &&
-    results.every((result) => result.status !== "idle" && result.status !== "streaming") &&
+    results.every((result) => result.status === "done" || result.status === "error") &&
     !actionsBusy;
   const readinessHint = useMemo(() => {
     if (modelsReady) return null;
@@ -568,7 +599,7 @@ export function CompareView({
     setSubmittedPrompt(value);
     setQualityScores(emptyQualityScores());
     setActionError(null);
-    void compare(value, targets);
+    void compare(value, targets, { sequential: shouldRunSequentially(targets, benchmarkEnabled) });
   }
 
   function handlePromptKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -674,8 +705,8 @@ export function CompareView({
           <div className="mb-3 flex flex-wrap items-start gap-2">
             {/* Sur téléphone, la note complète occupait un tiers de l'écran :
                 elle devient un disclosure, sans rien retirer de l'information. */}
-            <details className="min-w-0 flex-1 text-[11px] leading-4 text-muted-foreground sm:hidden">
-              <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+            <details className="min-w-0 basis-full text-[11px] leading-4 text-muted-foreground sm:hidden">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
                 <IconLock className="h-3.5 w-3.5 shrink-0" />
                 <span className="underline decoration-dotted underline-offset-2">
                   {s.privacySummary}
@@ -700,7 +731,7 @@ export function CompareView({
               onClick={exportComparison}
               disabled={!canExport}
               title={s.exportMarkdown}
-              className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground transition hover:bg-foreground/10 disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground transition hover:bg-foreground/10 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-9"
             >
               <IconShare className="h-3.5 w-3.5" />
               {s.exportMarkdown}
@@ -846,7 +877,7 @@ export function CompareView({
               onKeyDown={handlePromptKeyDown}
               placeholder={s.placeholder}
               rows={2}
-              className="max-h-40 min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground/70 focus:outline-none sm:text-sm"
+              className="max-h-40 min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-sm"
             />
             {anyRunning ? (
               <button
@@ -879,7 +910,7 @@ export function CompareView({
                 {readinessHint}
               </p>
             ) : (
-              <p>{s.enterHint}</p>
+              <p className="hidden sm:block">{s.enterHint}</p>
             )}
             <p className="mt-1 text-center text-muted-foreground">{s.disclaimer}</p>
           </div>

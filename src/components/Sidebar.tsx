@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/db";
 import { shortcutLabel } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
+import { requestConfirm } from "@/lib/confirm";
 import { useTheme } from "@/lib/theme";
 import { PwaStatus } from "@/components/PwaStatus";
 import {
@@ -44,6 +45,9 @@ const STRINGS = {
     compareAis: "Comparer les IA",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
+    deleteTitle: "Supprimer cette conversation ?",
+    deleteAction: "Supprimer",
+    cancel: "Annuler",
     deleteConfirm: (title: string) => `Supprimer « ${title} » ? Cette action est irréversible.`,
     noConversations: "Aucune conversation.",
     noResults: (q: string) => `Aucun résultat pour « ${q} ».`,
@@ -78,6 +82,9 @@ const STRINGS = {
     compareAis: "Compare AIs",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
+    deleteTitle: "Delete this conversation?",
+    deleteAction: "Delete",
+    cancel: "Cancel",
     deleteConfirm: (title: string) => `Delete "${title}"? This cannot be undone.`,
     noConversations: "No conversations yet.",
     noResults: (q: string) => `No results for "${q}".`,
@@ -455,7 +462,7 @@ export function Sidebar({
             {items.map((c) => (
               <div
                 key={c.id}
-                className={`group mb-0.5 flex items-center rounded-md px-2 py-2 text-sm transition ${
+                className={`group mb-0.5 flex items-center rounded-md px-2 py-0 text-sm transition sm:py-2 ${
                   activeView === "chat" && c.id === currentId
                     ? "bg-accent/15 text-foreground"
                     : "text-sidebar-foreground hover:bg-accent/10"
@@ -467,7 +474,7 @@ export function Sidebar({
                   aria-current={
                     activeView === "chat" && c.id === currentId ? "page" : undefined
                   }
-                  className="flex-1 truncate text-left"
+                  className="min-h-11 flex-1 truncate text-left sm:min-h-0"
                   title={c.title}
                 >
                   {c.title}
@@ -475,11 +482,19 @@ export function Sidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm(s.deleteConfirm(c.title))) onDelete(c.id);
+                    void requestConfirm({
+                      title: s.deleteTitle,
+                      message: s.deleteConfirm(c.title),
+                      confirmLabel: s.deleteAction,
+                      cancelLabel: s.cancel,
+                      tone: "danger",
+                    }).then((confirmed) => {
+                      if (confirmed) onDelete(c.id);
+                    });
                   }}
                   aria-label={s.deleteConversation}
                   title={s.deleteConversation}
-                  className="invisible ml-1 rounded-md p-1 text-muted-foreground transition duration-150 hover:bg-destructive/10 hover:text-destructive group-hover:visible pointer-coarse:visible"
+                  className="invisible ml-1 inline-grid min-h-11 min-w-11 place-items-center rounded-md p-1 text-muted-foreground sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-destructive/10 hover:text-destructive group-hover:visible pointer-coarse:visible"
                 >
                   <IconX className="h-3.5 w-3.5" />
                 </button>
@@ -632,7 +647,7 @@ export function Sidebar({
               type="button"
               onClick={() => setLang("fr")}
               aria-pressed={lang === "fr" ? "true" : "false"}
-              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+              className={`min-h-11 min-w-11 rounded-md px-1.5 py-1 transition duration-150 sm:min-h-0 sm:min-w-0 ${
                 lang === "fr"
                   ? "bg-accent/15 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -644,7 +659,7 @@ export function Sidebar({
               type="button"
               onClick={() => setLang("en")}
               aria-pressed={lang === "en" ? "true" : "false"}
-              className={`rounded-md px-1.5 py-1 transition duration-150 ${
+              className={`min-h-11 min-w-11 rounded-md px-1.5 py-1 transition duration-150 sm:min-h-0 sm:min-w-0 ${
                 lang === "en"
                   ? "bg-accent/15 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -655,10 +670,10 @@ export function Sidebar({
           </div>
         </div>
         <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground">
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="transition hover:text-foreground">
+          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
             {s.legalNotice}
           </a>
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="transition hover:text-foreground">
+          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
             {s.privacy}
           </a>
         </nav>

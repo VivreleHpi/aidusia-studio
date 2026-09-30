@@ -23,7 +23,7 @@ import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from 
 import { describeFetchError } from "@/lib/fetchError";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import { detectOs, ollamaOriginsCommand } from "@/lib/deviceDetect";
+import { detectOs, isMobile, ollamaOriginsCommand } from "@/lib/deviceDetect";
 
 const STRINGS = {
   fr: {
@@ -166,6 +166,9 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   const [notice, setNotice] = useState<string | null>(null);
   const [commandCopied, setCommandCopied] = useState(false);
   const ollamaCommand = ollamaOriginsCommand(detectOs());
+  // Ollama est une application de bureau : sur téléphone, son guide et la
+  // commande terminal ne font que brouiller le panneau.
+  const mobile = isMobile();
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   function updateRow(id: string, patch: Partial<ProviderRowState>) {
@@ -327,31 +330,35 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
 
           <div className="mb-4">
             <HardwareGovernor ollamaBaseUrl={getOllamaBaseUrl()} />
-            <a
-              href="https://github.com/VivreleHpi/aidusia-studio/blob/main/docs/OLLAMA.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-            >
-              {s.ollamaHelp} ↗
-            </a>
-            <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3">
-              <p className="text-xs font-medium text-foreground">{s.terminalHelp}</p>
-              <code className="mt-2 block overflow-x-auto rounded-lg bg-background/70 px-2 py-2 font-mono text-[11px] text-muted-foreground">
-                {ollamaCommand}
-              </code>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard?.writeText(ollamaCommand);
-                  setCommandCopied(true);
-                  window.setTimeout(() => setCommandCopied(false), 1800);
-                }}
-                className="mt-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
-              >
-                {commandCopied ? s.copiedCommand : s.copyCommand}
-              </button>
-            </div>
+            {!mobile && (
+              <>
+                <a
+                  href="https://github.com/VivreleHpi/aidusia-studio/blob/main/docs/OLLAMA.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                >
+                  {s.ollamaHelp} ↗
+                </a>
+                <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3">
+                  <p className="text-xs font-medium text-foreground">{s.terminalHelp}</p>
+                  <code className="mt-2 block overflow-x-auto rounded-lg bg-background/70 px-2 py-2 font-mono text-[11px] text-muted-foreground">
+                    {ollamaCommand}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(ollamaCommand);
+                      setCommandCopied(true);
+                      window.setTimeout(() => setCommandCopied(false), 1800);
+                    }}
+                    className="mt-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
+                  >
+                    {commandCopied ? s.copiedCommand : s.copyCommand}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mb-6 rounded-xl border border-border divide-y divide-border">
@@ -403,7 +410,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           target="_blank"
                           rel="noopener noreferrer"
                           title={PROVIDER_LINKS[provider.id].note}
-                          className="text-xs text-primary hover:underline"
+                          className="inline-flex min-h-11 items-center text-xs text-primary hover:underline sm:min-h-0"
                         >
                           {provider.requiresApiKey ? s.getKey : s.download}
                         </a>
@@ -415,7 +422,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           type="button"
                           onClick={() => runTest(provider.id)}
                           aria-label={`${s.test} ${displayName}`}
-                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                          className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 sm:min-h-0 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                           {s.test}
                         </button>
@@ -424,7 +431,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                         <button
                           type="button"
                           onClick={() => setLocalAiOpen((v) => !v)}
-                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                          className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 sm:min-h-0 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                           {s.models}
                         </button>
@@ -443,7 +450,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           type="button"
                           onClick={() => updateRow(provider.id, { editing: !row.editing })}
                           aria-label={`${s.configure} ${displayName}`}
-                          className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+                          className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 sm:min-h-0 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                           {s.configure}
                         </button>
@@ -452,7 +459,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                         <button
                           type="button"
                           onClick={() => removeKey(provider.id)}
-                          className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+                          className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 sm:min-h-0 hover:bg-destructive/10 active:scale-[0.98]"
                         >
                           {s.remove}
                         </button>
@@ -463,7 +470,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           onClick={() => handleRemoveCustom(provider.id)}
                           aria-label={`${s.customRemoveProvider} — ${displayName}`}
                           title={s.customRemoveProvider}
-                          className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+                          className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 sm:min-h-0 hover:bg-destructive/10 active:scale-[0.98]"
                         >
                           ✕
                         </button>
@@ -472,12 +479,14 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                   </div>
 
                   {custom ? (
-                    <p className="mt-0.5 truncate pl-4 font-mono text-xs text-muted-foreground/70">
+                    <p className="mt-0.5 truncate pl-4 font-mono text-xs text-muted-foreground">
                       {custom.baseUrl}
                     </p>
                   ) : (
-                    providerTagline(provider.id, lang) && (
-                      <p className="mt-0.5 pl-4 text-xs text-muted-foreground/70">
+                    // Indisponible ici : la raison ci-dessous suffit (évite
+                    // « Ordinateur uniquement » répété deux fois).
+                    !off.disabled && providerTagline(provider.id, lang) && (
+                      <p className="mt-0.5 pl-4 text-xs text-muted-foreground">
                         {providerTagline(provider.id, lang)}
                       </p>
                     )
@@ -574,14 +583,14 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
             <button
               type="button"
               onClick={handleExport}
-              className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+              className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 sm:min-h-0 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
             >
               {s.exportSettings}
             </button>
             <button
               type="button"
               onClick={handleImportClick}
-              className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+              className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150 sm:min-h-0 hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
             >
               {s.importSettings}
             </button>
@@ -591,7 +600,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                 clearAllApiKeys();
                 reloadRows();
               }}
-              className="rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 hover:bg-destructive/10 active:scale-[0.98]"
+              className="min-h-11 rounded-lg px-2.5 py-1.5 text-xs text-destructive transition duration-150 sm:min-h-0 hover:bg-destructive/10 active:scale-[0.98]"
             >
               {s.clearAll}
             </button>

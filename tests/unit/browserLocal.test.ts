@@ -15,6 +15,9 @@ vi.mock("@mlc-ai/web-llm", () => {
   return { hasModelInCache, deleteModelAllInfoInCache, CreateMLCEngine };
 });
 
+const requestConfirm = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("@/lib/confirm", () => ({ requestConfirm }));
+
 const LIGHTEST_MODEL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 const OTHER_MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
 const MEMORY_ERROR = "Buffer was unmapped before mapping was resolved";
@@ -78,6 +81,8 @@ beforeEach(() => {
   deleteModelAllInfoInCache.mockReset();
   deleteModelAllInfoInCache.mockImplementation(async () => {});
   CreateMLCEngine.mockReset();
+  requestConfirm.mockReset();
+  requestConfirm.mockResolvedValue(true);
   // Langue fixee pour des assertions deterministes (sinon dependante de la
   // langue par defaut du navigateur jsdom).
   localStorage.setItem("aidusia_lang", "fr");
@@ -267,6 +272,27 @@ describe("error classification", () => {
 });
 
 describe("chatStream engine lifecycle", () => {
+  it("asks before the first download and never loads the engine when refused", async () => {
+    enableWebGpu();
+    requestConfirm.mockResolvedValue(false);
+    const { browserLocalProvider } = await freshModule();
+
+    await expect(browserLocalProvider.chatStream(baseParams(), undefined, () => {}))
+      .rejects.toThrow("Téléchargement de Llama 3.2 1B annulé.");
+    expect(requestConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Télécharger Llama 3.2 1B (~0,7 Go) ?" }));
+    expect(CreateMLCEngine).not.toHaveBeenCalled();
+  });
+
+  it("does not ask again for a model already in the browser cache", async () => {
+    enableWebGpu();
+    hasModelInCache.mockImplementation(async () => true);
+    CreateMLCEngine.mockImplementationOnce(async () => fakeEngine(async () => chunksThenThrow(["Bonjour"])));
+    const { browserLocalProvider } = await freshModule();
+
+    await browserLocalProvider.chatStream(baseParams(), undefined, () => {});
+    expect(requestConfirm).not.toHaveBeenCalled();
+  });
+
   it("retries once after a transient memory error and succeeds", async () => {
     enableWebGpu();
     const failingEngine = fakeEngine(async () => chunksThenThrow([], new Error(MEMORY_ERROR)));

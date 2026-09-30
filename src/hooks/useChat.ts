@@ -197,8 +197,10 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               if (chunk.type === "text") {
                 accumulated += chunk.delta;
                 assistantMessage.content = accumulated;
-              } else {
+              } else if (chunk.type === "tool_call") {
                 toolCalls.push(chunk.call);
+              } else {
+                return; // mesure de debit : rien a rendre
               }
               // Rendu immediat, en memoire - aucune lecture IndexedDB.
               renderThrottled();
@@ -219,7 +221,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               resultText = `Outil "${call.name}" introuvable (aucun serveur MCP configure ne l'expose).`;
             } else {
               try {
-                const approved = requestToolApproval({
+                const approved = await requestToolApproval({
                   server: entry.server,
                   toolName: entry.actualName,
                   args: call.args,
