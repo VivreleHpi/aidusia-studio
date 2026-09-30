@@ -16,6 +16,7 @@ import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import type { KeyTestResult } from "@/providers/types";
 import { HardwareGovernor } from "@/components/HardwareGovernor";
 import { LocalAiManager } from "@/components/LocalAiManager";
+import { LucioleManager } from "@/components/LucioleManager";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
 import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
@@ -157,6 +158,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   );
   const [persist, setPersist] = useState(isPersistEnabled());
   const [localAiOpen, setLocalAiOpen] = useState(false);
+  const [lucioleOpen, setLucioleOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [passphraseAction, setPassphraseAction] = useState<"export" | "import" | null>(null);
   const [passphrase, setPassphrase] = useState("");
@@ -299,16 +301,16 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   }
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center bg-background/60 p-3 backdrop-blur-sm sm:p-6">
+    <div className="overlay-in fixed inset-0 z-50 flex items-start justify-center bg-background/60 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-6">
       <div
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={s.dialogLabel}
-        className="modal-in glass flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-card text-card-foreground shadow-xl"
+        className="modal-in glass flex max-h-full w-full max-w-2xl flex-col rounded-2xl bg-card text-card-foreground shadow-xl sm:max-h-[85dvh]"
       >
-        <div className="flex shrink-0 items-center justify-between px-6 pb-4 pt-6">
+        <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <h2 className="text-lg font-semibold">{s.title}</h2>
           <button
             type="button"
@@ -320,7 +322,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-6">
           <p className="mb-4 text-sm text-muted-foreground">{s.intro}</p>
 
           <div className="mb-4">
@@ -427,6 +429,15 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           {s.models}
                         </button>
                       )}
+                      {provider.id === "luciole" && (
+                        <button
+                          type="button"
+                          onClick={() => setLucioleOpen((value) => !value)}
+                          className="min-h-11 rounded-lg px-2.5 text-xs text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground sm:min-h-0 sm:py-1.5"
+                        >
+                          {s.models}
+                        </button>
+                      )}
                       {!off.disabled && (provider.requiresApiKey || provider.id === "ollama") && (
                         <button
                           type="button"
@@ -478,15 +489,16 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                   )}
 
                   {!off.disabled && provider.id === "browser" && localAiOpen && <LocalAiManager />}
+                  {provider.id === "luciole" && lucioleOpen && <LucioleManager />}
 
                   {!off.disabled && row.editing && (
-                    <div className="mt-2 flex gap-2 pl-4">
+                    <div className="mt-2 flex min-w-0 gap-2 pl-4">
                       <input
                         type={provider.requiresApiKey ? "password" : "text"}
                         value={row.draft}
                         onChange={(e) => updateRow(provider.id, { draft: e.target.value })}
                         placeholder={provider.requiresApiKey ? s.keyPlaceholder : s.ollamaUrlPlaceholder}
-                        className="flex-1 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="min-w-0 flex-1 rounded-lg border border-border bg-background/60 px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-ring sm:text-xs"
                       />
                       <button
                         type="button"

@@ -51,3 +51,24 @@ test("shows an actionable WebGPU reason when testing the on-device provider with
     page.getByText(/WebGPU is unavailable in this browser/),
   ).toBeVisible();
 });
+
+test("offers Luciole on mobile without downloading it on selection", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile", "Mobile-only journey");
+  let huggingFaceRequests = 0;
+  await page.route("https://huggingface.co/**", async (route) => {
+    huggingFaceRequests += 1;
+    await route.abort();
+  });
+  await resetMocks(page);
+  await prepareApp(page);
+
+  await page.getByRole("button", { name: "Choose provider and model" }).click();
+  await page.getByRole("button", { name: "Luciole 1B", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Luciole 1B — French (~1.02 GB)" })).toBeVisible();
+  expect(huggingFaceRequests).toBe(0);
+  await page.locator('button[aria-label="Close"].fixed.inset-0').click({ position: { x: 1, y: 1 } });
+  await openProviders(page);
+  await page.getByRole("button", { name: "Models", exact: true }).last().click();
+  await expect(page.getByText("Not downloaded — about 1.02 GB on first message.")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

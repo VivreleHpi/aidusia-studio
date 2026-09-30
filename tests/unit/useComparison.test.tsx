@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   useComparison,
   type ComparisonResult,
@@ -48,12 +48,15 @@ const targets: ComparisonTarget[] = [
 ];
 
 describe("useComparison", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     providerRegistry.clear();
     getApiKey.mockClear();
   });
 
   it("lance les deux fournisseurs en parallèle et streame des snapshots indépendants", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const alphaDone = deferred();
     const betaDone = deferred();
     let emitAlpha!: (chunk: StreamChunk) => void;
@@ -94,19 +97,25 @@ describe("useComparison", () => {
     expect(beta.chatStream).toHaveBeenCalledTimes(1);
     expect(result.current.running).toBe(true);
 
+    now.mockReturnValue(1_300);
     act(() => emitAlpha({ type: "text", delta: "Réponse " }));
     const alphaSnapshot = result.current.results;
     expect(alphaSnapshot.map((item) => item.content)).toEqual(["Réponse ", ""]);
+    expect(alphaSnapshot[0].firstTextMs).toBe(300);
 
+    now.mockReturnValue(1_500);
     act(() => emitBeta({ type: "text", delta: "Autre" }));
     expect(result.current.results.map((item) => item.content)).toEqual(["Réponse ", "Autre"]);
+    expect(result.current.results[1].firstTextMs).toBe(500);
 
+    now.mockReturnValue(1_700);
     act(() => emitAlpha({ type: "text", delta: "Alpha" }));
     expect(result.current.results.map((item) => item.content)).toEqual([
       "Réponse Alpha",
       "Autre",
     ]);
     expect(alphaSnapshot[0].content).toBe("Réponse ");
+    expect(result.current.results[0].firstTextMs).toBe(300);
     expect(new Set(snapshots).size).toBe(snapshots.length);
 
     alphaDone.resolve();

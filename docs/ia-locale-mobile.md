@@ -10,6 +10,15 @@ Le fournisseur « Navigateur (local) » est disponible dans le menu modèle :
 Llama 3.2 1B, Qwen 2.5 1.5B et Gemma 2 2B quantisés (web-llm/MLC), poids
 téléchargés une fois depuis HuggingFace à la demande puis mis en cache.
 
+Le fournisseur séparé « Luciole 1B » est proposé en bêta. Il charge le
+[GGUF Q4 officiel d'OpenLLM-France](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1-GGUF)
+(environ 1,02 Go) directement depuis Hugging Face au premier message, puis
+effectue l'inférence dans le navigateur avec wllama. Les poids sont conservés
+dans le stockage du navigateur et peuvent être supprimés dans Fournisseurs →
+Luciole 1B → Modèles. Cette voie est distincte de WebLLM : le GGUF ne fait pas
+partie de son catalogue MLC. Tester sur un téléphone réel reste nécessaire
+pour mesurer la vitesse, la mémoire et la stabilité selon le navigateur.
+
 **Provenance des modèles :** ce sont de vrais modèles ouverts — Llama 3.2
 (Meta), Qwen 2.5 (Alibaba), Gemma 2 (Google) — compressés en q4 par le projet
 open source [MLC-AI](https://github.com/mlc-ai) et hébergés sur HuggingFace.

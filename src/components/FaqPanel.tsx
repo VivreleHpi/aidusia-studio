@@ -41,6 +41,10 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
         a: "Le fournisseur « Sur cet appareil » exécute de vrais modèles ouverts — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) et Gemma 2 (Google) — directement dans votre navigateur via WebGPU. Ils sont compressés par le projet open source MLC-AI et téléchargés une seule fois depuis HuggingFace (0,7 à 1,4 Go selon le modèle), puis mis en cache. Ensuite, tout se passe sur votre appareil : aucune requête vers un serveur, aucune clé, et ça marche sur PC comme sur mobile (Chrome/Edge 121+ sur Android, Safari 26 sur iOS). Vous pouvez voir l'état du téléchargement, la place occupée et supprimer un modèle dans Fournisseurs → Sur cet appareil → Modèles.",
       },
       {
+        q: "Et Luciole 1B sur téléphone ?",
+        a: "Luciole 1B est proposé en bêta comme fournisseur local séparé. Son GGUF officiel Q4 est téléchargé depuis Hugging Face au premier message (environ 1,02 Go), puis exécuté sur l'appareil via wllama. Les réponses ne sont pas envoyées à un serveur d'inférence. La vitesse et la mémoire disponible dépendent du téléphone ; vous pouvez supprimer ses poids dans Fournisseurs → Luciole 1B → Modèles.",
+      },
+      {
         q: "L'application fonctionne-t-elle sans connexion internet ?",
         a: "Oui, en grande partie. Une fois le site ouvert une première fois, son interface est mise en cache et se relance sans réseau. Et si vous avez téléchargé un modèle « Sur cet appareil », il répond entièrement hors connexion — idéal en avion ou en zone blanche. Seuls les fournisseurs cloud (Anthropic, Groq, etc.) et Ollama ont évidemment besoin du réseau pour joindre leur serveur.",
       },
@@ -98,6 +102,10 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
       {
         q: "The \"On-device\" local AI: where do the models come from and where do they run?",
         a: "The \"On-device\" provider runs real open models — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) and Gemma 2 (Google) — directly in your browser via WebGPU. They're compressed by the open-source MLC-AI project and downloaded once from HuggingFace (0.7 to 1.4 GB depending on the model), then cached. After that, everything happens on your device: no request to any server, no key, and it works on PC and mobile alike (Chrome/Edge 121+ on Android, Safari 26 on iOS). You can see download status, space used, and delete a model under Providers → On-device → Models.",
+      },
+      {
+        q: "What about Luciole 1B on a phone?",
+        a: "Luciole 1B is a separate beta local provider. Its official Q4 GGUF downloads from Hugging Face on first message (about 1.02 GB), then runs on the device through wllama. Answers are not sent to an inference server. Speed and available memory depend on the phone; you can remove its weights under Providers → Luciole 1B → Models.",
       },
       {
         q: "Does the app work without an internet connection?",

@@ -42,7 +42,7 @@ const STRINGS = {
     cloudAlternativeBefore: "Ou passez directement au cloud : configurez une clé API dans \"",
     cloudAlternativeMid: "\" — aucun téléchargement requis.",
     providersLabel: "Fournisseurs",
-    mobileIntro: "Ollama ne s'installe pas sur mobile. Deux options sur ce téléphone :",
+    mobileIntro: "Pour utiliser une IA sur ce téléphone, choisissez une option :",
     mobileOption1Label: "Le plus simple",
     mobileOption1Body: " : une clé API cloud (Anthropic, Gemini, Mistral, OpenRouter…), aucun téléchargement.",
     mobileOption2Label: "IA locale dans le navigateur",
@@ -51,6 +51,7 @@ const STRINGS = {
     webgpuNotSupported: "pas encore disponible sur cet appareil",
     mobileOption2AfterSupported: ", en bêta sur mobile : modèle léger conseillé, aucune installation.",
     mobileOption2AfterUnsupported: ", nécessite un navigateur plus récent (Chrome/Edge 121+, Safari 26+).",
+    mobileLuciole: "Luciole 1B (bêta) est aussi proposé en local : environ 1,02 Go à télécharger au premier message.",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
     explore: "Explorer sans configurer",
@@ -79,7 +80,7 @@ const STRINGS = {
     cloudAlternativeBefore: "Or skip straight to the cloud: set up an API key in \"",
     cloudAlternativeMid: "\" — no download required.",
     providersLabel: "Providers",
-    mobileIntro: "Ollama can't be installed on mobile. Two options on this phone:",
+    mobileIntro: "To use AI on this phone, choose an option:",
     mobileOption1Label: "The simplest",
     mobileOption1Body: ": a cloud API key (Anthropic, Gemini, Mistral, OpenRouter…), no download.",
     mobileOption2Label: "Local AI in the browser",
@@ -88,6 +89,7 @@ const STRINGS = {
     webgpuNotSupported: "not yet available on this device",
     mobileOption2AfterSupported: ", in beta on mobile: a lightweight model is recommended, no download.",
     mobileOption2AfterUnsupported: ", requires a newer browser (Chrome/Edge 121+, Safari 26+).",
+    mobileLuciole: "Luciole 1B (beta) is also available locally: about 1.02 GB to download on first message.",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
     explore: "Explore without setup",
@@ -273,6 +275,7 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
                 {webgpu?.supported ? s.mobileOption2AfterSupported : s.mobileOption2AfterUnsupported}
               </li>
             </ul>
+            <p className="text-xs text-muted-foreground">{s.mobileLuciole}</p>
           </div>
         )}
 

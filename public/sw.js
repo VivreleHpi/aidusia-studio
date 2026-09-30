@@ -6,7 +6,7 @@
      stale-while-revalidate — reponse immediate depuis le cache, refresh en
      arriere-plan ;
    - JAMAIS le cross-origin : les poids des modeles locaux (HuggingFace) sont
-     deja geres par web-llm dans Cache Storage, et les appels API des
+     geres par WebLLM ou wllama dans leur stockage navigateur, et les appels API des
      fournisseurs ne doivent surtout pas etre caches.
    La page envoie aussi la liste des ressources qu'elle a chargees (message
    "cache-assets") : filet de securite complementaire au precache. */

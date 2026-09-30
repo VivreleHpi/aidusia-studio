@@ -28,7 +28,8 @@ un modèle à télécharger ou une instance Ollama non locale.
   après envoi, avec leur conversation, ou lors d’une remise à zéro ;
 - en-têtes et jetons MCP uniquement dans `sessionStorage`, jusqu’à la fermeture
   complète de la session du navigateur ;
-- modèles WebLLM, ressources PWA et autres fichiers dans les caches du navigateur.
+- modèles WebLLM dans Cache Storage, modèle Luciole via wllama dans le stockage
+  du navigateur (OPFS ou repli), ressources PWA et autres fichiers en cache.
 
 Toute personne ou extension ayant accès au même profil de navigateur peut
 potentiellement accéder à ces données. Désactivez la persistance des clés sur un
@@ -43,6 +44,7 @@ appareil partagé et effacez les données du site lorsque nécessaire.
 | Ollama Cloud | Fonction Edge du déploiement, puis Ollama Cloud |
 | Ollama | URL configurée ; elle peut être locale ou distante |
 | Modèle navigateur | Infrastructure de téléchargement utilisée par WebLLM |
+| Luciole 1B (local) | Hugging Face pour le téléchargement du GGUF au premier usage ; inférence sur l'appareil |
 | Outil MCP | Serveur MCP configuré et éventuellement ses services reliés |
 | Comparaison | Chacun des deux modèles sélectionnés reçoit séparément la question |
 | Synthèse de comparaison | Le modèle choisi reçoit la question et le texte des deux réponses |
@@ -94,7 +96,7 @@ peut pas récupérer une phrase oubliée.
 
 Depuis l’application, vous pouvez supprimer des conversations, des brouillons,
 des clés, des connecteurs et des modèles téléchargés. La remise à zéro efface
-IndexedDB, les stockages AIDUSIA, ainsi que le service worker et les caches du
+IndexedDB, les stockages AIDUSIA, le modèle Luciole, ainsi que le service worker et les caches du
 shell appartenant au Studio ; elle préserve les caches et workers étrangers si
 l’origine web est partagée. Les réglages du navigateur permettent aussi
 d’effacer toutes les données de l’origine. La suppression locale n’efface pas

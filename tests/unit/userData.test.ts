@@ -19,6 +19,8 @@ const mcp = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => db);
 vi.mock("@/lib/apiKeys", () => apiKeys);
 vi.mock("@/lib/mcp/servers", () => mcp);
+const luciole = vi.hoisted(() => ({ deleteLucioleModel: vi.fn(async () => {}) }));
+vi.mock("@/providers/luciole", () => luciole);
 
 const originalCachesDescriptor = Object.getOwnPropertyDescriptor(window, "caches");
 const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
@@ -134,6 +136,7 @@ describe("userData", () => {
 
     expect(db.deleteLocalDatabase).toHaveBeenCalledOnce();
     expect(apiKeys.clearAllApiKeys).toHaveBeenCalledOnce();
+    expect(luciole.deleteLucioleModel).toHaveBeenCalledOnce();
     expect(localStorage.getItem("aidusia_lang")).toBeNull();
     expect(localStorage.getItem("other_product")).toBe("keep");
     expect(sessionStorage.getItem("aidusia_chat_drafts_v1")).toBeNull();

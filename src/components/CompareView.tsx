@@ -36,6 +36,16 @@ const STRINGS = {
     emptyResponse: "Le modèle n'a renvoyé aucun contenu.",
     failed: "Ce modèle n'a pas pu répondre.",
     duration: (value: string) => `Répondu en ${value}`,
+    benchmark: "Mode benchmark",
+    benchmarkHelp: "Temps jusqu'au premier texte et débit global de caractères. Mesures indicatives : le premier essai peut inclure téléchargement et chargement du modèle. Relancez la même question pour comparer à chaud.",
+    firstText: (value: string) => `Premier texte : ${value}`,
+    outputLength: (value: string) => `${value} caractères`,
+    outputRate: (value: string) => `${value} car./s au total`,
+    interrupted: "Réponse interrompue : mesures partielles",
+    qualityTitle: "Notes manuelles (1 à 5)",
+    qualityHelp: "Vérifiez les faits avant de noter. Ces notes restent sur cette page.",
+    qualityCriteria: { accuracy: "Exactitude", clarity: "Clarté", usefulness: "Utilité" },
+    noRating: "Non noté",
     copy: "Copier la réponse",
     copied: "Réponse copiée",
     continueInChat: "Continuer dans le chat",
@@ -69,6 +79,16 @@ const STRINGS = {
     emptyResponse: "The model returned no content.",
     failed: "This model could not respond.",
     duration: (value: string) => `Answered in ${value}`,
+    benchmark: "Benchmark mode",
+    benchmarkHelp: "Time to first text and overall character throughput. Measurements are indicative: the first run may include a model download and load. Run the same question again to compare warm performance.",
+    firstText: (value: string) => `First text: ${value}`,
+    outputLength: (value: string) => `${value} characters`,
+    outputRate: (value: string) => `${value} chars/s overall`,
+    interrupted: "Response stopped: partial measurements",
+    qualityTitle: "Manual ratings (1 to 5)",
+    qualityHelp: "Check the facts before rating. These ratings stay on this page.",
+    qualityCriteria: { accuracy: "Accuracy", clarity: "Clarity", usefulness: "Usefulness" },
+    noRating: "Not rated",
     copy: "Copy response",
     copied: "Response copied",
     continueInChat: "Continue in chat",
@@ -136,6 +156,13 @@ const MARKDOWN_COMPONENTS: Components = {
 };
 
 const INITIAL_READINESS: ModelReadiness = { status: "loading" };
+type QualityCriterion = "accuracy" | "clarity" | "usefulness";
+type QualityScores = Partial<Record<QualityCriterion, number>>;
+const QUALITY_CRITERIA: QualityCriterion[] = ["accuracy", "clarity", "usefulness"];
+
+function emptyQualityScores(): [QualityScores, QualityScores] {
+  return [{}, {}];
+}
 
 function initialTargets(): [ComparisonTarget, ComparisonTarget] {
   return isMobile()
@@ -161,16 +188,36 @@ function formatDuration(durationMs: number, lang: Lang): string {
   return `${new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: 1 }).format(durationMs / 1_000)} s`;
 }
 
+function formatOutputRate(result: ComparisonResult, lang: Lang): string | null {
+  if (result.durationMs === undefined || result.durationMs < 100 || result.content.length < 20) return null;
+  const rate = result.content.length / (result.durationMs / 1_000);
+  return new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: 0 }).format(rate);
+}
+
 function buildComparisonMarkdown(
   question: string,
   results: ComparisonResult[],
   synthesis: ComparisonResult | null,
   lang: Lang,
+  benchmarkEnabled = false,
+  qualityScores: [QualityScores, QualityScores] = emptyQualityScores(),
 ): string {
   const s = STRINGS[lang];
   const sections = results.map((result, index) => {
     const content = result.content.trim() || `${s.failed}${result.error ? ` ${result.error}` : ""}`;
-    return `## ${s.response(index)} — ${targetLabel(result.target, lang)}\n\n${content}`;
+    if (!benchmarkEnabled) return `## ${s.response(index)} — ${targetLabel(result.target, lang)}\n\n${content}`;
+    const rate = formatOutputRate(result, lang);
+    const metrics = [
+      result.interrupted ? s.interrupted : null,
+      result.durationMs === undefined ? null : s.duration(formatDuration(result.durationMs, lang)),
+      result.firstTextMs === undefined ? null : s.firstText(formatDuration(result.firstTextMs, lang)),
+      s.outputLength(new Intl.NumberFormat(localeOf(lang)).format(result.content.length)),
+      rate ? s.outputRate(rate) : null,
+    ].filter(Boolean).join(" · ");
+    const ratings = QUALITY_CRITERIA.map((criterion) =>
+      `${s.qualityCriteria[criterion]}: ${qualityScores[index as 0 | 1][criterion] ?? s.noRating}`,
+    ).join(" · ");
+    return `## ${s.response(index)} — ${targetLabel(result.target, lang)}\n\n${metrics}\n\n${ratings}\n\n${content}`;
   });
 
   if (synthesis?.content.trim()) {
@@ -234,6 +281,9 @@ interface ResultCardProps {
   lang: Lang;
   kind?: "response" | "synthesis";
   actionsDisabled?: boolean;
+  benchmarkEnabled?: boolean;
+  qualityScores?: QualityScores;
+  onQualityChange?: (criterion: QualityCriterion, value: number | undefined) => void;
   onUse?: () => void | Promise<void>;
   onSynthesize?: () => void;
 }
@@ -245,6 +295,9 @@ function ResultCard({
   lang,
   kind = "response",
   actionsDisabled = false,
+  benchmarkEnabled = false,
+  qualityScores = {},
+  onQualityChange,
   onUse,
   onSynthesize,
 }: ResultCardProps) {
@@ -256,6 +309,7 @@ function ResultCard({
   const title = kind === "synthesis" ? s.synthesis : s.response(index);
   const waiting = kind === "synthesis" ? s.synthesisWaiting : s.waiting;
   const failed = kind === "synthesis" ? s.synthesisFailed : s.failed;
+  const outputRate = result ? formatOutputRate(result, lang) : null;
 
   return (
     <article
@@ -327,7 +381,21 @@ function ResultCard({
       (successful && (onUse || onSynthesize)) ? (
         <footer className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
           {result?.durationMs !== undefined && result.status !== "streaming" ? (
-            <span className="mr-auto">{s.duration(formatDuration(result.durationMs, lang))}</span>
+            <div className="mr-auto flex flex-wrap gap-x-3 gap-y-1">
+              <span>{s.duration(formatDuration(result.durationMs, lang))}</span>
+              {benchmarkEnabled && kind === "response" ? (
+                <>
+                  {result.interrupted ? <span>{s.interrupted}</span> : null}
+                  {result.firstTextMs !== undefined ? (
+                    <span>{s.firstText(formatDuration(result.firstTextMs, lang))}</span>
+                  ) : null}
+                  <span>{s.outputLength(new Intl.NumberFormat(localeOf(lang)).format(result.content.length))}</span>
+                  {outputRate ? (
+                    <span>{s.outputRate(outputRate)}</span>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
           ) : (
             <span className="mr-auto" />
           )}
@@ -355,6 +423,27 @@ function ResultCard({
           ) : null}
         </footer>
       ) : null}
+      {benchmarkEnabled && kind === "response" && successful && onQualityChange ? (
+        <details className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-foreground">{s.qualityTitle}</summary>
+          <p className="mt-2">{s.qualityHelp}</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {QUALITY_CRITERIA.map((criterion) => (
+              <label key={criterion} className="flex items-center justify-between gap-2 sm:flex-col sm:items-start">
+                <span>{s.qualityCriteria[criterion]}</span>
+                <select
+                  value={qualityScores[criterion] ?? ""}
+                  onChange={(event) => onQualityChange(criterion, event.target.value ? Number(event.target.value) : undefined)}
+                  className="min-h-11 rounded-lg border border-border bg-background px-3 text-base text-foreground sm:min-h-9 sm:w-full sm:text-xs"
+                >
+                  <option value="">{s.noRating}</option>
+                  {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}/5</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </article>
   );
 }
@@ -375,6 +464,8 @@ export function CompareView({
   const { lang } = useLang();
   const s = STRINGS[lang];
   const [prompt, setPrompt] = useState("");
+  const [benchmarkEnabled, setBenchmarkEnabled] = useState(false);
+  const [qualityScores, setQualityScores] = useState<[QualityScores, QualityScores]>(emptyQualityScores);
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [savingResult, setSavingResult] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -425,6 +516,7 @@ export function CompareView({
       resetSynthesis();
       setSynthesisTarget(null);
       setSubmittedPrompt("");
+      setQualityScores(emptyQualityScores());
       setActionError(null);
       setTargets((current) => {
         const next = [...current] as [ComparisonTarget, ComparisonTarget];
@@ -474,6 +566,7 @@ export function CompareView({
     resetSynthesis();
     setSynthesisTarget(null);
     setSubmittedPrompt(value);
+    setQualityScores(emptyQualityScores());
     setActionError(null);
     void compare(value, targets);
   }
@@ -501,6 +594,7 @@ export function CompareView({
     resetSynthesis();
     setSynthesisTarget(null);
     setSubmittedPrompt("");
+    setQualityScores(emptyQualityScores());
     setActionError(null);
     setTargets((current) => [current[1], current[0]]);
     setReadiness((current) => [current[1], current[0]]);
@@ -515,7 +609,15 @@ export function CompareView({
 
   function exportComparison() {
     if (!canExport) return;
-    downloadMarkdown(buildComparisonMarkdown(submittedPrompt, results, synthesisResult, lang));
+    downloadMarkdown(buildComparisonMarkdown(submittedPrompt, results, synthesisResult, lang, benchmarkEnabled, qualityScores));
+  }
+
+  function updateQuality(index: 0 | 1, criterion: QualityCriterion, value: number | undefined) {
+    setQualityScores((current) => {
+      const next = [...current] as [QualityScores, QualityScores];
+      next[index] = { ...next[index], [criterion]: value };
+      return next;
+    });
   }
 
   async function useResultInChat(result: ComparisonResult) {
@@ -587,6 +689,14 @@ export function CompareView({
             </p>
             <button
               type="button"
+              onClick={() => setBenchmarkEnabled((enabled) => !enabled)}
+              aria-pressed={benchmarkEnabled}
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-xs font-medium transition sm:min-h-9 ${benchmarkEnabled ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-foreground hover:bg-foreground/10"}`}
+            >
+              {s.benchmark}
+            </button>
+            <button
+              type="button"
               onClick={exportComparison}
               disabled={!canExport}
               title={s.exportMarkdown}
@@ -596,6 +706,11 @@ export function CompareView({
               {s.exportMarkdown}
             </button>
           </div>
+          {benchmarkEnabled ? (
+            <p className="mb-3 rounded-lg border border-border/70 bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+              {s.benchmarkHelp}
+            </p>
+          ) : null}
           {actionError ? (
             <p
               role="alert"
@@ -611,6 +726,9 @@ export function CompareView({
               result={results[0]}
               lang={lang}
               actionsDisabled={actionsBusy}
+              benchmarkEnabled={benchmarkEnabled}
+              qualityScores={qualityScores[0]}
+              onQualityChange={(criterion, value) => updateQuality(0, criterion, value)}
               onUse={
                 submittedPrompt && results[0]
                   ? () => useResultInChat(results[0])
@@ -628,6 +746,9 @@ export function CompareView({
               result={results[1]}
               lang={lang}
               actionsDisabled={actionsBusy}
+              benchmarkEnabled={benchmarkEnabled}
+              qualityScores={qualityScores[1]}
+              onQualityChange={(criterion, value) => updateQuality(1, criterion, value)}
               onUse={
                 submittedPrompt && results[1]
                   ? () => useResultInChat(results[1])
@@ -689,7 +810,7 @@ export function CompareView({
               disabled={actionsBusy}
               aria-label={s.swap}
               title={s.swap}
-              className="row-span-2 grid h-10 w-10 shrink-0 place-items-center self-center rounded-xl text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 sm:row-span-1"
+              className="row-span-2 grid h-11 w-11 shrink-0 place-items-center self-center rounded-xl text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 sm:row-span-1 sm:h-10 sm:w-10"
             >
               <IconRefresh className="h-4 w-4 rotate-90" />
             </button>
@@ -725,7 +846,7 @@ export function CompareView({
               onKeyDown={handlePromptKeyDown}
               placeholder={s.placeholder}
               rows={2}
-              className="max-h-40 min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+              className="max-h-40 min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground/70 focus:outline-none sm:text-sm"
             />
             {anyRunning ? (
               <button

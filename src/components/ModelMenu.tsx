@@ -252,7 +252,7 @@ export function ModelMenu({
             className="fixed inset-0 z-40 cursor-default"
           />
           <div
-            className={`modal-in absolute bottom-full z-50 mb-2 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl ${
+            className={`modal-in absolute bottom-full z-50 mb-2 flex max-h-[min(70dvh,34rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl ${
               alignLeft ? "left-0" : "right-0"
             }`}
           >
@@ -272,7 +272,7 @@ export function ModelMenu({
                     disabled={off.disabled}
                     title={off.disabled ? off.reason : undefined}
                     onClick={() => onChangeProvider(p.id, "")}
-                    className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
+                    className={`flex min-h-11 items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 sm:min-h-0 ${
                       off.disabled
                         ? "cursor-not-allowed text-muted-foreground/40"
                         : active
@@ -337,10 +337,10 @@ export function ModelMenu({
                         }
                       }}
                       placeholder={s.searchPlaceholder(models.length)}
-                      className="mb-1 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="mb-1 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring sm:text-xs"
                     />
                   )}
-                  <div className="max-h-56 overflow-y-auto">
+                  <div className="min-h-0 max-h-56 overflow-y-auto">
                     {filtered.length === 0 && (
                       <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                         {s.noResults}
@@ -360,7 +360,7 @@ export function ModelMenu({
                           setOpen(false);
                         }}
                         title={warn ?? m.label}
-                        className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 ${
+                        className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 sm:min-h-0 ${
                           m.id === model
                             ? "bg-accent/15 text-foreground"
                             : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"

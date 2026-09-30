@@ -39,6 +39,13 @@ test("compares two model streams and returns to the regular chat", async ({ page
     page.getByText("AI can make mistakes. Verify important information."),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: "Benchmark mode" }).click();
+  await expect(page.getByRole("button", { name: "Benchmark mode" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText(/First text:/)).toHaveCount(2);
+  const firstResponse = page.getByRole("article", { name: "Response A" });
+  await firstResponse.getByText("Manual ratings (1 to 5)").click();
+  await firstResponse.getByLabel("Accuracy").selectOption("4");
+
   const downloadStarted = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export as Markdown" }).click();
   expect((await downloadStarted).suggestedFilename()).toMatch(/^aidusia-comparaison-.*\.md$/);
@@ -71,6 +78,8 @@ test("opens the comparison workspace from the mobile drawer without overflow", a
   await page.getByRole("button", { name: "Compare AIs" }).click();
 
   await expect(page.getByRole("heading", { name: "Compare AI models" })).toBeVisible();
+  await page.getByRole("button", { name: "Benchmark mode" }).click();
+  await expect(page.getByText(/Time to first text/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

@@ -19,6 +19,8 @@ export interface ComparisonResult {
   content: string;
   error?: string;
   durationMs?: number;
+  firstTextMs?: number;
+  interrupted?: boolean;
 }
 
 interface ActiveComparison {
@@ -75,7 +77,7 @@ export function useComparison(lang: Lang) {
     const durationMs = Date.now() - active.startedAt;
     setResults((current) =>
       current.map((result) =>
-        result.status === "streaming" ? { ...result, status: "done", durationMs } : result,
+        result.status === "streaming" ? { ...result, status: "done", durationMs, interrupted: true } : result,
       ),
     );
     setRunning(false);
@@ -115,6 +117,7 @@ export function useComparison(lang: Lang) {
       const runTarget = async (target: ComparisonTarget, index: number) => {
         let provider: ChatProvider | undefined;
         const targetStartedAt = Date.now();
+        let receivedText = false;
 
         try {
           provider = getProvider(target.providerId);
@@ -128,10 +131,13 @@ export function useComparison(lang: Lang) {
             },
             apiKey,
             (chunk) => {
-              if (chunk.type !== "text") return;
+              if (chunk.type !== "text" || !chunk.delta) return;
+              const firstTextMs = receivedText ? undefined : Date.now() - targetStartedAt;
+              receivedText = true;
               updateResult(runId, index, (current) => ({
                 ...current,
                 content: current.content + chunk.delta,
+                firstTextMs: current.firstTextMs ?? firstTextMs,
               }));
             },
           );

@@ -32,7 +32,10 @@ Then choose a mode:
 1. **Local Ollama** — install [Ollama](https://ollama.com/download) and use the Studio on a desktop. From a deployed domain, Ollama must allow that origin through `OLLAMA_ORIGINS`.
    If Ollama is installed but shown as unreachable, follow the [Ollama troubleshooting guide](./docs/OLLAMA.en.md).
 2. **In-browser AI** — select "On-device." Weights are downloaded on request, cached, then run through WebGPU. Performance varies by browser, GPU, and memory, especially on mobile.
+   "Luciole 1B" is also available separately in beta: its official GGUF (~1.02 GB) downloads from Hugging Face on first message and runs locally through wllama. Phone performance still needs validation on each device.
 3. **Cloud provider** — add your API key under "Providers." The provider's pricing, quotas, retention, and terms apply.
+
+In **Compare**, enable "Benchmark mode" to see total duration, time to first text, and overall character throughput. You can manually rate each response for accuracy, clarity, and usefulness (1 to 5), then export measurements and ratings as Markdown. Ratings stay on the page and clear with each new comparison; check the facts before rating. Times may include model loading: run the same question again to compare later runs.
 
 ## Feature status
 
@@ -42,6 +45,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 |---|---|---|
 | Local Ollama chat | ✅ | To the configured Ollama URL, usually your machine |
 | In-browser AI (WebLLM/WebGPU) | ✅ | Weights downloaded on request; inference on device |
+| Luciole 1B in the browser (wllama/GGUF) | 🧪 | GGUF downloaded from Hugging Face; inference on device |
 | Anthropic, Gemini, Mistral, OpenRouter, Groq, xAI (Grok) | ✅ | Direct browser → provider connection |
 | OpenAI | ✅ | Through `/api/openai/`, then OpenAI |
 | Ollama Cloud | ✅ | Through `/api/ollama-cloud/`, then Ollama Cloud |
@@ -66,7 +70,7 @@ API, model, WebGPU, and speech support vary by browser, device, region, and prov
 <details>
 <summary>When does data leave the device?</summary>
 
-When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. A comparison sends only the question to both selected models, without conversation history or MCP tools. If you request a synthesis, the question and both answers are sent to the selected model. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. Local browser models are downloaded through the distribution infrastructure used by WebLLM, only when you request them. Full details in [PRIVACY.md](./PRIVACY.md).
+When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. A comparison sends only the question to both selected models, without conversation history or MCP tools. If you request a synthesis, the question and both answers are sent to the selected model. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. WebLLM models download through its distribution infrastructure and Luciole through Hugging Face, only when requested. Full details in [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## MCP connectors: security warning

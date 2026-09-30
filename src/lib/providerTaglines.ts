@@ -16,6 +16,7 @@ export function providerDisplayLabel(providerId: string, lang: Lang): string | n
     return lang === "fr" ? "Sur cet appareil" : "On-device";
   }
   if (providerId === "ollama") return lang === "fr" ? "PC (Ollama)" : "PC (Ollama)";
+  if (providerId === "luciole") return "Luciole 1B";
   return null;
 }
 
@@ -36,6 +37,11 @@ export function providerTagline(providerId: string, lang: Lang): string | null {
     return lang === "fr"
       ? "PC & mobile — sans installation, marche hors connexion"
       : "PC & mobile — no install, works offline";
+  }
+  if (providerId === "luciole") {
+    return lang === "fr"
+      ? "Bêta locale — 1,02 Go téléchargé depuis Hugging Face au premier message, puis utilisable hors connexion"
+      : "Local beta — downloads 1.02 GB from Hugging Face on first message, then works offline";
   }
   return null;
 }

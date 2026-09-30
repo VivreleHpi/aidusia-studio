@@ -63,14 +63,16 @@ function addSuccessfulResults() {
     {
       target: { providerId: "ollama", model: "ollama-model" },
       status: "done",
-      content: "Réponse du modèle A",
+      content: "Réponse du modèle A avec détails",
       durationMs: 1_000,
+      firstTextMs: 250,
     },
     {
       target: { providerId: "browser", model: "browser-model" },
       status: "done",
-      content: "Réponse du modèle B",
+      content: "Réponse du modèle B avec détails",
       durationMs: 2_000,
+      firstTextMs: 500,
     },
   );
 }
@@ -243,6 +245,14 @@ describe("CompareView", () => {
     await submitQuestion("Question exportée");
     addSuccessfulResults();
     view.rerender(<CompareView {...view.props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mode benchmark" }));
+    expect(screen.getByText("Premier texte : 250 ms")).toBeInTheDocument();
+    expect(screen.getAllByText(/car\.\/s au total/)).toHaveLength(2);
+    const firstCard = screen.getByRole("heading", { name: "Réponse A" }).closest("article");
+    expect(firstCard).not.toBeNull();
+    fireEvent.click(within(firstCard!).getByText("Notes manuelles (1 à 5)"));
+    fireEvent.change(within(firstCard!).getByLabelText("Exactitude"), { target: { value: "4" } });
+    fireEvent.change(within(firstCard!).getByLabelText("Clarté"), { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: "Synthétiser avec B" }));
 
     synthesis.result = {
@@ -284,6 +294,10 @@ describe("CompareView", () => {
       expect(markdown).toContain("Réponse du modèle A");
       expect(markdown).toContain("Réponse du modèle B");
       expect(markdown).toContain("Synthèse à exporter");
+      expect(markdown).toContain("Premier texte : 250 ms");
+      expect(markdown).toContain("Exactitude: 4");
+      expect(markdown).toContain("Clarté: 5");
+      expect(markdown).toContain("Utilité: Non noté");
     } finally {
       clickSpy.mockRestore();
       if (createDescriptor) Object.defineProperty(URL, "createObjectURL", createDescriptor);

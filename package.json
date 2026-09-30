@@ -24,6 +24,8 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@mlc-ai/web-llm": "^0.2.84",
+    "@wllama/wllama": "^3.6.1",
+    "@wllama/wllama-compat": "^3.6.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",

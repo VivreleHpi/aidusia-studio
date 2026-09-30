@@ -962,7 +962,7 @@ export function ChatView({
               }}
               rows={1}
               placeholder={s.placeholder}
-              className="max-h-48 w-full resize-none bg-transparent px-2 pb-2.5 pt-2 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              className="max-h-48 w-full resize-none bg-transparent px-2 pb-2.5 pt-2 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none sm:text-[15px]"
             />
             <div className="flex items-center gap-1">
               <input
