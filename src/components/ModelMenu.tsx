@@ -10,6 +10,7 @@ import {
   invalidateProviderReachability,
   type ProviderReachability,
 } from "@/lib/providerReachability";
+import { heavyMobileModelMessage } from "@/lib/mobileLocalPath";
 import {
   providerDisabledOnDevice,
   providerDisplayLabel,
@@ -281,13 +282,21 @@ export function ModelMenu({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  const modelsWithMobileHints = useMemo(() => {
+    if (providerId !== "browser") return models;
+    return models.map((m) => {
+      const mobileWarn = heavyMobileModelMessage(lang, m.id);
+      return mobileWarn ? { ...m, warning: m.warning ?? mobileWarn } : m;
+    });
+  }, [models, providerId, lang]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return models;
-    return models.filter(
+    if (!q) return modelsWithMobileHints;
+    return modelsWithMobileHints.filter(
       (m) => m.label.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
     );
-  }, [models, query]);
+  }, [modelsWithMobileHints, query]);
 
   function openProvidersPanel() {
     setOpen(false);
