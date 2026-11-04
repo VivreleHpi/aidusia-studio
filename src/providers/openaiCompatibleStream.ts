@@ -2,6 +2,7 @@
 // Chat Completions" (openai, mistral, openrouter, groq) : avant, ce parsing
 // etait duplique 4 fois quasi a l'identique. L'ajout du tool-calling est
 // l'occasion de factoriser plutot que de dupliquer une 5e fois.
+import { openAiUserContent } from "@/lib/visionPayload";
 import type { ChatMessage, ChatStreamParams, StreamChunk, ToolDefinition } from "./types";
 
 export function toOpenAiTools(tools?: ToolDefinition[]) {
@@ -17,7 +18,7 @@ export function toOpenAiTools(tools?: ToolDefinition[]) {
 // attend une STRING JSON-encodee. Melanger les deux fait echouer Ollama avec
 // "Value looks like object, but can't find closing '}' symbol" - verifie
 // empiriquement (curl + Playwright contre un vrai Ollama local).
-function toApiMessages(messages: ChatMessage[], rawToolArguments: boolean) {
+function toApiMessages(messages: ChatMessage[], rawToolArguments: boolean, ollamaImageField = false) {
   return messages.map((m) => {
     if (m.role === "tool") {
       return { role: "tool", tool_call_id: m.toolCallId, content: m.content };
@@ -36,12 +37,18 @@ function toApiMessages(messages: ChatMessage[], rawToolArguments: boolean) {
         })),
       };
     }
-    return { role: m.role, content: m.content, images: m.images };
+    if (m.role === "user") {
+      if (ollamaImageField) {
+        return { role: "user", content: m.content, images: m.images };
+      }
+      return { role: "user", content: openAiUserContent(m) };
+    }
+    return { role: m.role, content: m.content };
   });
 }
 
-export function buildOpenAiCompatibleBody(params: ChatStreamParams, rawToolArguments = false) {
-  const messages = toApiMessages(params.messages, rawToolArguments);
+export function buildOpenAiCompatibleBody(params: ChatStreamParams, rawToolArguments = false, ollamaImageField = false) {
+  const messages = toApiMessages(params.messages, rawToolArguments, ollamaImageField);
   return {
     model: params.model,
     stream: true,

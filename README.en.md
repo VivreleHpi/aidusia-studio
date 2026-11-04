@@ -50,10 +50,11 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 | OpenAI | ✅ | Through `/api/openai/`, then OpenAI |
 | Ollama Cloud | ✅ | Through `/api/ollama-cloud/`, then Ollama Cloud |
 | Tesseract OCR | ✅ | Local browser processing |
-| Image analysis | ✅ (vision-capable Ollama) | Image sent to the configured Ollama instance |
+| Image analysis | ✅ (vision models: Ollama, OpenAI, Anthropic, Gemini, OpenAI-compatible…) | Image encoded in the request to the chosen provider |
 | Web Speech dictation | ✅ (when supported by the browser) | May use a remote browser/OS speech service |
 | HTTP MCP connectors | 🧪 | Requests to configured MCP servers |
 | Two-model comparison and synthesis | ✅ | Question sent separately to both models; synthesis also sends both answers to the selected model |
+| Local RAG (PDF/MD/TXT, citations) | ✅ | Indexing and embeddings in the browser; excerpts sent to the provider with the question |
 | Settings export/import | ✅ | Passphrase-encrypted local file |
 | Installable PWA and offline shell | ✅ | Application resources cached locally |
 | Offline cloud chat | ❌ | A provider connection remains necessary |
@@ -75,7 +76,7 @@ When you send a message to a cloud provider, use dictation, analyze an image wit
 
 ## MCP connectors: security warning
 
-MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Their tool definitions are sent to the chosen model. Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview; an approved result is then sent back to the model. Declining sends no tool call.
+MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Their tool definitions are sent to the chosen model. Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview (unless the tool policy is set to allow); an approved result is then sent back to the model. A **local journal** and **per-tool policies** are available in MCP Connectors. stdio → HTTP bridge: [docs/mcp-stdio-bridge.md](./docs/mcp-stdio-bridge.md).
 
 <details>
 <summary>Why the caution, and what the confirmation does not guarantee</summary>
@@ -95,11 +96,13 @@ The repository code does not persist or log this data, but that alone cannot gua
 
 ## Known limitations
 
+Full list by feature lot (RAG, mobile, export, MCP, local API, vision, catalog) with workarounds: **[docs/limites-connues.en.md](./docs/limites-connues.en.md)** ([FR](./docs/limites-connues.md)).
+
 - In-browser AI may download hundreds of megabytes or more and can fail on resource-constrained devices.
 - Tesseract targets printed text and generally performs poorly on handwriting.
-- Image analysis is currently wired only for Ollama.
+- Image analysis depends on the **model and provider** (cloud/Ollama vision; not WebLLM/Luciole) — see [docs/vision-multimodal.md](./docs/vision-multimodal.md).
 - There is no multi-device synchronization, account, or guaranteed commercial support.
-- MCP should be treated as experimental: per-action confirmation exists, but risk classification is heuristic and there is no fine-grained persistent permission policy.
+- MCP remains experimental: per-tool policies and a local journal exist, but risk classification is still heuristic.
 
 ## Quality and contributing
 

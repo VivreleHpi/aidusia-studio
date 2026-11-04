@@ -19,11 +19,9 @@ test("keeps the mobile composer usable without probing Ollama", async ({ page })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-// Ce projet Playwright n'a pas de vrai GPU : `navigator.gpu` existe (secure
-// context) mais `requestAdapter()` renvoie null. Ces deux tests verifient,
-// dans un vrai navigateur, le chemin d'echec reellement atteignable en CI pour
-// l'IA locale sur mobile.
-test("lists every on-device model without blocking, flagging the heavier ones for mobile", async ({ page }) => {
+// Sans adaptateur WebGPU en CI : les modeles du catalogue « Sur cet appareil »
+// restent visibles mais non selectionnables (PR #20).
+test("lists on-device models as incompatible when WebGPU has no adapter", async ({ page }) => {
   test.skip(test.info().project.name !== "mobile", "Mobile-only journey");
   await resetMocks(page);
   await prepareApp(page);
@@ -31,13 +29,14 @@ test("lists every on-device model without blocking, flagging the heavier ones fo
   await page.getByRole("button", { name: "Choose provider and model" }).click();
   await page.getByRole("button", { name: "On your phone", exact: true }).click();
 
-  // Le catalogue reste instantane (aucune sonde WebGPU au listing) : les 3
-  // modeles apparaissent, avec un avertissement NON bloquant sur les 2 plus
-  // lourds (le 1B leger n'en a pas).
-  await expect(page.getByRole("button", { name: "Llama 3.2 1B — light (~0.7 GB)" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Qwen 2.5 1.5B — balanced (~1 GB) ⚠" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Gemma 2 2B — quality (~1.4 GB) ⚠" })).toBeVisible();
-  await expect(page.getByText("May exceed this phone's memory")).toBeVisible();
+  await expect(page.getByText("Not compatible with this browser")).toBeVisible();
+  const llama = page.getByRole("button", { name: /Llama 3.2 1B — light/i });
+  await expect(llama).toBeVisible();
+  await expect(llama).toBeDisabled();
+  const qwen = page.getByRole("button", { name: /Qwen 2.5 1.5B — balanced/i });
+  await expect(qwen).toBeDisabled();
+  const gemma = page.getByRole("button", { name: /Gemma 2 2B — quality/i });
+  await expect(gemma).toBeDisabled();
 });
 
 test("shows an actionable WebGPU reason when testing the on-device provider without a real adapter", async ({ page }) => {

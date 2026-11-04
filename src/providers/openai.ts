@@ -1,3 +1,4 @@
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
@@ -29,7 +30,7 @@ export const openaiProvider: ChatProvider = {
     const data = (await response.json()) as { data: OpenAIModel[] };
     return data.data
       .filter((m) => m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3"))
-      .map((m) => ({ id: m.id, label: m.id }));
+      .map((m) => ({ id: m.id, label: m.id, visionCapable: inferVisionCapable(m.id) }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

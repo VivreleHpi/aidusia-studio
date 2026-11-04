@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Validate local AI catalog
+        run: npm run validate:local-ai-catalog
+
       - name: Unit tests
         run: npm test
 

@@ -29,6 +29,10 @@ vi.mock("@/lib/imageSafety", () => ({
   prepareVisionImage: vi.fn(),
   validateImageFile: vi.fn(),
 }));
+vi.mock("@/lib/providerReachability", () => ({
+  invalidateProviderReachability: vi.fn(),
+  getProviderReachability: vi.fn(async () => "ready" as const),
+}));
 
 function conversation(id: string): Conversation {
   return { id, title: id, createdAt: 1, updatedAt: 1, messages: [] };

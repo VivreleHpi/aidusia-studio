@@ -11,6 +11,8 @@ import type { McpServer } from "@/lib/mcp/types";
 import { requestToolApproval } from "@/lib/mcp/approval";
 import { selectMessagesForContext } from "@/lib/contextWindow";
 import { buildSystemPrompt } from "@/lib/systemContext";
+import { resolveRagSpaceForConversation } from "@/lib/rag/conversationLink";
+import { retrieveRagContext } from "@/lib/rag/retrieve";
 
 function titleFromFirstMessage(content: string, lang: Parameters<typeof newConversationTitle>[0]): string {
   const trimmed = content.trim().slice(0, 60);
@@ -163,6 +165,22 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         const toolIndex = mcpServers.length > 0 ? await buildToolIndex(mcpServers) : new Map();
         const toolDefs = [...toolIndex.values()].map((entry) => entry.tool);
 
+        let ragSystemExtra: string | undefined;
+        const ragSpaceId = updated.ragSpaceId ?? resolveRagSpaceForConversation(updated.id);
+        if (ragSpaceId) {
+          const lastUser = [...updated.messages].reverse().find((m) => m.role === "user");
+          if (lastUser?.content.trim()) {
+            const rag = await retrieveRagContext(ragSpaceId, lastUser.content, lang);
+            if (rag) {
+              ragSystemExtra = rag.systemAppendix;
+              assistantMessage.ragCitations = rag.citations;
+              renderThrottled();
+            }
+          }
+        }
+
+        const mergedCustomPrompt = [systemPrompt, ragSystemExtra].filter(Boolean).join("\n\n");
+
         for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
           let accumulated = "";
           const toolCalls: ToolCall[] = [];
@@ -170,7 +188,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
           await provider.chatStream(
             {
               model,
-              systemPrompt: buildSystemPrompt(providerId, lang, systemPrompt),
+              systemPrompt: buildSystemPrompt(providerId, lang, mergedCustomPrompt || undefined),
               signal: controller.signal,
               tools: toolDefs.length > 0 ? toolDefs : undefined,
               // Les assistants vides (laisses par une generation echouee ou
@@ -228,7 +246,10 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
                   lang,
                 });
                 if (!approved) {
-                  resultText = "Action refusée par l'utilisateur. Aucun appel MCP n'a été envoyé.";
+                  resultText =
+                    lang === "fr"
+                      ? "Action refusée par l'utilisateur ou par la politique MCP. Aucun appel n'a été envoyé."
+                      : "Action denied by the user or MCP policy. No MCP call was sent.";
                 } else {
                   const result = await callTool(entry.server, entry.actualName, call.args);
                   resultText = result.content || (result.isError ? "Erreur sans detail." : "(reponse vide)");

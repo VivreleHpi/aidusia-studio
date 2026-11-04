@@ -21,6 +21,7 @@ import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
 import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
 import { describeFetchError } from "@/lib/fetchError";
+import { LOCAL_OPENAI_PRESETS } from "@/lib/localOpenAiPresets";
 import { exportSettings, importSettings } from "@/lib/settingsTransfer";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { detectOs, isMobile, ollamaOriginsCommand } from "@/lib/deviceDetect";
@@ -70,6 +71,8 @@ const STRINGS = {
     customInvalidUrl: "URL invalide — https:// requis (http uniquement pour localhost), sans identifiants.",
     customInvalidLabel: "Donnez un nom court à ce fournisseur (40 caractères max).",
     customTooMany: "Limite de fournisseurs personnalisés atteinte (20).",
+    localPresetsTitle: "Préréglages locaux (OpenAI-compatible)",
+    localPresetsHint: "LM Studio, Ollama /v1 ou Jan — CORS requis sur localhost.",
   },
   en: {
     dialogLabel: "Providers",
@@ -115,6 +118,8 @@ const STRINGS = {
     customInvalidUrl: "Invalid URL — https:// required (http only for localhost), no embedded credentials.",
     customInvalidLabel: "Give this provider a short name (max 40 characters).",
     customTooMany: "Custom provider limit reached (20).",
+    localPresetsTitle: "Local presets (OpenAI-compatible)",
+    localPresetsHint: "LM Studio, Ollama /v1, or Jan — localhost must allow CORS.",
   },
 } as const;
 
@@ -527,6 +532,25 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
           <div className="mb-6 rounded-xl border border-dashed border-border p-4">
             <p className="text-sm font-medium">{s.customSectionTitle}</p>
             <p className="mt-1 text-xs text-muted-foreground">{s.customNote}</p>
+            <p className="mt-3 text-xs font-medium text-foreground">{s.localPresetsTitle}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{s.localPresetsHint}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {LOCAL_OPENAI_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  title={lang === "fr" ? preset.hintFr : preset.hintEn}
+                  onClick={() => {
+                    setCustomName(preset.label);
+                    setCustomUrl(preset.baseUrl);
+                    setCustomError(null);
+                  }}
+                  className="rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-foreground transition hover:bg-foreground/5"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"

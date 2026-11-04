@@ -1,5 +1,6 @@
 import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
 const API_BASE = "https://api.mistral.ai/v1";
@@ -23,7 +24,11 @@ export const mistralProvider: ChatProvider = {
     });
     if (!response.ok) throw new Error(`Mistral a repondu ${response.status}`);
     const data = (await response.json()) as { data: MistralModel[] };
-    return data.data.map((m) => ({ id: m.id, label: m.name ?? m.id }));
+    return data.data.map((m) => ({
+      id: m.id,
+      label: m.name ?? m.id,
+      visionCapable: inferVisionCapable(m.id),
+    }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

@@ -127,3 +127,14 @@ contamination dans un sens comme dans l'autre.
   hors-ligne et à la gestion du stockage. C'est le différenciateur souverain :
   une IA qui tourne dans la poche, sans compte, sans serveur, sans fuite —
   et sans Termux.
+
+## Limites connues
+
+| Limite | Contournement / piste |
+|--------|------------------------|
+| iOS sans équivalent Termux | WebGPU + Luciole ou cloud ; Ollama sur PC en LAN. |
+| Android peut tuer Termux / onglet WebLLM | `termux-wake-lock`, PWA installée, `storage.persist()`. |
+| Vitesses et chauffe variables | Modèles 1–3B, réponses courtes. |
+| Ce document décrit le **plan produit** ; l’UI peut diverger légèrement | Voir [mobile-local-path.md](./mobile-local-path.md) pour le comportement Lot B. |
+
+Regroupement : [limites-connues.md](./limites-connues.md).

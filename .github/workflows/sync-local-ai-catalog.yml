@@ -1,0 +1,61 @@
+name: Sync local AI catalog
+
+on:
+  schedule:
+    # Lundi 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Sync catalog from public sources
+        id: sync
+        run: |
+          set +e
+          node scripts/sync-local-ai-catalog.mjs --write
+          code=$?
+          set -e
+          if [ "$code" -eq 2 ]; then
+            echo "sync_failed=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          if git diff --quiet -- src/data/local-ai-catalog.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update pull request
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/local-ai-catalog-sync
+          delete-branch: true
+          commit-message: "chore(catalog): sync IA locales depuis sources publiques"
+          title: "chore(catalog): sync hebdomadaire IA locales"
+          body-path: scripts/sync-local-ai-catalog/last-summary.md
+          labels: |
+            automation
+            local-ai
+
+      - name: No changes
+        if: steps.sync.outputs.changed != 'true' && steps.sync.outputs.sync_failed != 'true'
+        run: echo "Catalogue déjà à jour — aucune PR."

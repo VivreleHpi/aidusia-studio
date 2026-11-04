@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { getProvider } from "@/providers";
 import { getApiKey } from "@/lib/apiKeys";
 
@@ -24,7 +25,7 @@ export function useVisionCapability(providerId: string, model: string): boolean 
       .then((models) => {
         if (cancelled) return;
         const current = models.find((m) => m.id === model);
-        setVisionCapable(current?.visionCapable ?? false);
+        setVisionCapable(current?.visionCapable ?? inferVisionCapable(model));
       })
       .catch(() => {
         if (!cancelled) setVisionCapable(false);

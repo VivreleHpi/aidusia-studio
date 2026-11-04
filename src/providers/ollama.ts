@@ -1,5 +1,6 @@
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 import { buildOpenAiCompatibleBody } from "./openaiCompatibleStream";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { detectOs, isLocalOrigin, ollamaOriginsCommand, ollamaOriginsRestartNote } from "@/lib/deviceDetect";
 
 export const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
@@ -204,6 +205,7 @@ export const ollamaProvider: ChatProvider = {
       return data.models.map((model) => ({
         id: model.name,
         label: model.name,
+        visionCapable: inferVisionCapable(model.name),
       }));
     } catch (err) {
       if (err instanceof Error && /^Ollama a répondu/.test(err.message)) throw err;
@@ -236,7 +238,7 @@ export const ollamaProvider: ChatProvider = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: params.signal,
-      body: JSON.stringify(buildOpenAiCompatibleBody(params, true)),
+      body: JSON.stringify(buildOpenAiCompatibleBody(params, true, true)),
     }).catch((err: unknown) => {
       // "Failed to fetch" brut n'aide personne ; on garde l'abandon volontaire
       // (bouton Arreter) intact pour que useChat le reconnaisse.

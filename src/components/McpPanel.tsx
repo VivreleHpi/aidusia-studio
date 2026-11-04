@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
+import {
+  clearMcpJournal,
+  formatJournalDecision,
+  getMcpToolPolicy,
+  readMcpJournal,
+  setMcpToolPolicy,
+  type McpToolPolicy,
+} from "@/lib/mcp/policies";
 import { listMcpServers, addMcpServer, removeMcpServer } from "@/lib/mcp/servers";
+import { REPO_URL } from "@/lib/repo";
 import { initialize, listTools, mcpTransportViolation } from "@/lib/mcp/client";
 import type { McpServer, McpTool } from "@/lib/mcp/types";
 import { useLang } from "@/lib/i18n";
@@ -85,6 +94,14 @@ const STRINGS = {
       `${count} outil${count > 1 ? "s" : ""} disponible${count > 1 ? "s" : ""}`,
     remove: "Supprimer",
     noServers: "Aucun connecteur configuré pour l'instant.",
+    stdioBridgeDoc: "Pont stdio → HTTP (doc)",
+    journalTitle: "Journal MCP (local)",
+    journalEmpty: "Aucune décision enregistrée.",
+    clearJournal: "Effacer le journal",
+    toolPolicy: "Politique",
+    policyAsk: "Demander",
+    policyAllow: "Autoriser",
+    policyDeny: "Refuser",
   },
   en: {
     dialogLabel: "Connectors",
@@ -140,6 +157,14 @@ const STRINGS = {
     toolsAvailable: (count: number) => `${count} tool${count > 1 ? "s" : ""} available`,
     remove: "Remove",
     noServers: "No connector configured yet.",
+    stdioBridgeDoc: "stdio → HTTP bridge (docs)",
+    journalTitle: "MCP journal (local)",
+    journalEmpty: "No decisions recorded yet.",
+    clearJournal: "Clear journal",
+    toolPolicy: "Policy",
+    policyAsk: "Ask",
+    policyAllow: "Allow",
+    policyDeny: "Deny",
   },
 } as const;
 
@@ -181,6 +206,7 @@ export function McpPanel({ onClose }: McpPanelProps) {
   const [token, setToken] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [journal, setJournal] = useState(() => readMcpJournal());
   const { lang } = useLang();
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
   const s = STRINGS[lang];
@@ -190,6 +216,7 @@ export function McpPanel({ onClose }: McpPanelProps) {
   }, []);
 
   async function refresh() {
+    setJournal(readMcpJournal());
     const list = listMcpServers();
     setServers(list.map((server) => ({ server, status: "checking", tools: [] })));
     for (const server of list) {
@@ -285,6 +312,16 @@ export function McpPanel({ onClose }: McpPanelProps) {
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           <p className="mb-1 text-sm text-muted-foreground">{s.intro}</p>
           <p className="mb-5 text-xs text-muted-foreground">{s.corsNote}</p>
+          <p className="mb-5 text-xs">
+            <a
+              href={`${REPO_URL}/blob/main/docs/mcp-stdio-bridge.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              {s.stdioBridgeDoc}
+            </a>
+          </p>
 
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {s.popular}
@@ -417,15 +454,72 @@ export function McpPanel({ onClose }: McpPanelProps) {
                     </button>
                   </div>
                   {tools.length > 0 && (
-                    <p className="mt-1.5 truncate pl-11 text-xs text-muted-foreground">
-                      {tools.map((t) => t.name).join(", ")}
-                    </p>
+                    <ul className="mt-2 space-y-1.5 pl-11">
+                      {tools.map((tool) => {
+                        const policy = getMcpToolPolicy(server.id, tool.name);
+                        return (
+                          <li key={tool.name} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="min-w-0 flex-1 truncate font-mono">{tool.name}</span>
+                            <label className="flex items-center gap-1">
+                              <span className="sr-only">{s.toolPolicy}</span>
+                              <select
+                                value={policy}
+                                aria-label={`${s.toolPolicy} — ${tool.name}`}
+                                onChange={(e) => {
+                                  setMcpToolPolicy(server.id, tool.name, e.target.value as McpToolPolicy);
+                                  setJournal(readMcpJournal());
+                                }}
+                                className="rounded border border-border bg-card px-1 py-0.5 text-[11px] text-foreground"
+                              >
+                                <option value="ask">{s.policyAsk}</option>
+                                <option value="allow">{s.policyAllow}</option>
+                                <option value="deny">{s.policyDeny}</option>
+                              </select>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
               );
             })}
             {servers.length === 0 && (
               <p className="px-1 py-3 text-center text-sm text-muted-foreground">{s.noServers}</p>
+            )}
+          </div>
+
+          <div className="mt-6 border-t border-border pt-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                {s.journalTitle}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  clearMcpJournal();
+                  setJournal([]);
+                }}
+                className="rounded-lg px-2 py-1 text-[11px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              >
+                {s.clearJournal}
+              </button>
+            </div>
+            {journal.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{s.journalEmpty}</p>
+            ) : (
+              <ul className="max-h-40 space-y-2 overflow-y-auto text-xs">
+                {journal.slice(0, 30).map((entry) => (
+                  <li key={entry.id} className="rounded-lg border border-border/60 bg-background/40 px-2 py-1.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="font-medium text-foreground">{entry.toolName}</span>
+                      <span className="text-muted-foreground">{entry.serverName}</span>
+                      <span>{formatJournalDecision(entry.decision, lang)}</span>
+                    </div>
+                    <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{entry.preview}</p>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>

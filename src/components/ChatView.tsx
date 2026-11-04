@@ -9,6 +9,10 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
+import { linkifyCitationMarkers, citationAnchorId } from "@/lib/rag/citations";
+import { resolveRagSpaceForConversation } from "@/lib/rag/conversationLink";
+import { listRagSpaces } from "@/lib/rag/store";
+import type { RagSpace } from "@/lib/rag/types";
 import { prepareVisionImage, validateImageFile } from "@/lib/imageSafety";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
@@ -20,7 +24,9 @@ import {
   NEW_CONVERSATION_DRAFT_KEY,
   saveChatDrafts,
 } from "@/lib/chatDrafts";
+import { splitUserFacingError } from "@/lib/chatErrorDisplay";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
+import { MobileLocalPathBanner } from "@/components/MobileLocalPathBanner";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
 import { REPO_URL } from "@/lib/repo";
@@ -109,6 +115,9 @@ const STRINGS = {
     send: "Envoyer",
     hint: "↵ envoyer · ⇧↵ retour à la ligne",
     disclaimer: "Les IA peuvent faire des erreurs. Vérifiez les informations importantes.",
+    ragSpace: "Espace documentaire",
+    ragSpaceNone: "Sans documents",
+    ragSources: "Sources",
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
@@ -168,6 +177,9 @@ const STRINGS = {
     send: "Send",
     hint: "↵ send · ⇧↵ new line",
     disclaimer: "AI can make mistakes. Check important information.",
+    ragSpace: "Document space",
+    ragSpaceNone: "No documents",
+    ragSources: "Sources",
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
     localAiLoading: "Preparing the local model (downloaded once, then cached)…",
@@ -355,6 +367,8 @@ interface ChatViewProps {
   onOpenProviders: () => void;
   onOpenFaq: () => void;
   keysVersion: number;
+  ragSpaceId?: string | null;
+  onRagSpaceChange?: (spaceId: string | null) => void;
 }
 
 export function ChatView({
@@ -368,8 +382,10 @@ export function ChatView({
   model,
   onChangeProvider,
   onOpenProviders,
-  onOpenFaq,
+  onOpenFaq: _onOpenFaq,
   keysVersion,
+  ragSpaceId,
+  onRagSpaceChange,
 }: ChatViewProps) {
   const draftKey = conversation?.id ?? NEW_CONVERSATION_DRAFT_KEY;
   const draftsRef = useRef<Record<string, string> | null>(null);
@@ -388,6 +404,17 @@ export function ChatView({
   const [modelReadiness, setModelReadiness] = useState<ModelReadiness>({ status: "loading" });
   const [modelReloadRequest, setModelReloadRequest] = useState(0);
   const [modelOpenRequest, setModelOpenRequest] = useState(0);
+  const [ragSpaces, setRagSpaces] = useState<RagSpace[]>([]);
+
+  useEffect(() => {
+    if (typeof indexedDB === "undefined") return;
+    void listRagSpaces()
+      .then(setRagSpaces)
+      .catch(() => setRagSpaces([]));
+  }, [keysVersion, conversation?.id]);
+
+  const effectiveRagSpaceId =
+    ragSpaceId ?? (conversation ? resolveRagSpaceForConversation(conversation.id) : null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
@@ -676,23 +703,15 @@ export function ChatView({
                   {s.welcome(new Date().getHours())} {s.helpPrompt}
                 </p>
                 <div
-                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-foreground"
+                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
                   style={{ animationDelay: "100ms" }}
                 >
-                  <button
-                    type="button"
-                    onClick={onOpenFaq}
-                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
-                  >
-                    <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenProviders}
-                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
-                  >
-                    <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
-                  </button>
+                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
+                    <IconLock className="h-3.5 w-3.5 shrink-0" /> {s.badgeLocal}
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
+                    <IconKey className="h-3.5 w-3.5 shrink-0" /> {s.badgeKeys}
+                  </span>
                   <a
                     href={REPO_URL}
                     target="_blank"
@@ -763,9 +782,35 @@ export function ChatView({
                       </p>
                     )}
                     {m.content ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                        {m.content}
-                      </ReactMarkdown>
+                      <>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {m.ragCitations?.length
+                            ? linkifyCitationMarkers(
+                                m.content,
+                                m.ragCitations.map((c) => c.label),
+                              )
+                            : m.content}
+                        </ReactMarkdown>
+                        {m.ragCitations && m.ragCitations.length > 0 ? (
+                          <ul
+                            className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground"
+                            aria-label={s.ragSources}
+                          >
+                            {m.ragCitations.map((cite) => (
+                              <li key={cite.chunkId} id={citationAnchorId(cite.chunkId)}>
+                                <a
+                                  href={`#${citationAnchorId(cite.chunkId)}`}
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  [{cite.label}]
+                                </a>{" "}
+                                <span className="font-medium text-foreground">{cite.fileName}</span>
+                                <p className="mt-0.5 whitespace-pre-wrap">{cite.excerpt}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </>
                     ) : isLastAssistant && streaming ? (
                       <span className="flex items-center gap-1 py-1" aria-label={s.thinking}>
                         <span className="thinking-dot" />
@@ -812,13 +857,25 @@ export function ChatView({
                   </div>
                 );
               })}
-              {error && (
+              {error && (() => {
+                const { summary, detail } = splitUserFacingError(error);
+                return (
                 <div
                   role="alert"
                   aria-live="assertive"
                   className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive"
                 >
-                  <p className="wrap-break-word">{error}</p>
+                  <p className="wrap-break-word">{summary}</p>
+                  {detail ? (
+                    <details className="mt-2 text-xs text-destructive/90">
+                      <summary className="cursor-pointer underline-offset-2 hover:underline">
+                        {lang === "fr" ? "Détails techniques" : "Technical details"}
+                      </summary>
+                      <pre className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap wrap-break-word font-mono text-xs">
+                        {detail}
+                      </pre>
+                    </details>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {lastSubmissionRef.current?.draftKey === draftKeyRef.current ? (
                       <button
@@ -853,7 +910,8 @@ export function ChatView({
                     </button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
               <div ref={bottomRef} />
             </div>
           )}
@@ -953,6 +1011,8 @@ export function ChatView({
             </div>
           )}
 
+          <MobileLocalPathBanner providerId={providerId} onOpenProviders={onOpenProviders} />
+
           <div className="glass flex flex-col rounded-2xl p-2 shadow-lg shadow-black/5 transition duration-150 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/40">
             <textarea
               ref={textareaRef}
@@ -1023,6 +1083,26 @@ export function ChatView({
                   <IconMic className={`h-4 w-4 ${dictation.listening ? "animate-pulse" : ""}`} />
                 </button>
               )}
+              <label className="sr-only" htmlFor="rag-space-select">
+                {s.ragSpace}
+              </label>
+              <select
+                id="rag-space-select"
+                value={effectiveRagSpaceId ?? ""}
+                onChange={(e) =>
+                  onRagSpaceChange?.(e.target.value ? e.target.value : null)
+                }
+                disabled={!conversation || !onRagSpaceChange}
+                className="max-w-[9rem] truncate rounded-lg border border-border/60 bg-card px-2 py-1 text-xs text-foreground sm:max-w-[12rem]"
+                title={s.ragSpace}
+              >
+                <option value="">{s.ragSpaceNone}</option>
+                {ragSpaces.map((space) => (
+                  <option key={space.id} value={space.id}>
+                    {space.name}
+                  </option>
+                ))}
+              </select>
               <div className="ml-auto flex min-w-0 items-center gap-1.5">
                 <ModelMenu
                   key={keysVersion}
@@ -1034,6 +1114,7 @@ export function ChatView({
                   onReadinessChange={setModelReadiness}
                   reloadRequest={modelReloadRequest}
                   openRequest={modelOpenRequest}
+                  keysVersion={keysVersion}
                 />
                 {streaming ? (
                   <button
@@ -1059,7 +1140,7 @@ export function ChatView({
               </div>
             </div>
           </div>
-          <p className="text-center text-[10px] leading-4 text-muted-foreground sm:text-[11px]">
+          <p className="text-center text-xs leading-5 text-muted-foreground">
             <span className="hidden sm:inline">{s.hint} · </span>
             {s.disclaimer}
           </p>

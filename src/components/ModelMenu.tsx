@@ -6,6 +6,12 @@ import { describeFetchError } from "@/lib/fetchError";
 import { getOllamaBaseUrl } from "@/providers/ollama";
 import { useLang } from "@/lib/i18n";
 import {
+  getProviderReachability,
+  invalidateProviderReachability,
+  type ProviderReachability,
+} from "@/lib/providerReachability";
+import { heavyMobileModelMessage } from "@/lib/mobileLocalPath";
+import {
   providerDisabledOnDevice,
   providerDisplayLabel,
   providerTagline,
@@ -22,6 +28,10 @@ const STRINGS = {
     modelSection: "Modèle",
     keyRequired: (label: string) => `Une clé API est requise pour ${label}.`,
     configureKey: "Configurer la clé",
+    configureOllama: "Configurer Ollama",
+    configureBrowser: "Vérifier la compatibilité",
+    configureLuciole: "Ouvrir les réglages locaux",
+    openProviders: "Ouvrir Fournisseurs",
     loading: "Chargement des modèles…",
     noModels: "Aucun modèle disponible.",
     providerUnavailable: (label: string) => `${label} n'est pas disponible pour le moment. Choisissez un autre fournisseur ou ouvrez Fournisseurs pour le configurer.`,
@@ -38,6 +48,10 @@ const STRINGS = {
     modelSection: "Model",
     keyRequired: (label: string) => `An API key is required for ${label}.`,
     configureKey: "Set up the key",
+    configureOllama: "Set up Ollama",
+    configureBrowser: "Check compatibility",
+    configureLuciole: "Open local settings",
+    openProviders: "Open Providers",
     loading: "Loading models…",
     noModels: "No models available.",
     providerUnavailable: (label: string) => `${label} is unavailable right now. Choose another provider or open Providers to configure it.`,
@@ -68,6 +82,7 @@ interface ModelMenuProps {
   onReadinessChange?: (readiness: ModelReadiness) => void;
   reloadRequest?: number;
   openRequest?: number;
+  keysVersion?: number;
 }
 
 /* Sélecteur fournisseur + modèle intégré au composer (pattern Claude/
@@ -82,11 +97,13 @@ export function ModelMenu({
   onReadinessChange,
   reloadRequest = 0,
   openRequest = 0,
+  keysVersion = 0,
 }: ModelMenuProps) {
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ProviderModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  const [reachability, setReachability] = useState<Record<string, ProviderReachability>>({});
   const [query, setQuery] = useState("");
   // Le panneau est aligné du côté du déclencheur qui offre le plus de place :
   // ancré à droite près du bord droit, à gauche sinon. Sans cela, un menu de
@@ -112,6 +129,19 @@ export function ModelMenu({
     [lang],
   );
 
+  function errorActionLabel(forProviderId: string): string {
+    switch (forProviderId) {
+      case "ollama":
+        return s.configureOllama;
+      case "browser":
+        return s.configureBrowser;
+      case "luciole":
+        return s.configureLuciole;
+      default:
+        return s.openProviders;
+    }
+  }
+
   const readiness = useMemo<ModelReadiness>(() => {
     if (missingKey) {
       return {
@@ -130,10 +160,17 @@ export function ModelMenu({
       };
     }
     if (models.length === 0 || !selected) {
+      const onlyUnavailable = models.every((m) => m.selectable === false);
+      if (onlyUnavailable && models[0]?.unavailableReason) {
+        return { status: "no-model", message: models[0].unavailableReason };
+      }
       return { status: "no-model", message: s.noModels };
     }
+    if (selected.selectable === false) {
+      return { status: "no-model", message: selected.unavailableReason ?? s.noModels };
+    }
     return { status: "ready" };
-  }, [loading, missingKey, models.length, modelsError, provider.id, provider.label, providerName, s, selected]);
+  }, [loading, missingKey, models, modelsError, provider.id, provider.label, providerName, s, selected]);
 
   useEffect(() => {
     onReadinessChange?.(readiness);
@@ -150,6 +187,7 @@ export function ModelMenu({
       .then((list) => {
         if (cancelled) return;
         setModels(list);
+        const selectable = list.filter((m) => m.selectable !== false);
         // Auto-selection : si la conversation est deja liee a un modele local,
         // on le reprend (continuite) ; sinon le 1er du catalogue. Aucun modele
         // n'est bloque — les avertissements sont non bloquants.
@@ -157,7 +195,7 @@ export function ModelMenu({
           providerId === "browser" && lockedLocalModel
             ? list.find((m) => m.id === lockedLocalModel)
             : undefined;
-        const target = boundTarget ?? list[0];
+        const target = boundTarget ?? selectable[0] ?? list[0];
         if (target && !list.some((m) => m.id === model)) {
           onChangeProvider(providerId, target.id);
         }
@@ -196,6 +234,34 @@ export function ModelMenu({
   }, [alignPanel, openRequest]);
 
   useEffect(() => {
+    invalidateProviderReachability();
+    let cancelled = false;
+    void getProviderReachability(providerId).then((status) => {
+      if (!cancelled) setReachability((prev) => ({ ...prev, [providerId]: status }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [providerId, keysVersion, reloadRequest]);
+
+  useEffect(() => {
+    if (!open) return;
+    invalidateProviderReachability();
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, ProviderReachability> = {};
+      for (const p of providerList) {
+        if (cancelled) return;
+        next[p.id] = await getProviderReachability(p.id);
+      }
+      if (!cancelled) setReachability(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, keysVersion, providerList]);
+
+  useEffect(() => {
     if (open) {
       setQuery("");
       requestAnimationFrame(() => searchRef.current?.focus());
@@ -216,13 +282,21 @@ export function ModelMenu({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  const modelsWithMobileHints = useMemo(() => {
+    if (providerId !== "browser") return models;
+    return models.map((m) => {
+      const mobileWarn = heavyMobileModelMessage(lang, m.id);
+      return mobileWarn ? { ...m, warning: m.warning ?? mobileWarn } : m;
+    });
+  }, [models, providerId, lang]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return models;
-    return models.filter(
+    if (!q) return modelsWithMobileHints;
+    return modelsWithMobileHints.filter(
       (m) => m.label.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
     );
-  }, [models, query]);
+  }, [modelsWithMobileHints, query]);
 
   function openProvidersPanel() {
     setOpen(false);
@@ -242,10 +316,12 @@ export function ModelMenu({
         data-tour="provider-bar"
         className="flex h-11 min-w-0 max-w-full items-center gap-1.5 rounded-xl px-2.5 text-xs text-foreground transition duration-150 hover:bg-foreground/5 active:scale-95 sm:h-9 sm:max-w-52"
       >
-        {(missingKey || modelsError) && (
+        {(missingKey || modelsError || reachability[providerId] === "unavailable") && (
           <span
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-              modelsError ? "bg-destructive" : "bg-warning"
+              modelsError || reachability[providerId] === "unavailable"
+                ? "bg-destructive"
+                : "bg-warning"
             }`}
           />
         )}
@@ -263,21 +339,21 @@ export function ModelMenu({
             type="button"
             aria-label={s.close}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
+            className="fixed inset-0 z-[120] cursor-default bg-transparent"
           />
           <div
-            className={`modal-in absolute bottom-full z-50 mb-2 flex max-h-[min(70dvh,34rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl ${
+            className={`modal-in absolute bottom-full z-[121] mb-2 flex max-h-[min(70dvh,34rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-card/95 shadow-xl backdrop-blur-xl ${
               alignLeft ? "left-0" : "right-0"
             }`}
           >
             <div className="p-1.5">
-              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="px-2 pb-1 pt-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {s.providerSection}
               </p>
               <div className="grid grid-cols-2 gap-1">
               {providerList.map((p) => {
                 const active = p.id === providerId;
-                const ready = !p.requiresApiKey || Boolean(getApiKey(p.id));
+                const ready = reachability[p.id] === "ready";
                 const off = providerDisabledOnDevice(p.id, lang);
                 return (
                   <button
@@ -305,14 +381,14 @@ export function ModelMenu({
               })}
               </div>
               {providerTagline(providerId, lang) && (
-                <p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground">
+                <p className="px-2 pb-0.5 pt-1.5 text-xs text-muted-foreground">
                   {providerTagline(providerId, lang)}
                 </p>
               )}
             </div>
 
             <div className="border-t border-border p-1.5">
-              <p className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="px-2 pb-1 pt-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {s.modelSection}
               </p>
               {missingKey ? (
@@ -329,9 +405,15 @@ export function ModelMenu({
               ) : loading ? (
                 <p className="px-3 py-3 text-center text-xs text-muted-foreground">{s.loading}</p>
               ) : modelsError ? (
-                <div className="px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex flex-col items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                   <p>{s.providerUnavailable(providerName(provider.id, provider.label))}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">{s.configureKey}</p>
+                  <button
+                    type="button"
+                    onClick={openProvidersPanel}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition hover:bg-foreground/5"
+                  >
+                    {errorActionLabel(provider.id)}
+                  </button>
                 </div>
               ) : models.length === 0 ? (
                 <p className="px-3 py-3 text-center text-xs text-muted-foreground">{s.noModels}</p>
@@ -365,17 +447,22 @@ export function ModelMenu({
                       // changement de modele en cours de conversation liee.
                       const switchWarn = localBound && m.id !== lockedLocalModel;
                       const warn = m.warning ?? (switchWarn ? switchModelWarning(lang) : undefined);
+                      const disabled = m.selectable === false;
                       return (
                       <button
                         key={m.id}
                         type="button"
+                        disabled={disabled}
+                        title={disabled ? (m.unavailableReason ?? m.label) : (warn ?? m.label)}
                         onClick={() => {
+                          if (disabled) return;
                           onChangeProvider(providerId, m.id);
                           setOpen(false);
                         }}
-                        title={warn ?? m.label}
                         className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition duration-150 sm:min-h-0 ${
-                          m.id === model
+                          disabled
+                            ? "cursor-not-allowed text-muted-foreground/50"
+                            : m.id === model
                             ? "bg-accent/15 text-foreground"
                             : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
@@ -386,7 +473,7 @@ export function ModelMenu({
                             ⚠
                           </span>
                         ) : m.downloaded ? (
-                          <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
+                          <span className="shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-xs text-success">
                             ✓ {s.onDevice}
                           </span>
                         ) : null}
@@ -402,7 +489,7 @@ export function ModelMenu({
                       models.find((m) => m.warning)?.warning ??
                       (localBound ? switchModelWarning(lang) : undefined);
                     return note ? (
-                      <p className="flex items-start gap-1 px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground">
+                      <p className="flex items-start gap-1 px-2 pb-0.5 pt-1.5 text-xs text-muted-foreground">
                         <span className="text-warning">⚠</span>
                         <span>{note}</span>
                       </p>

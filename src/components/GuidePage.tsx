@@ -1,5 +1,6 @@
 import { providers } from "@/providers";
 import { PROVIDER_LINKS } from "@/lib/providerLinks";
+import { REPO_URL } from "@/lib/repo";
 import { useLang } from "@/lib/i18n";
 import { IconX } from "@/components/Icons";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
@@ -40,9 +41,12 @@ const STRINGS = {
     privacyText:
       "Conversations et clés restent uniquement dans ce navigateur : les conversations dans IndexedDB, et les clés dans sessionStorage par défaut. Vous pouvez activer leur persistance dans localStorage. Les appels partent directement de votre navigateur vers le fournisseur choisi, avec votre propre clé — sauf OpenAI et Ollama Cloud, qui bloquent les requêtes directes depuis un navigateur (vérifié empiriquement). Pour ces deux-là, un petit proxy stateless et sans log relaie l'appel ; son code est dans ce même dépôt et vérifiable ligne par ligne.",
     limitsTitle: "Limites connues",
+    limitsIntro:
+      "Détail par lot (contournements, pistes) : voir la documentation limites-connues sur le dépôt GitHub.",
+    limitsDoc: "Limites connues (doc complète) ↗",
     limits: [
       "L'OCR (extraction de texte d'image) est 100% local mais conçu pour le texte imprimé — mauvais sur l'écriture manuscrite, quelle que soit la qualité de la photo.",
-      "L'analyse d'image par vision (meilleure sur le manuscrit) n'est câblée que pour Ollama pour l'instant.",
+      "L'analyse d'image (vision) dépend du modèle : Ollama et principaux fournisseurs cloud compatibles ; pas sur WebLLM ni Luciole.",
       "La dictée vocale utilise l'API du navigateur, qui sur Chrome/Edge envoie l'audio aux serveurs de Google — ce n'est pas garanti 100% local.",
     ],
   },
@@ -77,9 +81,12 @@ const STRINGS = {
     privacyText:
       "Conversations and keys stay only in this browser: conversations in IndexedDB, and keys in sessionStorage by default. You can enable their persistence in localStorage. Requests go directly from your browser to your chosen provider, with your own key — except OpenAI and Ollama Cloud, which block direct browser requests (verified empirically). For those two, a small stateless, no-log proxy relays the call; its code lives in this same repository, auditable line by line.",
     limitsTitle: "Known limitations",
+    limitsIntro:
+      "Per-feature limits and workarounds: see the limites-connues documentation on the public GitHub repository.",
+    limitsDoc: "Known limitations (full doc) ↗",
     limits: [
       "OCR (extracting text from images) is 100% local but built for printed text — poor at handwriting, whatever the photo quality.",
-      "Vision image analysis (better on handwriting) is only wired up for Ollama for now.",
+      "Vision image analysis depends on the model: Ollama and major compatible cloud providers; not on WebLLM or Luciole.",
       "Voice dictation uses the browser API, which on Chrome/Edge sends audio to Google's servers — it isn't guaranteed 100% local.",
     ],
   },
@@ -170,6 +177,15 @@ export function GuidePage({ onClose }: GuidePageProps) {
             <li key={limit}>{limit}</li>
           ))}
         </ul>
+        <p className="mb-2 text-sm text-muted-foreground">{s.limitsIntro}</p>
+        <a
+          href={`${REPO_URL}/blob/main/docs/${lang === "fr" ? "limites-connues.md" : "limites-connues.en.md"}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-primary underline underline-offset-2 hover:opacity-90"
+        >
+          {s.limitsDoc}
+        </a>
 
         <div className="mt-5 flex justify-end border-t border-border pt-4">
           <button

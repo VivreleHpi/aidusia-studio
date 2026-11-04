@@ -10,7 +10,7 @@ import {
 
 async function persistedMessageCount(page: import("@playwright/test").Page): Promise<number> {
   return page.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("aidusia-studio", 1);
+    const request = indexedDB.open("aidusia-studio", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const database = request.result;

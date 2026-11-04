@@ -41,6 +41,14 @@ vi.mock("@/hooks/useComparison", async (importOriginal) => ({
 vi.mock("@/hooks/useComparisonSynthesis", () => ({
   useComparisonSynthesis: () => synthesis,
 }));
+vi.mock("@/lib/providerReachability", () => ({
+  invalidateProviderReachability: vi.fn(),
+  getProviderReachability: vi.fn(async () => "ready" as const),
+  resolveComparisonTargets: vi.fn(async () => [
+    { providerId: "ollama", model: "" },
+    { providerId: "browser", model: "" },
+  ]),
+}));
 
 function renderCompare(onUseResult = vi.fn(async () => {})) {
   const props = {

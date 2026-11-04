@@ -13,6 +13,29 @@ export async function prepareApp(page: Page): Promise<void> {
   await expect(page.getByRole("main")).toBeVisible();
 }
 
+/** Visite neuve : onboarding affiché, langue et thème configurables. */
+export async function prepareFreshVisit(
+  page: Page,
+  options: { lang?: "en" | "fr"; queryLang?: "fr" | "en"; theme?: "light" | "dark" } = {},
+): Promise<void> {
+  await page.addInitScript(({ lang, theme }) => {
+    localStorage.removeItem("aidusia_onboarded");
+    localStorage.removeItem("aidusia_lang");
+    if (lang) localStorage.setItem("aidusia_lang", lang);
+    if (theme) localStorage.setItem("aidusia_theme", theme);
+    else localStorage.setItem("aidusia_theme", "light");
+  }, options);
+  const query = options.queryLang ? `?lang=${options.queryLang}` : "";
+  await page.goto(`/${query}`);
+  await expect(page.getByRole("dialog")).toBeVisible();
+}
+
+export async function dismissOnboardingExplore(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /Try without installing anything|Essayer sans rien installer/i }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+}
+
 async function waitForMobileDrawerToSettle(page: Page): Promise<void> {
   const drawer = page.locator("#aidusia-sidebar");
   await expect
@@ -20,20 +43,29 @@ async function waitForMobileDrawerToSettle(page: Page): Promise<void> {
     .toBeGreaterThanOrEqual(-1);
 }
 
-export async function openSettings(page: Page): Promise<Locator> {
-  const settings = page.getByRole("button", { name: "Settings" });
+export async function openMobileMenuIfNeeded(page: Page): Promise<void> {
   const mobileMenu = page.getByRole("button", { name: "Toggle menu" });
-  const closeMenu = page.getByRole("button", { name: "Close menu" });
   if (await mobileMenu.isVisible()) {
     if ((await mobileMenu.getAttribute("aria-expanded")) !== "true") {
       await mobileMenu.click();
     }
-    await expect(closeMenu).toBeVisible();
-    // `toBeVisible` inclut un element encore translate hors ecran. Attendre la
-    // fin reelle des 200 ms evite qu'un clic tres precoce tombe sur le backdrop
-    // et referme le tiroir au lieu d'ouvrir Parametres.
     await waitForMobileDrawerToSettle(page);
   }
+}
+
+export async function openSettings(page: Page): Promise<Locator> {
+  const mobileMenu = page.getByRole("button", { name: "Toggle menu" });
+  const closeMenu = page.getByRole("button", { name: "Close menu" });
+  if (await mobileMenu.isVisible()) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if ((await mobileMenu.getAttribute("aria-expanded")) === "true") break;
+      await mobileMenu.click();
+      await waitForMobileDrawerToSettle(page);
+    }
+    await expect(closeMenu).toBeVisible();
+  }
+  const settings = page.getByRole("button", { name: "Settings" });
+  await expect(settings).toBeVisible({ timeout: 10_000 });
   await settings.click();
   return settings;
 }

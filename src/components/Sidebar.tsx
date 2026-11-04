@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/db";
 import { shortcutLabel } from "@/lib/deviceDetect";
-import { useLang } from "@/lib/i18n";
 import { requestConfirm } from "@/lib/confirm";
+import { exportConversationMarkdown, exportConversationPdf } from "@/lib/conversationExport";
+import { useLang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { PwaStatus } from "@/components/PwaStatus";
 import {
@@ -15,6 +16,7 @@ import {
   IconMoon,
   IconPanelLeft,
   IconPlug,
+  IconShare,
   IconSparkles,
   IconSun,
   IconTrash,
@@ -39,12 +41,16 @@ const FOCUSABLE_SELECTOR = [
 const STRINGS = {
   fr: {
     newConversation: "Nouvelle conversation",
-    searchPlaceholder: "Rechercher une conversation",
+    searchPlaceholder: "Rechercher titre ou message",
     clearSearch: "Effacer la recherche",
     tools: "Outils",
     compareAis: "Comparer les IA",
+    localAiHub: "IA locales",
+    documentsHub: "Documents",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
+    exportMarkdown: "Exporter en Markdown",
+    exportPdf: "Exporter en PDF (impression)",
     deleteTitle: "Supprimer cette conversation ?",
     deleteAction: "Supprimer",
     cancel: "Annuler",
@@ -76,12 +82,16 @@ const STRINGS = {
   },
   en: {
     newConversation: "New conversation",
-    searchPlaceholder: "Search conversations",
+    searchPlaceholder: "Search title or message",
     clearSearch: "Clear search",
     tools: "Tools",
     compareAis: "Compare AIs",
+    localAiHub: "Local AI",
+    documentsHub: "Documents",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
+    exportMarkdown: "Export as Markdown",
+    exportPdf: "Export as PDF (print)",
     deleteTitle: "Delete this conversation?",
     deleteAction: "Delete",
     cancel: "Cancel",
@@ -116,10 +126,12 @@ const STRINGS = {
 interface SidebarProps {
   conversations: Conversation[];
   currentId: string | null;
-  activeView: "chat" | "compare";
+  activeView: "chat" | "compare" | "local-ai" | "documents";
   onSelect: (id: string) => void;
   onCreate: () => void;
   onOpenCompare: () => void;
+  onOpenLocalAiHub: () => void;
+  onOpenDocuments: () => void;
   onDelete: (id: string) => void;
   onOpenAbout: () => void;
   onOpenFaq: () => void;
@@ -133,6 +145,7 @@ interface SidebarProps {
   onClose: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onOpenLegal: (kind: "mentions" | "privacy") => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -200,6 +213,8 @@ export function Sidebar({
   onSelect,
   onCreate,
   onOpenCompare,
+  onOpenLocalAiHub,
+  onOpenDocuments,
   onDelete,
   onOpenAbout,
   onOpenFaq,
@@ -213,6 +228,7 @@ export function Sidebar({
   onClose,
   collapsed,
   onToggleCollapse,
+  onOpenLegal,
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -299,7 +315,10 @@ export function Sidebar({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return conversations;
-    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+    return conversations.filter((c) => {
+      if (c.title.toLowerCase().includes(q)) return true;
+      return c.messages.some((m) => (m.content ?? "").toLowerCase().includes(q));
+    });
   }, [conversations, query]);
 
   const grouped = useMemo(() => groupConversations(filtered), [filtered]);
@@ -316,6 +335,16 @@ export function Sidebar({
 
   function handleOpenCompare() {
     onOpenCompare();
+    onClose();
+  }
+
+  function handleOpenLocalAiHub() {
+    onOpenLocalAiHub();
+    onClose();
+  }
+
+  function handleOpenDocuments() {
+    onOpenDocuments();
     onClose();
   }
 
@@ -453,6 +482,32 @@ export function Sidebar({
             <IconList className="h-4 w-4 shrink-0" />
             <span>{s.compareAis}</span>
           </button>
+          <button
+            type="button"
+            onClick={handleOpenLocalAiHub}
+            aria-current={activeView === "local-ai" ? "page" : undefined}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition ${
+              activeView === "local-ai"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
+            }`}
+          >
+            <IconSparkles className="h-4 w-4 shrink-0" />
+            <span>{s.localAiHub}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenDocuments}
+            aria-current={activeView === "documents" ? "page" : undefined}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition ${
+              activeView === "documents"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
+            }`}
+          >
+            <IconBook className="h-4 w-4 shrink-0" />
+            <span>{s.documentsHub}</span>
+          </button>
         </div>
         {grouped.map(([key, items]) => (
           <div key={key} className="mb-2">
@@ -478,6 +533,24 @@ export function Sidebar({
                   title={c.title}
                 >
                   {c.title}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportConversationMarkdown(c, lang)}
+                  aria-label={s.exportMarkdown}
+                  title={s.exportMarkdown}
+                  className="invisible ml-1 inline-grid min-h-11 min-w-11 place-items-center rounded-md p-1 text-muted-foreground sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-foreground/5 hover:text-foreground group-hover:visible pointer-coarse:visible"
+                >
+                  <IconShare className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportConversationPdf(c, lang)}
+                  aria-label={s.exportPdf}
+                  title={s.exportPdf}
+                  className="invisible ml-1 hidden min-h-11 min-w-11 place-items-center rounded-md p-1 text-xs font-medium text-muted-foreground sm:inline-grid sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-foreground/5 hover:text-foreground group-hover:visible pointer-coarse:visible"
+                >
+                  PDF
                 </button>
                 <button
                   type="button"
@@ -669,13 +742,21 @@ export function Sidebar({
             </button>
           </div>
         </div>
-        <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground">
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
+        <nav className="mt-1.5 flex gap-2.5 px-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => onOpenLegal("mentions")}
+            className="inline-flex min-h-11 items-center underline-offset-2 transition hover:text-foreground hover:underline sm:min-h-0"
+          >
             {s.legalNotice}
-          </a>
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenLegal("privacy")}
+            className="inline-flex min-h-11 items-center underline-offset-2 transition hover:text-foreground hover:underline sm:min-h-0"
+          >
             {s.privacy}
-          </a>
+          </button>
         </nav>
       </div>
       </aside>

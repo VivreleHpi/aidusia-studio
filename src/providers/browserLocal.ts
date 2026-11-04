@@ -2,7 +2,7 @@ import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, Stre
 import { probeWebGpu } from "@/lib/hardwareGovernor";
 import { requestConfirm } from "@/lib/confirm";
 import { isMobile } from "@/lib/deviceDetect";
-import { getStoredLang } from "@/lib/i18n";
+import { getStoredLang, localeOf, type Lang } from "@/lib/i18n";
 import { heavyOnMobileReason } from "@/lib/providerTaglines";
 
 /* IA locale DANS le navigateur (WebGPU, moteur web-llm/MLC) : aucune
@@ -24,26 +24,39 @@ export interface LocalAiProgress {
 // Catalogue prebuilt de web-llm (MLC). Petits modeles quantises q4f16 : choisis
 // pour tenir sur un telephone recent. Libelles construits par langue (le
 // descriptif leger/equilibre/qualite doit s'afficher en anglais en mode EN).
-type Lang = "fr" | "en";
 interface ModelMeta {
   id: string;
   name: string;
   tier: { fr: string; en: string };
-  size: { fr: string; en: string };
 }
 const MODEL_META: ModelMeta[] = [
-  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", name: "Llama 3.2 1B", tier: { fr: "léger", en: "light" }, size: { fr: "~0,7 Go", en: "~0.7 GB" } },
-  { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", name: "Qwen 2.5 1.5B", tier: { fr: "équilibré", en: "balanced" }, size: { fr: "~1 Go", en: "~1 GB" } },
-  { id: "gemma-2-2b-it-q4f16_1-MLC", name: "Gemma 2 2B", tier: { fr: "qualité", en: "quality" }, size: { fr: "~1,4 Go", en: "~1.4 GB" } },
+  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", name: "Llama 3.2 1B", tier: { fr: "léger", en: "light" } },
+  { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", name: "Qwen 2.5 1.5B", tier: { fr: "équilibré", en: "balanced" } },
+  { id: "gemma-2-2b-it-q4f16_1-MLC", name: "Gemma 2 2B", tier: { fr: "qualité", en: "quality" } },
 ];
 
-function modelLabel(meta: ModelMeta, lang: Lang): string {
-  return `${meta.name} — ${meta.tier[lang]} (${meta.size[lang]})`;
+export function formatDownloadSizeGb(gb: number, lang: Lang): string {
+  const formatted = new Intl.NumberFormat(localeOf(lang), { maximumFractionDigits: 1 }).format(gb);
+  return `~${formatted} ${lang === "fr" ? "Go" : "GB"}`;
+}
+
+export function projectedDownloadSizeGb(modelId: string, deviceSupportsF16: boolean): number {
+  const sizes = MODEL_SIZES_GB[modelId];
+  if (!sizes) return 0;
+  return deviceSupportsF16 ? sizes.f16 : sizes.f32;
+}
+
+async function modelLabel(meta: ModelMeta, lang: Lang): Promise<string> {
+  const f16 = await supportsF16();
+  const gb = projectedDownloadSizeGb(meta.id, f16);
+  return `${meta.name} — ${meta.tier[lang]} (${formatDownloadSizeGb(gb, lang)})`;
 }
 
 // Vue "id + libelle localise" pour les consommateurs internes (statut, etc.).
-function localizedModels(lang: Lang): ProviderModel[] {
-  return MODEL_META.map((m) => ({ id: m.id, label: modelLabel(m, lang) }));
+async function localizedModels(lang: Lang): Promise<ProviderModel[]> {
+  return Promise.all(
+    MODEL_META.map(async (m) => ({ id: m.id, label: await modelLabel(m, lang) })),
+  );
 }
 
 // Tailles approximatives du telechargement selon la variante servie a cet
@@ -272,7 +285,7 @@ export async function getLocalModelsStatus(): Promise<LocalModelStatus[]> {
       const variant = hasF16 ? ("f16" as const) : hasF32 ? ("f32" as const) : null;
       return {
         id: m.id,
-        label: modelLabel(m, lang),
+        label: await modelLabel(m, lang),
         cached: hasF16 || hasF32,
         variant,
         sizeGb:
@@ -309,20 +322,25 @@ export const browserLocalProvider: ChatProvider = {
 
   async listModels(): Promise<ProviderModel[]> {
     const lang = getStoredLang();
-    if (!("gpu" in navigator)) throw new Error(webgpuMissingMessage(lang));
+    const probe = await probeWebGpu();
+    const webgpuOk = probe.supported;
+    const unavailableReason =
+      lang === "fr" ? "Non compatible avec ce navigateur" : "Not compatible with this browser";
     // Sur mobile, les modeles plus lourds que le 1B risquent de depasser la
     // memoire GPU du telephone : on ne les BLOQUE PAS (l'utilisateur peut
     // essayer), on l'AVERTIT simplement (triangle ⚠). Retour utilisateur.
     const mobile = isMobile();
     const heavyReason = heavyOnMobileReason(lang);
-    const gate = (m: ProviderModel): ProviderModel =>
-      mobile && m.id !== MODEL_META[0].id ? { ...m, warning: heavyReason } : m;
-    // Le catalogue doit rester instantane : ModelMenu l'appelle au montage et
-    // ne doit donc jamais charger le chunk WebLLM ni sonder Cache Storage. Le
-    // statut telecharge est lu uniquement depuis le gestionnaire explicite via
-    // getLocalModelsStatus(). Le moteur, lui, reste charge a la premiere vraie
-    // generation dans loadEngine().
-    return localizedModels(lang).map(gate);
+    const gate = (m: ProviderModel): ProviderModel => {
+      let out = m;
+      if (mobile && m.id !== MODEL_META[0].id) out = { ...out, warning: heavyReason };
+      if (!webgpuOk) {
+        out = { ...out, selectable: false, unavailableReason };
+      }
+      return out;
+    };
+    // Le catalogue ne charge jamais le chunk WebLLM ni sonde Cache Storage ici.
+    return (await localizedModels(lang)).map(gate);
   },
 
   async testKey(): Promise<KeyTestResult> {
@@ -423,13 +441,13 @@ async function runGeneration(
       eng = await getEngine(params.model);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
+      const summary =
         lang === "fr"
-          ? "Impossible d'initialiser l'IA locale sur cet appareil (téléchargement " +
-              `interrompu, adaptateur WebGPU refusé ou mémoire insuffisante). Détail : ${detail}`
+          ? "Impossible d'initialiser l'IA locale sur cet appareil (téléchargement interrompu, " +
+            "adaptateur WebGPU refusé ou mémoire insuffisante)."
           : "Couldn't initialize on-device AI on this device (interrupted download, " +
-              `WebGPU adapter refused, or insufficient memory). Detail: ${detail}`,
-      );
+            "WebGPU adapter refused, or insufficient memory).";
+      throw new Error(`${summary} Détail : ${detail}`);
     }
 
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];

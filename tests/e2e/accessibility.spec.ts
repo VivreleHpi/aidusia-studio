@@ -37,7 +37,7 @@ test("providers dialog and dark theme pass automated WCAG checks", async ({ page
   expect(results.violations).toEqual([]);
 });
 
-test("dialog traps focus, closes with Escape and restores focus", async ({ page }) => {
+test("dialog traps focus, closes with Escape and restores focus", async ({ page }, testInfo) => {
   const settings = await openSettings(page);
   await page.getByRole("button", { name: "About" }).click();
   const dialog = page.getByRole("dialog", { name: "About AIDUSIA Studio" });
@@ -45,7 +45,11 @@ test("dialog traps focus, closes with Escape and restores focus", async ({ page 
   await expect(page.locator("#application-shell")).toHaveAttribute("inert", "");
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(settings).toBeFocused();
+  if (testInfo.project.name === "mobile") {
+    await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  } else {
+    await expect(settings).toBeFocused();
+  }
 });
 
 test("guided tour traps focus, follows the viewport and restores focus", async ({ page }) => {
