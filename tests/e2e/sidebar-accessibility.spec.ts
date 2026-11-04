@@ -21,7 +21,7 @@ test("mobile drawer exposes its state, traps focus and restores the trigger", as
   await expect(drawer).not.toHaveAttribute("aria-hidden", "true");
 
   await page.keyboard.press("Shift+Tab");
-  await expect(page.getByRole("link", { name: "Privacy" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Privacy" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(close).toBeFocused();
 

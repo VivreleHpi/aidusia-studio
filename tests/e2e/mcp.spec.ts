@@ -38,13 +38,13 @@ test("requires approval for every MCP tool call", async ({ page }, testInfo) => 
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   expect((await getMockStats(page)).mcp.callTool).toBe(0);
   await expect(page.getByText(
-    "L’appel MCP a été refusé. Aucun résultat externe n’a été reçu.",
+    "Action denied by the user or MCP policy. No MCP call was sent.",
   )).toHaveCount(1);
 
   await sendMessage(page, "E2E_TOOL");
   await approval.getByRole("button", { name: "Allow" }).click();
   await expect.poll(async () => (await getMockStats(page)).mcp.callTool).toBe(1);
-  await expect(page.getByText("Le résultat MCP a été reçu.").last()).toBeVisible();
+  await expect(page.getByText(/MCP result was received|résultat MCP a été reçu/i).last()).toBeVisible();
   await page.getByText(/Result from/).last().click();
   await expect(page.getByText("Contenu de la note E2E 42.")).toBeVisible();
 
@@ -55,6 +55,6 @@ test("requires approval for every MCP tool call", async ({ page }, testInfo) => 
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   expect((await getMockStats(page)).mcp.callTool).toBe(1);
   await expect(page.getByText(
-    "L’appel MCP a été refusé. Aucun résultat externe n’a été reçu.",
+    "Action denied by the user or MCP policy. No MCP call was sent.",
   )).toHaveCount(2);
 });

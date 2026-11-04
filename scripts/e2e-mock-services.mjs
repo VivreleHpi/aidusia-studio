@@ -149,10 +149,11 @@ async function handleOllamaChat(request, response) {
   const body = await readJson(request);
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.at(-1)?.role === "tool") {
-    sendToolFollowUp(
-      response,
-      messageText(messages.at(-1)).includes("Aucun appel MCP n'a été envoyé"),
-    );
+    const toolContent = messageText(messages.at(-1));
+    const refused =
+      toolContent.includes("Aucun appel MCP n'a été envoyé") ||
+      toolContent.includes("No MCP call was sent");
+    sendToolFollowUp(response, refused);
     return;
   }
   const prompt = messageText(
