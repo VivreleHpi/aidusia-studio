@@ -11,6 +11,13 @@ import {
 } from "@/lib/rag/store";
 import type { RagDocument, RagSpace } from "@/lib/rag/types";
 import { setDefaultRagSpaceId } from "@/lib/rag/conversationLink";
+import {
+  downloadRagBlob,
+  exportRagArchiveEncrypted,
+  exportRagArchivePlain,
+  importRagArchiveFromEncrypted,
+  importRagArchiveFromPlain,
+} from "@/lib/rag/backup";
 
 const STRINGS = {
   fr: {
@@ -30,6 +37,12 @@ const STRINGS = {
     empty: "Aucun espace. Créez-en un pour commencer.",
     busy: "Indexation en cours…",
     openDocs: "Voir la doc RAG",
+    exportRag: "Exporter l'espace (JSON)",
+    exportRagEncrypted: "Exporter chiffré",
+    importRag: "Restaurer une sauvegarde",
+    importReplace: "Remplacer tous les espaces RAG existants",
+    passphraseExport: "Phrase secrète pour chiffrer l'export RAG :",
+    passphraseImport: "Phrase secrète de la sauvegarde RAG :",
   },
   en: {
     title: "Document spaces",
@@ -48,6 +61,12 @@ const STRINGS = {
     empty: "No spaces yet. Create one to get started.",
     busy: "Indexing…",
     openDocs: "Read RAG docs",
+    exportRag: "Export space (JSON)",
+    exportRagEncrypted: "Export encrypted",
+    importRag: "Restore backup",
+    importReplace: "Replace all existing RAG spaces",
+    passphraseExport: "Passphrase to encrypt RAG export:",
+    passphraseImport: "Passphrase for RAG backup:",
   },
 } as const;
 
@@ -65,6 +84,8 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+  const [replaceOnImport, setReplaceOnImport] = useState(false);
 
   const refreshSpaces = useCallback(async () => {
     const list = await listRagSpaces();
@@ -230,6 +251,80 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
               </ul>
             </>
           ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs hover:bg-muted/30"
+              onClick={() =>
+                void exportRagArchivePlain().then((blob) =>
+                  downloadRagBlob(blob, `aidusia-rag-${Date.now()}.json`),
+                )
+              }
+            >
+              {s.exportRag}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs hover:bg-muted/30"
+              onClick={() => {
+                const pass = window.prompt(s.passphraseExport);
+                if (!pass) return;
+                void exportRagArchiveEncrypted(pass).then((blob) =>
+                  downloadRagBlob(blob, `aidusia-rag-${Date.now()}.encrypted.json`),
+                );
+              }}
+            >
+              {s.exportRagEncrypted}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs hover:bg-muted/30"
+              onClick={() => importRef.current?.click()}
+            >
+              {s.importRag}
+            </button>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={replaceOnImport}
+                onChange={(e) => setReplaceOnImport(e.target.checked)}
+              />
+              {s.importReplace}
+            </label>
+            <input
+              ref={importRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const content = await file.text();
+                    const replay = new File([content], file.name, { type: file.type });
+                    const parsed = JSON.parse(content) as { kind?: string };
+                    if (parsed.kind === "aidusia-rag") {
+                      const pass = window.prompt(s.passphraseImport);
+                      if (!pass) return;
+                      await importRagArchiveFromEncrypted(replay, pass, replaceOnImport);
+                    } else {
+                      await importRagArchiveFromPlain(replay, replaceOnImport);
+                    }
+                    await refreshSpaces();
+                    if (selectedId) await refreshDocs(selectedId);
+                    setStatus(lang === "fr" ? "Sauvegarde restaurée." : "Backup restored.");
+                  } catch (err) {
+                    setStatus(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            />
+          </div>
           <a
             href="https://github.com/VivreleHpi/aidusia-studio/blob/main/docs/rag.md"
             className="text-xs text-primary hover:underline"

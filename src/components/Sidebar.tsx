@@ -545,7 +545,7 @@ export function Sidebar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => exportConversationPdf(c, lang)}
+                  onClick={() => void exportConversationPdf(c, lang)}
                   aria-label={s.exportPdf}
                   title={s.exportPdf}
                   className="invisible ml-1 hidden min-h-11 min-w-11 place-items-center rounded-md p-1 text-xs font-medium text-muted-foreground sm:inline-grid sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-foreground/5 hover:text-foreground group-hover:visible pointer-coarse:visible"
