@@ -1,5 +1,6 @@
 import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
 // API compatible OpenAI. Contrairement a OpenAI et Ollama Cloud, Groq renvoie
@@ -35,7 +36,7 @@ export const groqProvider: ChatProvider = {
     const data = (await response.json()) as { data: GroqModel[] };
     return data.data
       .filter((m) => !NON_CHAT_PATTERNS.some((p) => m.id.toLowerCase().includes(p)))
-      .map((m) => ({ id: m.id, label: m.id }));
+      .map((m) => ({ id: m.id, label: m.id, visionCapable: inferVisionCapable(m.id) }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

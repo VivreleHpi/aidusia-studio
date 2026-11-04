@@ -1,5 +1,6 @@
 import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
 /* Fournisseurs personnalisés « compatibles OpenAI » : l'utilisateur fournit un
@@ -145,7 +146,7 @@ export function createCustomProvider(config: CustomProviderConfig): ChatProvider
       if (!Array.isArray(data.data)) return [];
       return data.data
         .filter((m): m is { id: string } => typeof m?.id === "string")
-        .map((m) => ({ id: m.id, label: m.id }));
+        .map((m) => ({ id: m.id, label: m.id, visionCapable: inferVisionCapable(m.id) }));
     },
 
     async testKey(apiKey: string): Promise<KeyTestResult> {

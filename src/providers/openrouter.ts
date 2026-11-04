@@ -1,5 +1,6 @@
 import { missingKeyError } from "./types";
 import type { ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
+import { inferVisionCapable } from "@/lib/visionPayload";
 import { buildOpenAiCompatibleBody, readOpenAiCompatibleStream } from "./openaiCompatibleStream";
 
 const API_BASE = "https://openrouter.ai/api/v1";
@@ -21,7 +22,11 @@ export const openrouterProvider: ChatProvider = {
     const response = await fetch(`${API_BASE}/models`);
     if (!response.ok) throw new Error(`OpenRouter a repondu ${response.status}`);
     const data = (await response.json()) as { data: OpenRouterModel[] };
-    return data.data.map((m) => ({ id: m.id, label: m.name }));
+    return data.data.map((m) => ({
+      id: m.id,
+      label: m.name,
+      visionCapable: inferVisionCapable(m.id),
+    }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {
