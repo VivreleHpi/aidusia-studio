@@ -3,8 +3,8 @@ export type ChatRole = "user" | "assistant" | "system" | "tool";
 export interface ChatMessage {
   role: ChatRole;
   content: string;
-  // Base64 brut (sans prefixe data:), pour les modeles vision. Support
-  // actuel : Ollama uniquement (verifie) - voir README pour le perimetre.
+  // Base64 brut (sans prefixe data:), pour les modeles vision (Ollama,
+  // OpenAI-compatible, Anthropic, Gemini selon le modele).
   images?: string[];
   // Present uniquement sur role "tool" : resultat d'un appel d'outil MCP,
   // associe a l'appel qui l'a declenche (voir useChat.ts).

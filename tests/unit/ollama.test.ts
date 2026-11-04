@@ -88,6 +88,7 @@ describe("Ollama provider", () => {
       {
         id: "qwen2.5:1.5b",
         label: "qwen2.5:1.5b",
+        visionCapable: false,
       },
     ]);
 

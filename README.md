@@ -50,7 +50,7 @@ Légende : ✅ livré · 🧪 livré, expérimental · ❌ non disponible
 | OpenAI | ✅ | Via le proxy Edge `/api/openai/`, puis OpenAI |
 | Ollama Cloud | ✅ | Via le proxy Edge `/api/ollama-cloud/`, puis Ollama Cloud |
 | OCR Tesseract | ✅ | Traitement local dans le navigateur |
-| Analyse d'image | ✅ (Ollama vision) | Image envoyée à l'instance Ollama configurée |
+| Analyse d'image | ✅ (modèles vision Ollama, OpenAI, Anthropic, Gemini, compatible OpenAI…) | Image encodée dans la requête vers le fournisseur choisi |
 | Dictée Web Speech | ✅ (si le navigateur la prend en charge) | Peut utiliser le service distant du navigateur/OS |
 | Connecteurs MCP HTTP | 🧪 | Requêtes vers les serveurs MCP configurés |
 | Comparaison et synthèse de deux modèles | ✅ | Question envoyée séparément aux deux modèles ; la synthèse renvoie aussi leurs deux réponses au modèle choisi |
@@ -76,7 +76,7 @@ Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, an
 
 ## Connecteurs MCP : avertissement de sécurité
 
-Les serveurs MCP ajoutent des outils qu'un modèle peut appeler pendant une conversation. **N'ajoutez que des serveurs de confiance, avec des comptes de test et les privilèges minimaux.** Leurs définitions d'outils sont transmises au modèle choisi. Avant chaque appel, une confirmation affiche le serveur, l'outil, une estimation heuristique du risque et un aperçu expurgé des arguments ; le résultat autorisé est ensuite renvoyé au modèle. Refuser n'envoie aucun appel d'outil.
+Les serveurs MCP ajoutent des outils qu'un modèle peut appeler pendant une conversation. **N'ajoutez que des serveurs de confiance, avec des comptes de test et les privilèges minimaux.** Leurs définitions d'outils sont transmises au modèle choisi. Avant chaque appel, une confirmation affiche le serveur, l'outil, une estimation heuristique du risque et un aperçu expurgé des arguments (sauf politique « autoriser » par outil) ; le résultat autorisé est ensuite renvoyé au modèle. Un **journal local** et des **politiques par outil** sont disponibles dans Connecteurs MCP. Pont stdio → HTTP : [docs/mcp-stdio-bridge.md](./docs/mcp-stdio-bridge.md).
 
 Les métadonnées des connecteurs sont conservées localement. Les headers et jetons MCP sont conservés uniquement dans `sessionStorage` et disparaissent à la fermeture complète de la session du navigateur. Le connecteur devra alors être reconnecté.
 

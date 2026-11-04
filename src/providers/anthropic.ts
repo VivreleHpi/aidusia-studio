@@ -1,3 +1,4 @@
+import { anthropicUserContent, inferVisionCapable } from "@/lib/visionPayload";
 import { missingKeyError } from "./types";
 import type { ChatMessage, ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 
@@ -25,6 +26,9 @@ function toAnthropicMessages(messages: ChatMessage[]) {
             ...m.toolCalls.map((tc) => ({ type: "tool_use", id: tc.id, name: tc.name, input: tc.args })),
           ],
         };
+      }
+      if (m.role === "user") {
+        return { role: "user", content: anthropicUserContent(m) };
       }
       return { role: m.role, content: m.content };
     });
@@ -57,7 +61,11 @@ export const anthropicProvider: ChatProvider = {
     const response = await fetch(`${API_BASE}/models`, { headers: headers(apiKey) });
     if (!response.ok) throw new Error(`Anthropic a repondu ${response.status}`);
     const data = (await response.json()) as { data: AnthropicModel[] };
-    return data.data.map((m) => ({ id: m.id, label: m.display_name }));
+    return data.data.map((m) => ({
+      id: m.id,
+      label: m.display_name,
+      visionCapable: inferVisionCapable(m.id),
+    }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

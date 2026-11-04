@@ -1,3 +1,4 @@
+import { geminiParts, inferVisionCapable } from "@/lib/visionPayload";
 import { missingKeyError } from "./types";
 import type { ChatMessage, ChatProvider, ChatStreamParams, KeyTestResult, ProviderModel, StreamChunk } from "./types";
 
@@ -27,6 +28,9 @@ function toGeminiContents(messages: ChatMessage[]) {
           parts: m.toolCalls.map((tc) => ({ functionCall: { name: tc.name, args: tc.args } })),
         };
       }
+      if (m.role === "user" && m.images?.length) {
+        return { role: "user", parts: geminiParts(m) };
+      }
       return {
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
@@ -54,7 +58,11 @@ export const geminiProvider: ChatProvider = {
     const data = (await response.json()) as { models: GeminiModel[] };
     return data.models
       .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-      .map((m) => ({ id: m.name.replace(/^models\//, ""), label: m.displayName }));
+      .map((m) => ({
+        id: m.name.replace(/^models\//, ""),
+        label: m.displayName,
+        visionCapable: inferVisionCapable(m.name),
+      }));
   },
 
   async testKey(apiKey: string): Promise<KeyTestResult> {

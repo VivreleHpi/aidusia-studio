@@ -50,7 +50,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 | OpenAI | ✅ | Through `/api/openai/`, then OpenAI |
 | Ollama Cloud | ✅ | Through `/api/ollama-cloud/`, then Ollama Cloud |
 | Tesseract OCR | ✅ | Local browser processing |
-| Image analysis | ✅ (vision-capable Ollama) | Image sent to the configured Ollama instance |
+| Image analysis | ✅ (vision models: Ollama, OpenAI, Anthropic, Gemini, OpenAI-compatible…) | Image encoded in the request to the chosen provider |
 | Web Speech dictation | ✅ (when supported by the browser) | May use a remote browser/OS speech service |
 | HTTP MCP connectors | 🧪 | Requests to configured MCP servers |
 | Two-model comparison and synthesis | ✅ | Question sent separately to both models; synthesis also sends both answers to the selected model |
@@ -76,7 +76,7 @@ When you send a message to a cloud provider, use dictation, analyze an image wit
 
 ## MCP connectors: security warning
 
-MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Their tool definitions are sent to the chosen model. Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview; an approved result is then sent back to the model. Declining sends no tool call.
+MCP servers add tools that a model can call during a conversation. **Only add trusted servers, using test accounts and least privilege.** Their tool definitions are sent to the chosen model. Before every call, a confirmation shows the server, tool, a heuristic risk estimate, and a redacted argument preview (unless the tool policy is set to allow); an approved result is then sent back to the model. A **local journal** and **per-tool policies** are available in MCP Connectors. stdio → HTTP bridge: [docs/mcp-stdio-bridge.md](./docs/mcp-stdio-bridge.md).
 
 <details>
 <summary>Why the caution, and what the confirmation does not guarantee</summary>
