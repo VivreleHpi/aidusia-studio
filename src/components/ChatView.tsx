@@ -26,6 +26,7 @@ import {
 } from "@/lib/chatDrafts";
 import { splitUserFacingError } from "@/lib/chatErrorDisplay";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
+import { MobileLocalPathBanner } from "@/components/MobileLocalPathBanner";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
 import { REPO_URL } from "@/lib/repo";
@@ -1009,6 +1010,8 @@ export function ChatView({
               </button>
             </div>
           )}
+
+          <MobileLocalPathBanner providerId={providerId} onOpenProviders={onOpenProviders} />
 
           <div className="glass flex flex-col rounded-2xl p-2 shadow-lg shadow-black/5 transition duration-150 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/40">
             <textarea
