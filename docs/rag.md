@@ -30,3 +30,15 @@ Le prompt systeme demande au modele de citer `[1]`, `[2]`, etc. Les sources util
 - Lien conversation ↔ espace : champ `ragSpaceId` + cle localStorage de secours.
 
 Voir [PRIVACY.md](../PRIVACY.md) : les documents restent sur l'appareil ; seuls les extraits retenus sont envoyes au fournisseur choisi avec le message.
+
+## Limites connues
+
+| Limite | Contournement / piste |
+|--------|------------------------|
+| PDF **scanné** sans couche texte | OCR via le bouton image du composeur, ou retraiter le PDF en amont. |
+| Embeddings **hash** si `@xenova/transformers` ne charge pas | Réessayer après connexion stable ; le mode hash reste cohérent mais moins précis. |
+| Indexation UI peut utiliser hash, retrieval chat **transformers** par défaut | Réimporter après chargement du modèle d’embedding si besoin d’uniformité. |
+| Export **Données** (`userData`) sans chunks RAG IndexedDB | Réimporter les fichiers sources ; pas de sauvegarde RAG complète dans l’export JSON global aujourd’hui. |
+| Pas de RAG sur plusieurs espaces simultanés par message | Un seul espace actif par conversation (sélecteur du composeur). |
+
+Regroupement : [limites-connues.md](./limites-connues.md).

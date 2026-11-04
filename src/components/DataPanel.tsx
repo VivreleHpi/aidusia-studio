@@ -13,7 +13,7 @@ const STRINGS = {
       "Exportez vos conversations et préférences, ou supprimez toutes les données AIDUSIA de ce navigateur.",
     exportTitle: "Export local",
     exportBody:
-      "Le fichier JSON contient conversations, brouillons, préférences et serveurs MCP sans valeurs de headers. Les clés API restent exclues; utilisez l'export chiffré dans Fournisseurs.",
+      "Le fichier JSON contient conversations, brouillons, préférences (dont politiques MCP) et serveurs MCP sans valeurs de headers. Les clés API et l’index RAG (chunks IndexedDB) restent exclus ; utilisez l’export chiffré dans Fournisseurs pour les clés.",
     exportButton: "Exporter mes données",
     deleteTitle: "Suppression complète",
     deleteBody:
@@ -33,7 +33,7 @@ const STRINGS = {
       "Export your conversations and preferences, or delete all AIDUSIA data from this browser.",
     exportTitle: "Local export",
     exportBody:
-      "The JSON file contains conversations, drafts, preferences and MCP servers without header values. API keys are excluded; use the encrypted export in Providers.",
+      "The JSON file contains conversations, drafts, preferences (including MCP policies) and MCP servers without header values. API keys and the RAG index (IndexedDB chunks) are excluded; use the encrypted export in Providers for keys.",
     exportButton: "Export my data",
     deleteTitle: "Full deletion",
     deleteBody:

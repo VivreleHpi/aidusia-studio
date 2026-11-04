@@ -76,3 +76,15 @@ Token utilisé : `GITHUB_TOKEN` (fourni par Actions). Aucun secret supplémentai
 
 Les entrées peuvent porter un objet optionnel `sync` (horodatage, source) — ignoré par l’app, utile pour la revue des PR auto.
 
+## Limites connues
+
+| Limite | Contournement / piste |
+|--------|------------------------|
+| Tailles et compatibilité **indicatives** | Vérifier dans Fournisseurs / hub après téléchargement réel. |
+| Sync CI **ne crée pas** de nouvelles entrées WebLLM par défaut | Éditer `config.mjs` (`autoAddInstructQ4f16`) ou ajouter manuellement dans le JSON. |
+| Champs manuels (`compatibility`, `ramGbMin`, …) **préservés** | Mettre à jour la doc produit si vous changez les seuils à la main. |
+| PR hebdo **dépend** des permissions GitHub Actions | Activer « Allow GitHub Actions to create pull requests » (voir ci-dessus). |
+| API Ollama/HF **hors ligne** = sync en échec | Relancer `npm run sync:local-ai-catalog` plus tard ou PR manuelle. |
+
+Regroupement : [limites-connues.md](./limites-connues.md).
+

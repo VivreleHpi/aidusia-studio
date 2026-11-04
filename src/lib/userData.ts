@@ -69,6 +69,7 @@ export async function exportUserData(): Promise<Blob> {
     exportedAt: new Date().toISOString(),
     notes: [
       "This archive excludes API keys and MCP header values.",
+      "RAG document chunks (IndexedDB) are not included — re-import source files in Documents.",
       "Use Providers > Export for encrypted provider secrets.",
     ],
     conversations: await listConversations(),

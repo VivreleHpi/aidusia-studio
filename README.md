@@ -98,11 +98,13 @@ Le code du dépôt ne persiste ni ne journalise ces données, mais cela ne garan
 
 ## Limites connues
 
+Récapitulatif par lot (RAG, mobile, export, MCP, API locale, vision, catalogue) avec contournements : **[docs/limites-connues.md](./docs/limites-connues.md)** ([EN](./docs/limites-connues.en.md)).
+
 - L'IA locale navigateur peut télécharger plusieurs centaines de mégaoctets ou davantage et échouer sur un appareil peu puissant.
 - Tesseract est adapté au texte imprimé ; ses résultats sur l'écriture manuscrite sont généralement faibles.
-- L'analyse d'image n'est actuellement câblée que pour Ollama.
+- L'analyse d'image dépend du **modèle et du fournisseur** (vision cloud/Ollama ; pas WebLLM/Luciole) — voir [docs/vision-multimodal.md](./docs/vision-multimodal.md).
 - Il n'existe ni synchronisation multi-appareil, ni compte, ni support commercial garanti.
-- MCP doit être considéré comme expérimental : la confirmation par action existe, mais la classification du risque reste heuristique et aucune politique de permissions persistante et fine n'est fournie.
+- MCP reste expérimental : politiques par outil et journal local existent, mais la classification du risque reste heuristique.
 
 ## Qualité et contribution
 

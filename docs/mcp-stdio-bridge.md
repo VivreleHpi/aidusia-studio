@@ -31,7 +31,14 @@ AIDUSIA ne lance **pas** de processus `stdio` dans le navigateur. Les connecteur
 - Chaque appel d'outil reste soumis à la **confirmation** utilisateur (sauf politique « autoriser » explicite).
 - Consultez le **journal MCP** local pour auditer les décisions.
 
-## Limites
+## Limites connues
 
-- Pas de support stdio natif prévu dans l'app.
-- CORS : le pont doit renvoyer les en-têtes adaptés à l'origine du Studio (local ou domaine déployé).
+| Limite | Contournement / piste |
+|--------|------------------------|
+| **Pas de stdio natif** dans le navigateur | Pont HTTP local (voir ci-dessus) ou serveur MCP distant CORS. |
+| **CORS** obligatoire sur le pont ou le serveur distant | Configurer `Access-Control-Allow-Origin` pour votre origine Studio. |
+| Politiques / journal MCP dans `localStorage` (`aidusia_*`) | Inclus dans l’export **Données** ; pas dans l’export chiffré Fournisseurs seul. |
+| Jetons MCP **session** non exportés dans `userData` | Reconnecter les connecteurs après migration. |
+| Classification de risque **heuristique** | Politique « Refuser » par défaut sur outils sensibles ; journal pour audit. |
+
+Regroupement : [limites-connues.md](./limites-connues.md).

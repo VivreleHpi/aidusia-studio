@@ -12,3 +12,14 @@ Voir aussi [ia-locale-mobile.md](./ia-locale-mobile.md) pour le contexte produit
 
 - Parcours mobile E2E : `tests/e2e/mobile.spec.ts`
 - Heuristiques unitaires : `tests/unit/mobileLocalPath.test.ts`
+
+## Limites connues
+
+| Limite | Contournement / piste |
+|--------|------------------------|
+| Détection **mobile** et WebGPU dépend du navigateur | Tester sur l’appareil réel ; utiliser Luciole ou Ollama sur le réseau local (voir [ia-locale-mobile.md](./ia-locale-mobile.md)). |
+| Avertissement modèle **lourd** = heuristique (ex. 3B, 7B) | Choisir un modèle ≤2B recommandé ou passer par le cloud. |
+| WebLLM **désactivé** sans adaptateur WebGPU | Luciole 1B (~1 Go) ou clé API cloud. |
+| Perf/batterie non garanties | Wi‑Fi pour les téléchargements ; réponses courtes par défaut. |
+
+Regroupement : [limites-connues.md](./limites-connues.md).

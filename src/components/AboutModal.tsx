@@ -1,4 +1,5 @@
 import { IconBook, IconEyeOff, IconKey, IconLock, IconX } from "@/components/Icons";
+import { REPO_URL } from "@/lib/repo";
 import { useLang } from "@/lib/i18n";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 
@@ -37,6 +38,7 @@ const STRINGS = {
     disclaimer:
       "Ce Studio n'est pas le produit complet AIDUSIA : c'est une brique isolée, volontairement minimale, pensée pour être testée et vérifiée par n'importe qui.",
     start: "Commencer",
+    limitsLink: "Limites connues ↗",
   },
   en: {
     dialogLabel: "About AIDUSIA Studio",
@@ -67,6 +69,7 @@ const STRINGS = {
     disclaimer:
       "This Studio is not the complete AIDUSIA product: it's a single, deliberately minimal piece, built to be tested and verified by anyone.",
     start: "Get started",
+    limitsLink: "Known limitations ↗",
   },
 } as const;
 
@@ -133,7 +136,15 @@ export function AboutModal({ onClose, onOpenLegal }: AboutModalProps) {
         </div>
 
         <div className="mt-5 flex justify-between items-center border-t border-border pt-4">
-          <nav className="flex gap-3 text-xs text-muted-foreground">
+          <nav className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <a
+              href={`${REPO_URL}/blob/main/docs/${lang === "fr" ? "limites-connues.md" : "limites-connues.en.md"}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              {s.limitsLink}
+            </a>
             <button
               type="button"
               onClick={() => onOpenLegal("mentions")}

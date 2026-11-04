@@ -96,11 +96,13 @@ The repository code does not persist or log this data, but that alone cannot gua
 
 ## Known limitations
 
+Full list by feature lot (RAG, mobile, export, MCP, local API, vision, catalog) with workarounds: **[docs/limites-connues.en.md](./docs/limites-connues.en.md)** ([FR](./docs/limites-connues.md)).
+
 - In-browser AI may download hundreds of megabytes or more and can fail on resource-constrained devices.
 - Tesseract targets printed text and generally performs poorly on handwriting.
-- Image analysis is currently wired only for Ollama.
+- Image analysis depends on the **model and provider** (cloud/Ollama vision; not WebLLM/Luciole) — see [docs/vision-multimodal.md](./docs/vision-multimodal.md).
 - There is no multi-device synchronization, account, or guaranteed commercial support.
-- MCP should be treated as experimental: per-action confirmation exists, but risk classification is heuristic and there is no fine-grained persistent permission policy.
+- MCP remains experimental: per-tool policies and a local journal exist, but risk classification is still heuristic.
 
 ## Quality and contributing
 
