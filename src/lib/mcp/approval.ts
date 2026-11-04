@@ -1,4 +1,8 @@
 import { requestConfirm } from "@/lib/confirm";
+import {
+  appendMcpJournal,
+  getMcpToolPolicy,
+} from "@/lib/mcp/policies";
 import type { McpServer, McpToolRisk } from "./types";
 
 const SENSITIVE_KEY = /authorization|cookie|credential|password|secret|token|api[-_]?key/i;
@@ -43,6 +47,37 @@ function argsPreview(args: unknown): string {
 // pour un outil au nom apparemment inoffensif : son serveur reste externe et
 // peut avoir des effets que son nom/sa description ne révèlent pas.
 export async function requestToolApproval(request: McpApprovalRequest): Promise<boolean> {
+  const decision = await resolveMcpToolApproval(request);
+  return decision === "allowed";
+}
+
+export type McpToolDecision = "allowed" | "denied" | "blocked";
+
+export async function resolveMcpToolApproval(request: McpApprovalRequest): Promise<McpToolDecision> {
+  const policy = getMcpToolPolicy(request.server.id, request.toolName);
+  const preview = argsPreview(request.args).slice(0, 500);
+  const journalBase = {
+    at: Date.now(),
+    serverName: request.server.name,
+    toolName: request.toolName,
+    preview,
+  };
+
+  if (policy === "deny") {
+    appendMcpJournal({ ...journalBase, decision: "blocked" });
+    return "blocked";
+  }
+  if (policy === "allow") {
+    appendMcpJournal({ ...journalBase, decision: "allowed" });
+    return "allowed";
+  }
+
+  const ok = await requestToolApprovalInternal(request);
+  appendMcpJournal({ ...journalBase, decision: ok ? "allowed" : "denied" });
+  return ok ? "allowed" : "denied";
+}
+
+async function requestToolApprovalInternal(request: McpApprovalRequest): Promise<boolean> {
   const risk = classifyToolRisk(request.toolName);
   const details = argsPreview(request.args);
   const fr = request.lang === "fr";
