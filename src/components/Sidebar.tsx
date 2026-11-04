@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/db";
 import { shortcutLabel } from "@/lib/deviceDetect";
-import { useLang } from "@/lib/i18n";
 import { requestConfirm } from "@/lib/confirm";
+import { exportConversationMarkdown, exportConversationPdf } from "@/lib/conversationExport";
+import { useLang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { PwaStatus } from "@/components/PwaStatus";
 import {
@@ -15,6 +16,7 @@ import {
   IconMoon,
   IconPanelLeft,
   IconPlug,
+  IconShare,
   IconSparkles,
   IconSun,
   IconTrash,
@@ -39,7 +41,7 @@ const FOCUSABLE_SELECTOR = [
 const STRINGS = {
   fr: {
     newConversation: "Nouvelle conversation",
-    searchPlaceholder: "Rechercher une conversation",
+    searchPlaceholder: "Rechercher titre ou message",
     clearSearch: "Effacer la recherche",
     tools: "Outils",
     compareAis: "Comparer les IA",
@@ -47,6 +49,8 @@ const STRINGS = {
     documentsHub: "Documents",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
+    exportMarkdown: "Exporter en Markdown",
+    exportPdf: "Exporter en PDF (impression)",
     deleteTitle: "Supprimer cette conversation ?",
     deleteAction: "Supprimer",
     cancel: "Annuler",
@@ -78,7 +82,7 @@ const STRINGS = {
   },
   en: {
     newConversation: "New conversation",
-    searchPlaceholder: "Search conversations",
+    searchPlaceholder: "Search title or message",
     clearSearch: "Clear search",
     tools: "Tools",
     compareAis: "Compare AIs",
@@ -86,6 +90,8 @@ const STRINGS = {
     documentsHub: "Documents",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
+    exportMarkdown: "Export as Markdown",
+    exportPdf: "Export as PDF (print)",
     deleteTitle: "Delete this conversation?",
     deleteAction: "Delete",
     cancel: "Cancel",
@@ -309,7 +315,10 @@ export function Sidebar({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return conversations;
-    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+    return conversations.filter((c) => {
+      if (c.title.toLowerCase().includes(q)) return true;
+      return c.messages.some((m) => (m.content ?? "").toLowerCase().includes(q));
+    });
   }, [conversations, query]);
 
   const grouped = useMemo(() => groupConversations(filtered), [filtered]);
@@ -524,6 +533,24 @@ export function Sidebar({
                   title={c.title}
                 >
                   {c.title}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportConversationMarkdown(c, lang)}
+                  aria-label={s.exportMarkdown}
+                  title={s.exportMarkdown}
+                  className="invisible ml-1 inline-grid min-h-11 min-w-11 place-items-center rounded-md p-1 text-muted-foreground sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-foreground/5 hover:text-foreground group-hover:visible pointer-coarse:visible"
+                >
+                  <IconShare className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportConversationPdf(c, lang)}
+                  aria-label={s.exportPdf}
+                  title={s.exportPdf}
+                  className="invisible ml-1 hidden min-h-11 min-w-11 place-items-center rounded-md p-1 text-xs font-medium text-muted-foreground sm:inline-grid sm:min-h-0 sm:min-w-0 transition duration-150 hover:bg-foreground/5 hover:text-foreground group-hover:visible pointer-coarse:visible"
+                >
+                  PDF
                 </button>
                 <button
                   type="button"
