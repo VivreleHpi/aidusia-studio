@@ -44,6 +44,7 @@ const STRINGS = {
     tools: "Outils",
     compareAis: "Comparer les IA",
     localAiHub: "IA locales",
+    documentsHub: "Documents",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
     deleteTitle: "Supprimer cette conversation ?",
@@ -82,6 +83,7 @@ const STRINGS = {
     tools: "Tools",
     compareAis: "Compare AIs",
     localAiHub: "Local AI",
+    documentsHub: "Documents",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
     deleteTitle: "Delete this conversation?",
@@ -118,11 +120,12 @@ const STRINGS = {
 interface SidebarProps {
   conversations: Conversation[];
   currentId: string | null;
-  activeView: "chat" | "compare" | "local-ai";
+  activeView: "chat" | "compare" | "local-ai" | "documents";
   onSelect: (id: string) => void;
   onCreate: () => void;
   onOpenCompare: () => void;
   onOpenLocalAiHub: () => void;
+  onOpenDocuments: () => void;
   onDelete: (id: string) => void;
   onOpenAbout: () => void;
   onOpenFaq: () => void;
@@ -205,6 +208,7 @@ export function Sidebar({
   onCreate,
   onOpenCompare,
   onOpenLocalAiHub,
+  onOpenDocuments,
   onDelete,
   onOpenAbout,
   onOpenFaq,
@@ -327,6 +331,11 @@ export function Sidebar({
 
   function handleOpenLocalAiHub() {
     onOpenLocalAiHub();
+    onClose();
+  }
+
+  function handleOpenDocuments() {
+    onOpenDocuments();
     onClose();
   }
 
@@ -476,6 +485,19 @@ export function Sidebar({
           >
             <IconSparkles className="h-4 w-4 shrink-0" />
             <span>{s.localAiHub}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenDocuments}
+            aria-current={activeView === "documents" ? "page" : undefined}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition ${
+              activeView === "documents"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
+            }`}
+          >
+            <IconBook className="h-4 w-4 shrink-0" />
+            <span>{s.documentsHub}</span>
           </button>
         </div>
         {grouped.map(([key, items]) => (

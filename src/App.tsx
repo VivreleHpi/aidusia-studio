@@ -25,7 +25,8 @@ import { useChat } from "@/hooks/useChat";
 import type { ComparisonResult } from "@/hooks/useComparison";
 import { createConversationFromComparison } from "@/lib/comparisonConversation";
 import { clearChatDrafts } from "@/lib/chatDrafts";
-import { getConversation, purgeAll, type Conversation } from "@/lib/db";
+import { getConversation, purgeAll, saveConversation, type Conversation } from "@/lib/db";
+import { setConversationRagSpaceId } from "@/lib/rag/conversationLink";
 
 const ProvidersPanel = lazy(() =>
   import("@/components/ProvidersPanel").then((module) => ({ default: module.ProvidersPanel })),
@@ -57,11 +58,14 @@ const CompareView = lazy(() =>
 const LocalAiHubView = lazy(() =>
   import("@/components/LocalAiHubView").then((module) => ({ default: module.LocalAiHubView })),
 );
+const DocumentsView = lazy(() =>
+  import("@/components/DocumentsView").then((module) => ({ default: module.DocumentsView })),
+);
 const LegalDocModal = lazy(() =>
   import("@/components/LegalDocModal").then((module) => ({ default: module.LegalDocModal })),
 );
 
-type WorkspaceView = "chat" | "compare" | "local-ai";
+type WorkspaceView = "chat" | "compare" | "local-ai" | "documents";
 
 interface ActiveChatRun {
   conversationId: string;
@@ -88,6 +92,7 @@ const STRINGS = {
     retry: "Réessayer",
     loadingComparison: "Chargement de l’espace de comparaison…",
     loadingLocalAi: "Chargement de l’espace IA locales…",
+    loadingDocuments: "Chargement des documents…",
   },
   en: {
     purgeTitle: "Delete all conversations?",
@@ -104,6 +109,7 @@ const STRINGS = {
     retry: "Try again",
     loadingComparison: "Loading comparison workspace…",
     loadingLocalAi: "Loading local AI hub…",
+    loadingDocuments: "Loading documents…",
   },
 } as const;
 
@@ -500,6 +506,17 @@ function App() {
     loadedConversationId === currentId && current?.id === currentId ? current : null;
   const activeChatError = chatActivityConversationId === currentId ? error : null;
 
+  function handleRagSpaceChange(spaceId: string | null) {
+    if (!current || current.id !== currentId) return;
+    const updated: Conversation = {
+      ...current,
+      ragSpaceId: spaceId,
+      updatedAt: Date.now(),
+    };
+    setConversationRagSpaceId(updated.id, spaceId);
+    void saveConversation(updated).then(() => applyConversationUpdate(updated));
+  }
+
   return (
     // h-dvh (et non h-screen/100vh) : sur mobile, la barre d'adresse dynamique
     // fait varier la hauteur visible ; dvh colle exactement au viewport pour
@@ -514,6 +531,7 @@ function App() {
         onCreate={() => void createChat()}
         onOpenCompare={() => setActiveView("compare")}
         onOpenLocalAiHub={() => setActiveView("local-ai")}
+        onOpenDocuments={() => setActiveView("documents")}
         onDelete={(id) => void handleRemoveConversation(id)}
         onOpenAbout={openAbout}
         onOpenFaq={() => setFaqOpen(true)}
@@ -587,6 +605,8 @@ function App() {
             onOpenProviders={() => setProvidersOpen(true)}
             onOpenFaq={() => setFaqOpen(true)}
             keysVersion={keysVersion}
+            ragSpaceId={visibleConversation?.ragSpaceId ?? null}
+            onRagSpaceChange={handleRagSpaceChange}
           />
         ) : activeView === "compare" ? (
           <Suspense
@@ -605,7 +625,7 @@ function App() {
               onUseResult={handleUseComparison}
             />
           </Suspense>
-        ) : (
+        ) : activeView === "local-ai" ? (
           <Suspense
             fallback={
               <div className="grid flex-1 place-items-center px-6">
@@ -620,6 +640,18 @@ function App() {
               keysVersion={keysVersion}
               onBackToChat={() => setActiveView("chat")}
             />
+          </Suspense>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="grid flex-1 place-items-center px-6">
+                <p role="status" className="text-sm text-muted-foreground">
+                  {s.loadingDocuments}
+                </p>
+              </div>
+            }
+          >
+            <DocumentsView onClose={() => setActiveView("chat")} />
           </Suspense>
         )}
       </main>

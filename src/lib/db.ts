@@ -1,17 +1,22 @@
 // Stockage 100% local : IndexedDB pour les conversations, jamais de serveur.
 // Voir README/SECURITY : aucune donnee ne quitte le navigateur (sauf appel
 // direct au fournisseur choisi par l'utilisateur, avec sa propre cle).
+import type { RagCitation } from "@/lib/rag/types";
 import type { ChatMessage } from "@/providers/types";
 
 const DB_NAME = "aidusia-studio";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_CONVERSATIONS = "conversations";
+export const STORE_RAG_SPACES = "ragSpaces";
+export const STORE_RAG_DOCUMENTS = "ragDocuments";
+export const STORE_RAG_CHUNKS = "ragChunks";
 
 export interface StoredMessage extends ChatMessage {
   id: string;
   createdAt: number;
   providerId?: string;
   model?: string;
+  ragCitations?: RagCitation[];
 }
 
 export interface Conversation {
@@ -20,9 +25,14 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   messages: StoredMessage[];
+  ragSpaceId?: string | null;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+export function openAidusiaDatabase(): Promise<IDBDatabase> {
+  return openDb();
+}
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
@@ -37,6 +47,15 @@ function openDb(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_CONVERSATIONS)) {
         db.createObjectStore(STORE_CONVERSATIONS, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(STORE_RAG_SPACES)) {
+        db.createObjectStore(STORE_RAG_SPACES, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(STORE_RAG_DOCUMENTS)) {
+        db.createObjectStore(STORE_RAG_DOCUMENTS, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(STORE_RAG_CHUNKS)) {
+        db.createObjectStore(STORE_RAG_CHUNKS, { keyPath: "id" });
       }
     };
     request.onsuccess = () => {

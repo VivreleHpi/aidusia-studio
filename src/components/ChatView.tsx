@@ -9,6 +9,10 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Conversation } from "@/lib/db";
+import { linkifyCitationMarkers, citationAnchorId } from "@/lib/rag/citations";
+import { resolveRagSpaceForConversation } from "@/lib/rag/conversationLink";
+import { listRagSpaces } from "@/lib/rag/store";
+import type { RagSpace } from "@/lib/rag/types";
 import { prepareVisionImage, validateImageFile } from "@/lib/imageSafety";
 import { useDictation } from "@/hooks/useDictation";
 import { useVisionCapability } from "@/hooks/useVisionCapability";
@@ -110,6 +114,9 @@ const STRINGS = {
     send: "Envoyer",
     hint: "↵ envoyer · ⇧↵ retour à la ligne",
     disclaimer: "Les IA peuvent faire des erreurs. Vérifiez les informations importantes.",
+    ragSpace: "Espace documentaire",
+    ragSpaceNone: "Sans documents",
+    ragSources: "Sources",
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
@@ -169,6 +176,9 @@ const STRINGS = {
     send: "Send",
     hint: "↵ send · ⇧↵ new line",
     disclaimer: "AI can make mistakes. Check important information.",
+    ragSpace: "Document space",
+    ragSpaceNone: "No documents",
+    ragSources: "Sources",
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
     localAiLoading: "Preparing the local model (downloaded once, then cached)…",
@@ -356,6 +366,8 @@ interface ChatViewProps {
   onOpenProviders: () => void;
   onOpenFaq: () => void;
   keysVersion: number;
+  ragSpaceId?: string | null;
+  onRagSpaceChange?: (spaceId: string | null) => void;
 }
 
 export function ChatView({
@@ -371,6 +383,8 @@ export function ChatView({
   onOpenProviders,
   onOpenFaq: _onOpenFaq,
   keysVersion,
+  ragSpaceId,
+  onRagSpaceChange,
 }: ChatViewProps) {
   const draftKey = conversation?.id ?? NEW_CONVERSATION_DRAFT_KEY;
   const draftsRef = useRef<Record<string, string> | null>(null);
@@ -389,6 +403,17 @@ export function ChatView({
   const [modelReadiness, setModelReadiness] = useState<ModelReadiness>({ status: "loading" });
   const [modelReloadRequest, setModelReloadRequest] = useState(0);
   const [modelOpenRequest, setModelOpenRequest] = useState(0);
+  const [ragSpaces, setRagSpaces] = useState<RagSpace[]>([]);
+
+  useEffect(() => {
+    if (typeof indexedDB === "undefined") return;
+    void listRagSpaces()
+      .then(setRagSpaces)
+      .catch(() => setRagSpaces([]));
+  }, [keysVersion, conversation?.id]);
+
+  const effectiveRagSpaceId =
+    ragSpaceId ?? (conversation ? resolveRagSpaceForConversation(conversation.id) : null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
@@ -756,9 +781,35 @@ export function ChatView({
                       </p>
                     )}
                     {m.content ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                        {m.content}
-                      </ReactMarkdown>
+                      <>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {m.ragCitations?.length
+                            ? linkifyCitationMarkers(
+                                m.content,
+                                m.ragCitations.map((c) => c.label),
+                              )
+                            : m.content}
+                        </ReactMarkdown>
+                        {m.ragCitations && m.ragCitations.length > 0 ? (
+                          <ul
+                            className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground"
+                            aria-label={s.ragSources}
+                          >
+                            {m.ragCitations.map((cite) => (
+                              <li key={cite.chunkId} id={citationAnchorId(cite.chunkId)}>
+                                <a
+                                  href={`#${citationAnchorId(cite.chunkId)}`}
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  [{cite.label}]
+                                </a>{" "}
+                                <span className="font-medium text-foreground">{cite.fileName}</span>
+                                <p className="mt-0.5 whitespace-pre-wrap">{cite.excerpt}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </>
                     ) : isLastAssistant && streaming ? (
                       <span className="flex items-center gap-1 py-1" aria-label={s.thinking}>
                         <span className="thinking-dot" />
@@ -1029,6 +1080,26 @@ export function ChatView({
                   <IconMic className={`h-4 w-4 ${dictation.listening ? "animate-pulse" : ""}`} />
                 </button>
               )}
+              <label className="sr-only" htmlFor="rag-space-select">
+                {s.ragSpace}
+              </label>
+              <select
+                id="rag-space-select"
+                value={effectiveRagSpaceId ?? ""}
+                onChange={(e) =>
+                  onRagSpaceChange?.(e.target.value ? e.target.value : null)
+                }
+                disabled={!conversation || !onRagSpaceChange}
+                className="max-w-[9rem] truncate rounded-lg border border-border/60 bg-card px-2 py-1 text-xs text-foreground sm:max-w-[12rem]"
+                title={s.ragSpace}
+              >
+                <option value="">{s.ragSpaceNone}</option>
+                {ragSpaces.map((space) => (
+                  <option key={space.id} value={space.id}>
+                    {space.name}
+                  </option>
+                ))}
+              </select>
               <div className="ml-auto flex min-w-0 items-center gap-1.5">
                 <ModelMenu
                   key={keysVersion}
