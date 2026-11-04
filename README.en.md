@@ -54,6 +54,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 | Web Speech dictation | ✅ (when supported by the browser) | May use a remote browser/OS speech service |
 | HTTP MCP connectors | 🧪 | Requests to configured MCP servers |
 | Two-model comparison and synthesis | ✅ | Question sent separately to both models; synthesis also sends both answers to the selected model |
+| Local RAG (PDF/MD/TXT, citations) | ✅ | Indexing and embeddings in the browser; excerpts sent to the provider with the question |
 | Settings export/import | ✅ | Passphrase-encrypted local file |
 | Installable PWA and offline shell | ✅ | Application resources cached locally |
 | Offline cloud chat | ❌ | A provider connection remains necessary |

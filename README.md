@@ -54,6 +54,7 @@ Légende : ✅ livré · 🧪 livré, expérimental · ❌ non disponible
 | Dictée Web Speech | ✅ (si le navigateur la prend en charge) | Peut utiliser le service distant du navigateur/OS |
 | Connecteurs MCP HTTP | 🧪 | Requêtes vers les serveurs MCP configurés |
 | Comparaison et synthèse de deux modèles | ✅ | Question envoyée séparément aux deux modèles ; la synthèse renvoie aussi leurs deux réponses au modèle choisi |
+| RAG local (PDF/MD/TXT, citations) | ✅ | Indexation et embeddings dans le navigateur ; extraits envoyés au fournisseur avec la question |
 | Export/import des réglages | ✅ | Fichier local chiffré par phrase secrète |
 | PWA installable et shell hors ligne | ✅ | Ressources applicatives mises en cache localement |
 | Chat cloud hors ligne | ❌ | Une connexion au fournisseur reste nécessaire |
