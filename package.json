@@ -50,10 +50,12 @@
     "oxlint": "^1.74.0",
     "tailwindcss": "^4.3.2",
     "typescript": "5.9.3",
-    "vite": "^8.1.5",
+    "vite": "^8.3.5",
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "protobufjs": "7.6.6"
+    "protobufjs": "7.6.6",
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2"
   }
 }
