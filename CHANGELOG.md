@@ -7,6 +7,49 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ### Ajouté
 
+- (Réservé aux prochaines versions.)
+
+## [0.2.0] — 2026-11-04
+
+Version regroupant la chaîne UX / IA locale / RAG / export / MCP / vision
+(intégrée via la PR #30).
+
+### Ajouté
+
+- Parcours de première visite sans erreur par défaut et tests E2E post-onboarding.
+- Espace « IA locales » : catalogue embarqué, compatibilité matérielle, benchmark.
+- Synchronisation hebdomadaire du catalogue IA locales (workflow CI + script).
+- RAG local : espaces documentaires, ingestion PDF/Markdown/texte, citations dans le chat.
+- Parcours mobile IA locale (bannière, garde-fous modèles).
+- Export de conversations Markdown/PDF et recherche dans l’historique.
+- MCP : politiques par outil (demander / autoriser / refuser), journal local, doc pont stdio.
+- Préréglages OpenAI-compatible locaux (LM Studio, etc.).
+- Vision multi-fournisseurs (images dans le chat selon capacités du modèle).
+- Documentation publique des limites connues par lot (FR/EN) et liens depuis l’UI.
+
+### Modifié
+
+- Dépendances durcies (Vite 8.3+, overrides npm pour `sharp`, `source-map-js`, `protobufjs`).
+- E2E accessibilité et MCP alignés desktop/mobile.
+
+### Sécurité
+
+- Faux positifs Gitleaks documentés pour les clés `localStorage` MCP et étoile.
+
+## [0.2.1] — (non publié)
+
+### Ajouté
+
+- Documentation RGPD complémentaire ([docs/gdpr-data-rights.md](./docs/gdpr-data-rights.md)).
+- Entrée CHANGELOG structurée pour la release 0.2.0 et préparation du tag `v0.2.0`.
+
+## [0.1.1] — (contenu antérieur regroupé ci-dessous)
+
+Les entrées ci-dessous décrivaient des changements livrés avant le tag 0.2.0 et
+restent valides historiquement.
+
+### Ajouté
+
 - Boîte de confirmation intégrée (feuille basse sur téléphone, accessible au
   clavier et aux lecteurs d'écran) à la place des `window.confirm` natifs :
   approbation des outils MCP avec aperçu lisible des arguments, suppressions

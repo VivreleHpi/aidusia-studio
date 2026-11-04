@@ -2,11 +2,15 @@
 
 Les protections et limites des proxys de déploiement sont documentées dans [docs/deployment-security.md](./docs/deployment-security.md).
 
-Dernière mise à jour : 21 juillet 2026.
+Dernière mise à jour : 4 novembre 2026.
 
 Ce document décrit le comportement du code de ce dépôt. Un déploiement tiers
 peut ajouter des journaux, cookies, proxies ou outils d’observabilité ; vérifiez
 sa propre politique avant de l’utiliser.
+
+Pour les droits RGPD (accès, effacement, portabilité) et le rôle d’AIDUSIA Studio
+en tant qu’outil local sans compte, voir [docs/gdpr-data-rights.md](./docs/gdpr-data-rights.md)
+(anglais : [docs/gdpr-data-rights.en.md](./docs/gdpr-data-rights.en.md)).
 
 ## Résumé
 
