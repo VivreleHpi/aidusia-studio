@@ -54,6 +54,10 @@ import {
 /* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
 const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
 
+/** Au-delà de ce seuil, seuls les derniers messages sont rendus (virtualisation légère). */
+const MESSAGE_RENDER_CAP = 80;
+const MESSAGE_REVEAL_STEP = 40;
+
 interface PendingImage {
   base64: string;
   previewUrl: string;
@@ -118,6 +122,8 @@ const STRINGS = {
     ragSpace: "Espace documentaire",
     ragSpaceNone: "Sans documents",
     ragSources: "Sources",
+    showOlderMessages: (n: number) =>
+      `Afficher ${n.toLocaleString("fr-FR")} messages plus anciens`,
     jumpToBottom: "Revenir en bas",
     openProviders: "Ouvrir les réglages fournisseurs",
     localAiLoading: "Modèle local en préparation (téléchargé une seule fois, puis en cache)…",
@@ -180,6 +186,8 @@ const STRINGS = {
     ragSpace: "Document space",
     ragSpaceNone: "No documents",
     ragSources: "Sources",
+    showOlderMessages: (n: number) =>
+      `Show ${n.toLocaleString("en-US")} earlier messages`,
     jumpToBottom: "Jump to bottom",
     openProviders: "Open provider settings",
     localAiLoading: "Preparing the local model (downloaded once, then cached)…",
@@ -417,6 +425,7 @@ export function ChatView({
     ragSpaceId ?? (conversation ? resolveRagSpaceForConversation(conversation.id) : null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [olderReveal, setOlderReveal] = useState(0);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
   const [localAi, setLocalAi] = useState<LocalAiProgress | null>(null);
   const ocrInputRef = useRef<HTMLInputElement>(null);
@@ -425,6 +434,10 @@ export function ChatView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const atBottomRef = useRef(true);
+  useEffect(() => {
+    setOlderReveal(0);
+  }, [conversation?.id]);
+
   const messageCount = conversation?.messages.length ?? 0;
   const lastContent = conversation?.messages.at(-1)?.content ?? "";
   // Modele local auquel cette conversation est liee (1er message genere par
@@ -689,6 +702,10 @@ export function ChatView({
   const composerButtonClass =
     "grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted-foreground transition duration-150 hover:bg-foreground/5 hover:text-foreground active:scale-95 disabled:opacity-40 sm:h-9 sm:w-9";
 
+  const allMessages = conversation?.messages ?? [];
+  const hiddenMessageCount = Math.max(0, allMessages.length - MESSAGE_RENDER_CAP - olderReveal);
+  const visibleMessages = hiddenMessageCount > 0 ? allMessages.slice(hiddenMessageCount) : allMessages;
+
   return (
     <div className="flex h-full flex-1 flex-col">
       <div className="relative flex-1 overflow-hidden">
@@ -745,7 +762,19 @@ export function ChatView({
             </div>
           ) : (
             <div className="mx-auto flex max-w-3xl flex-col gap-5">
-              {conversation.messages.map((m, i) => {
+              {hiddenMessageCount > 0 && (
+                <button
+                  type="button"
+                  className="mx-auto rounded-full border border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground transition hover:bg-muted/50"
+                  onClick={() => setOlderReveal((v) => v + MESSAGE_REVEAL_STEP)}
+                >
+                  {s.showOlderMessages(
+                    Math.min(hiddenMessageCount, MESSAGE_REVEAL_STEP),
+                  )}
+                </button>
+              )}
+              {visibleMessages.map((m, vi) => {
+                const i = hiddenMessageCount + vi;
                 if (m.role === "tool") {
                   return <ToolResultBlock key={m.id} name={m.toolName} content={m.content} />;
                 }

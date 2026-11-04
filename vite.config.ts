@@ -22,4 +22,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('pdfjs-dist')) return 'pdfjs';
+          if (id.includes('@xenova/transformers')) return 'transformers';
+          if (id.includes('onnxruntime-web')) return 'onnx';
+        },
+      },
+    },
+  },
 })

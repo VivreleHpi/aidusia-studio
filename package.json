@@ -18,6 +18,7 @@
     "e2e:run:mobile": "node scripts/run-e2e.mjs mobile",
     "preview": "vite preview",
     "brand-scan": "node scripts/brand-isolation-scan.mjs",
+    "budget": "node scripts/bundle-budget.mjs",
     "validate:local-ai-catalog": "node scripts/validate-local-ai-catalog.mjs",
     "sync:local-ai-catalog": "node scripts/sync-local-ai-catalog.mjs",
     "security:audit": "npm audit --audit-level=high"
