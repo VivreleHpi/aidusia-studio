@@ -51,6 +51,6 @@ flux de données.
 ## Avertissement
 
 Ce document est fourni à titre informatif et ne constitue pas un avis
-juridique. Il vise à satisfaire les obligations de transparence de la LCEN
+légal professionnel. Il vise à satisfaire les obligations de transparence de la LCEN
 pour un projet personnel et gratuit ; il devrait être revu par un
 professionnel du droit avant toute exploitation commerciale de ce site.

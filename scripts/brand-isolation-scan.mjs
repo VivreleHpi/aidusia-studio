@@ -52,6 +52,8 @@ function* walk(dir) {
       yield* walk(full);
     } else if (resolve(full) === SELF_PATH) {
       continue;
+    } else if (full.includes("pdf.worker") || full.endsWith(".wasm") || full.endsWith(".wasm.js")) {
+      continue;
     } else if (TEXT_EXTENSIONS.has(extname(full))) {
       yield full;
     }
