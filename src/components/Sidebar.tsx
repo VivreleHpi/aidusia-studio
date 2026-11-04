@@ -43,6 +43,7 @@ const STRINGS = {
     clearSearch: "Effacer la recherche",
     tools: "Outils",
     compareAis: "Comparer les IA",
+    localAiHub: "IA locales",
     closeMenu: "Fermer le menu",
     deleteConversation: "Supprimer la conversation",
     deleteTitle: "Supprimer cette conversation ?",
@@ -80,6 +81,7 @@ const STRINGS = {
     clearSearch: "Clear search",
     tools: "Tools",
     compareAis: "Compare AIs",
+    localAiHub: "Local AI",
     closeMenu: "Close menu",
     deleteConversation: "Delete conversation",
     deleteTitle: "Delete this conversation?",
@@ -116,10 +118,11 @@ const STRINGS = {
 interface SidebarProps {
   conversations: Conversation[];
   currentId: string | null;
-  activeView: "chat" | "compare";
+  activeView: "chat" | "compare" | "local-ai";
   onSelect: (id: string) => void;
   onCreate: () => void;
   onOpenCompare: () => void;
+  onOpenLocalAiHub: () => void;
   onDelete: (id: string) => void;
   onOpenAbout: () => void;
   onOpenFaq: () => void;
@@ -201,6 +204,7 @@ export function Sidebar({
   onSelect,
   onCreate,
   onOpenCompare,
+  onOpenLocalAiHub,
   onDelete,
   onOpenAbout,
   onOpenFaq,
@@ -318,6 +322,11 @@ export function Sidebar({
 
   function handleOpenCompare() {
     onOpenCompare();
+    onClose();
+  }
+
+  function handleOpenLocalAiHub() {
+    onOpenLocalAiHub();
     onClose();
   }
 
@@ -454,6 +463,19 @@ export function Sidebar({
           >
             <IconList className="h-4 w-4 shrink-0" />
             <span>{s.compareAis}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenLocalAiHub}
+            aria-current={activeView === "local-ai" ? "page" : undefined}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition ${
+              activeView === "local-ai"
+                ? "bg-accent/15 text-foreground"
+                : "text-sidebar-foreground hover:bg-accent/10"
+            }`}
+          >
+            <IconSparkles className="h-4 w-4 shrink-0" />
+            <span>{s.localAiHub}</span>
           </button>
         </div>
         {grouped.map(([key, items]) => (

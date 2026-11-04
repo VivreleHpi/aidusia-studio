@@ -43,6 +43,7 @@ function sidebarProps() {
     collapsed: false,
     onToggleCollapse: vi.fn(),
     onOpenLegal: vi.fn(),
+    onOpenLocalAiHub: vi.fn(),
   };
 }
 

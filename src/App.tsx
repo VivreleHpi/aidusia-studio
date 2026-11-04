@@ -54,11 +54,14 @@ const DataPanel = lazy(() =>
 const CompareView = lazy(() =>
   import("@/components/CompareView").then((module) => ({ default: module.CompareView })),
 );
+const LocalAiHubView = lazy(() =>
+  import("@/components/LocalAiHubView").then((module) => ({ default: module.LocalAiHubView })),
+);
 const LegalDocModal = lazy(() =>
   import("@/components/LegalDocModal").then((module) => ({ default: module.LegalDocModal })),
 );
 
-type WorkspaceView = "chat" | "compare";
+type WorkspaceView = "chat" | "compare" | "local-ai";
 
 interface ActiveChatRun {
   conversationId: string;
@@ -84,6 +87,7 @@ const STRINGS = {
       "AIDUSIA ne peut pas ouvrir les conversations de ce navigateur. Vos données n'ont pas été supprimées. Vérifiez les permissions du site puis réessayez.",
     retry: "Réessayer",
     loadingComparison: "Chargement de l’espace de comparaison…",
+    loadingLocalAi: "Chargement de l’espace IA locales…",
   },
   en: {
     purgeTitle: "Delete all conversations?",
@@ -99,6 +103,7 @@ const STRINGS = {
       "AIDUSIA cannot open this browser's conversations. Your data has not been deleted. Check the site's permissions, then try again.",
     retry: "Try again",
     loadingComparison: "Loading comparison workspace…",
+    loadingLocalAi: "Loading local AI hub…",
   },
 } as const;
 
@@ -508,6 +513,7 @@ function App() {
         onSelect={openConversation}
         onCreate={() => void createChat()}
         onOpenCompare={() => setActiveView("compare")}
+        onOpenLocalAiHub={() => setActiveView("local-ai")}
         onDelete={(id) => void handleRemoveConversation(id)}
         onOpenAbout={openAbout}
         onOpenFaq={() => setFaqOpen(true)}
@@ -582,7 +588,7 @@ function App() {
             onOpenFaq={() => setFaqOpen(true)}
             keysVersion={keysVersion}
           />
-        ) : (
+        ) : activeView === "compare" ? (
           <Suspense
             fallback={
               <div className="grid flex-1 place-items-center px-6">
@@ -597,6 +603,22 @@ function App() {
               keysVersion={keysVersion}
               onBackToChat={() => setActiveView("chat")}
               onUseResult={handleUseComparison}
+            />
+          </Suspense>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="grid flex-1 place-items-center px-6">
+                <p role="status" className="text-sm text-muted-foreground">
+                  {s.loadingLocalAi}
+                </p>
+              </div>
+            }
+          >
+            <LocalAiHubView
+              onOpenProviders={() => setProvidersOpen(true)}
+              keysVersion={keysVersion}
+              onBackToChat={() => setActiveView("chat")}
             />
           </Suspense>
         )}
