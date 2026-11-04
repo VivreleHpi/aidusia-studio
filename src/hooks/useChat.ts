@@ -246,7 +246,10 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
                   lang,
                 });
                 if (!approved) {
-                  resultText = "Action refusée par l'utilisateur. Aucun appel MCP n'a été envoyé.";
+                  resultText =
+                    lang === "fr"
+                      ? "Action refusée par l'utilisateur ou par la politique MCP. Aucun appel n'a été envoyé."
+                      : "Action denied by the user or MCP policy. No MCP call was sent.";
                 } else {
                   const result = await callTool(entry.server, entry.actualName, call.args);
                   resultText = result.content || (result.isError ? "Erreur sans detail." : "(reponse vide)");
