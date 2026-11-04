@@ -20,6 +20,7 @@ import {
   NEW_CONVERSATION_DRAFT_KEY,
   saveChatDrafts,
 } from "@/lib/chatDrafts";
+import { splitUserFacingError } from "@/lib/chatErrorDisplay";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
@@ -368,7 +369,7 @@ export function ChatView({
   model,
   onChangeProvider,
   onOpenProviders,
-  onOpenFaq,
+  onOpenFaq: _onOpenFaq,
   keysVersion,
 }: ChatViewProps) {
   const draftKey = conversation?.id ?? NEW_CONVERSATION_DRAFT_KEY;
@@ -676,23 +677,15 @@ export function ChatView({
                   {s.welcome(new Date().getHours())} {s.helpPrompt}
                 </p>
                 <div
-                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-foreground"
+                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
                   style={{ animationDelay: "100ms" }}
                 >
-                  <button
-                    type="button"
-                    onClick={onOpenFaq}
-                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
-                  >
-                    <IconLock className="h-3.5 w-3.5" /> {s.badgeLocal}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenProviders}
-                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
-                  >
-                    <IconKey className="h-3.5 w-3.5" /> {s.badgeKeys}
-                  </button>
+                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
+                    <IconLock className="h-3.5 w-3.5 shrink-0" /> {s.badgeLocal}
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
+                    <IconKey className="h-3.5 w-3.5 shrink-0" /> {s.badgeKeys}
+                  </span>
                   <a
                     href={REPO_URL}
                     target="_blank"
@@ -812,13 +805,25 @@ export function ChatView({
                   </div>
                 );
               })}
-              {error && (
+              {error && (() => {
+                const { summary, detail } = splitUserFacingError(error);
+                return (
                 <div
                   role="alert"
                   aria-live="assertive"
                   className="mr-auto max-w-[80%] rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive"
                 >
-                  <p className="wrap-break-word">{error}</p>
+                  <p className="wrap-break-word">{summary}</p>
+                  {detail ? (
+                    <details className="mt-2 text-xs text-destructive/90">
+                      <summary className="cursor-pointer underline-offset-2 hover:underline">
+                        {lang === "fr" ? "Détails techniques" : "Technical details"}
+                      </summary>
+                      <pre className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap wrap-break-word font-mono text-xs">
+                        {detail}
+                      </pre>
+                    </details>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {lastSubmissionRef.current?.draftKey === draftKeyRef.current ? (
                       <button
@@ -853,7 +858,8 @@ export function ChatView({
                     </button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
               <div ref={bottomRef} />
             </div>
           )}
@@ -1034,6 +1040,7 @@ export function ChatView({
                   onReadinessChange={setModelReadiness}
                   reloadRequest={modelReloadRequest}
                   openRequest={modelOpenRequest}
+                  keysVersion={keysVersion}
                 />
                 {streaming ? (
                   <button
@@ -1059,7 +1066,7 @@ export function ChatView({
               </div>
             </div>
           </div>
-          <p className="text-center text-[10px] leading-4 text-muted-foreground sm:text-[11px]">
+          <p className="text-center text-xs leading-5 text-muted-foreground">
             <span className="hidden sm:inline">{s.hint} · </span>
             {s.disclaimer}
           </p>

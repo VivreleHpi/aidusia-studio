@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
@@ -19,10 +19,9 @@ import {
   type ComparisonTarget,
 } from "@/hooks/useComparison";
 import { useComparisonSynthesis } from "@/hooks/useComparisonSynthesis";
-import { getApiKey } from "@/lib/apiKeys";
-import { isMobile } from "@/lib/deviceDetect";
 import { localeOf, useLang, type Lang } from "@/lib/i18n";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
+import { resolveComparisonTargets } from "@/lib/providerReachability";
 import { listProviders } from "@/providers";
 
 const STRINGS = {
@@ -66,6 +65,8 @@ const STRINGS = {
     compare: "Comparer",
     stop: "Arrêter",
     enterHint: "Entrée pour comparer · Maj + Entrée pour une nouvelle ligne",
+    exampleQuestion: "Essayer un exemple",
+    examplePrompt: "Bonjour, explique-moi la photosynthèse en 2 phrases.",
     chooseModels: "Choisissez deux modèles disponibles pour lancer la comparaison.",
     disclaimer: "Les IA peuvent faire des erreurs. Vérifiez les informations importantes.",
     privacySummary: "Ce qui est envoyé aux modèles",
@@ -112,6 +113,8 @@ const STRINGS = {
     compare: "Compare",
     stop: "Stop",
     enterHint: "Enter to compare · Shift + Enter for a new line",
+    exampleQuestion: "Try an example",
+    examplePrompt: "Hello, explain photosynthesis to me in 2 sentences.",
     chooseModels: "Choose two available models to start comparing.",
     disclaimer: "AI can make mistakes. Verify important information.",
     privacySummary: "What is sent to the models",
@@ -172,20 +175,11 @@ function emptyQualityScores(): [QualityScores, QualityScores] {
   return [{}, {}];
 }
 
-function initialTargets(): [ComparisonTarget, ComparisonTarget] {
-  // Sur téléphone, B = le premier fournisseur cloud dont la clé est déjà
-  // saisie ; à défaut Luciole, local et sans clé, plutôt qu'un fournisseur
-  // qui afficherait d'emblée « clé API requise ».
-  const cloudWithKey = listProviders().find((provider) => provider.requiresApiKey && getApiKey(provider.id));
-  return isMobile()
-    ? [
-        { providerId: "browser", model: "" },
-        { providerId: cloudWithKey?.id ?? "luciole", model: "" },
-      ]
-    : [
-        { providerId: "ollama", model: "" },
-        { providerId: "browser", model: "" },
-      ];
+function defaultTargets(): [ComparisonTarget, ComparisonTarget] {
+  return [
+    { providerId: "luciole", model: "" },
+    { providerId: "luciole", model: "" },
+  ];
 }
 
 function targetLabel(target: ComparisonTarget, lang: Lang): string {
@@ -501,7 +495,7 @@ export function CompareView({
   const [savingResult, setSavingResult] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const savingResultRef = useRef(false);
-  const [targets, setTargets] = useState<[ComparisonTarget, ComparisonTarget]>(initialTargets);
+  const [targets, setTargets] = useState<[ComparisonTarget, ComparisonTarget]>(defaultTargets);
   const [readiness, setReadiness] = useState<[ModelReadiness, ModelReadiness]>([
     INITIAL_READINESS,
     INITIAL_READINESS,
@@ -523,6 +517,16 @@ export function CompareView({
   const [synthesisTarget, setSynthesisTarget] = useState<ComparisonTarget | null>(null);
   const anyRunning = comparisonRunning || synthesisRunning;
   const actionsBusy = anyRunning || savingResult;
+
+  useEffect(() => {
+    let cancelled = false;
+    void resolveComparisonTargets().then((next) => {
+      if (!cancelled) setTargets(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [keysVersion]);
 
   const setFirstReadiness = useCallback((next: ModelReadiness) => {
     setReadiness((current) =>
@@ -687,7 +691,7 @@ export function CompareView({
             <IconArrowRight className="h-4 w-4 rotate-180" />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {s.eyebrow}
             </p>
             <h1 id="comparison-title" className="truncate text-base font-semibold text-foreground sm:text-lg">
@@ -705,7 +709,7 @@ export function CompareView({
           <div className="mb-3 flex flex-wrap items-start gap-2">
             {/* Sur téléphone, la note complète occupait un tiers de l'écran :
                 elle devient un disclosure, sans rien retirer de l'information. */}
-            <details className="min-w-0 basis-full text-[11px] leading-4 text-muted-foreground sm:hidden">
+            <details className="min-w-0 basis-full text-xs leading-5 text-muted-foreground sm:hidden">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
                 <IconLock className="h-3.5 w-3.5 shrink-0" />
                 <span className="underline decoration-dotted underline-offset-2">
@@ -714,7 +718,7 @@ export function CompareView({
               </summary>
               <p className="mt-1.5 pl-5.5">{s.privacy}</p>
             </details>
-            <p className="hidden min-w-0 flex-1 items-start gap-2 text-[11px] leading-4 text-muted-foreground sm:flex">
+            <p className="hidden min-w-0 flex-1 items-start gap-2 text-xs leading-5 text-muted-foreground sm:flex">
               <IconLock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{s.privacy}</span>
             </p>
@@ -820,7 +824,7 @@ export function CompareView({
               disabled={actionsBusy}
               className="glass flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 disabled:opacity-60"
             >
-              <span className="shrink-0 pl-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 pl-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 A
               </span>
               <div className="ml-auto min-w-0">
@@ -832,6 +836,7 @@ export function CompareView({
                   lockedLocalModel={null}
                   onReadinessChange={setFirstReadiness}
                   reloadRequest={keysVersion}
+                  keysVersion={keysVersion}
                 />
               </div>
             </fieldset>
@@ -849,7 +854,7 @@ export function CompareView({
               disabled={actionsBusy}
               className="glass flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 disabled:opacity-60"
             >
-              <span className="shrink-0 pl-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 pl-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 B
               </span>
               <div className="ml-auto min-w-0">
@@ -861,9 +866,21 @@ export function CompareView({
                   lockedLocalModel={null}
                   onReadinessChange={setSecondReadiness}
                   reloadRequest={keysVersion}
+                  keysVersion={keysVersion}
                 />
               </div>
             </fieldset>
+          </div>
+
+          <div className="mb-2 flex flex-wrap items-center gap-2 px-2">
+            <button
+              type="button"
+              disabled={actionsBusy}
+              onClick={() => setPrompt(s.examplePrompt)}
+              className="rounded-lg border border-border px-2.5 py-1 text-xs text-foreground transition hover:bg-foreground/5 disabled:opacity-40"
+            >
+              {s.exampleQuestion}
+            </button>
           </div>
 
           <div className="glass flex items-end gap-2 rounded-2xl p-2 shadow-lg shadow-black/5 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/40">
@@ -904,7 +921,7 @@ export function CompareView({
             )}
           </div>
 
-          <div className="mt-1.5 min-h-4 px-2 text-[10px] text-muted-foreground" aria-live="polite">
+          <div className="mt-1.5 min-h-4 px-2 text-xs text-muted-foreground" aria-live="polite">
             {readinessHint ? (
               <p id="comparison-readiness" className="text-warning">
                 {readinessHint}

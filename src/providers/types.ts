@@ -29,6 +29,9 @@ export interface ProviderModel {
   // mobile, un modele qui risque de depasser la memoire du telephone. Affiche
   // avec un triangle ⚠ dans le selecteur.
   warning?: string;
+  // false = visible mais non sélectionnable (ex. WebGPU absent).
+  selectable?: boolean;
+  unavailableReason?: string;
 }
 
 // Outil MCP traduit dans un format neutre - chaque provider le retraduit

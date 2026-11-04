@@ -123,11 +123,15 @@ describe("browserLocalProvider model discovery", () => {
     expect(hasModelInCache).toHaveBeenCalledTimes(6);
   });
 
-  it("rejects immediately when WebGPU isn't exposed by the browser", async () => {
+  it("marks models unavailable when WebGPU isn't exposed", async () => {
     disableWebGpu();
     const { browserLocalProvider } = await freshModule();
 
-    await expect(browserLocalProvider.listModels()).rejects.toThrow(/WebGPU/);
+    const models = await browserLocalProvider.listModels();
+
+    expect(models).toHaveLength(3);
+    expect(models.every((model) => model.selectable === false)).toBe(true);
+    expect(models[0]?.unavailableReason).toMatch(/WebGPU|Non compatible|Not compatible/i);
   });
 });
 

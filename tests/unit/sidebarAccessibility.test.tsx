@@ -42,6 +42,7 @@ function sidebarProps() {
     onPurgeAll: vi.fn(),
     collapsed: false,
     onToggleCollapse: vi.fn(),
+    onOpenLegal: vi.fn(),
   };
 }
 
@@ -119,7 +120,7 @@ describe("Sidebar — accessibilité de navigation", () => {
     expect(sidebar).not.toHaveAttribute("aria-hidden");
 
     fireEvent.keyDown(sidebar, { key: "Tab", shiftKey: true });
-    expect(screen.getByRole("link", { name: "Confidentialité" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Confidentialité" })).toHaveFocus();
     fireEvent.keyDown(sidebar, { key: "Tab" });
     expect(close).toHaveFocus();
 

@@ -12,7 +12,12 @@ import { ChatView } from "@/components/ChatView";
 import { ConfirmHost } from "@/components/ConfirmHost";
 import { requestConfirm } from "@/lib/confirm";
 import { readLastModel, saveLastModel } from "@/lib/lastModel";
-import { isMobile, shouldShowOnboarding } from "@/lib/deviceDetect";
+import {
+  invalidateProviderReachability,
+  neutralFallbackProviderId,
+  pickFirstWorkingProvider,
+} from "@/lib/providerReachability";
+import { shouldShowOnboarding } from "@/lib/deviceDetect";
 import { useLang } from "@/lib/i18n";
 import { IconPanelLeft } from "@/components/Icons";
 import { useConversations } from "@/hooks/useConversations";
@@ -49,6 +54,9 @@ const DataPanel = lazy(() =>
 const CompareView = lazy(() =>
   import("@/components/CompareView").then((module) => ({ default: module.CompareView })),
 );
+const LegalDocModal = lazy(() =>
+  import("@/components/LegalDocModal").then((module) => ({ default: module.LegalDocModal })),
+);
 
 type WorkspaceView = "chat" | "compare";
 
@@ -57,9 +65,8 @@ interface ActiveChatRun {
   promise: Promise<void>;
 }
 
-// Sur mobile, Ollama est impossible (appli de bureau) : on demarre plutot sur
-// l'IA « Sur cet appareil » (navigateur). Sur PC, Ollama reste le defaut.
-const DEFAULT_PROVIDER = isMobile() ? "browser" : "ollama";
+// Eviter Ollama / WebGPU par defaut : le choix effectif est affine au montage.
+const DEFAULT_PROVIDER = neutralFallbackProviderId();
 
 const STRINGS = {
   fr: {
@@ -128,6 +135,7 @@ function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<"mentions" | "privacy" | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
@@ -136,6 +144,31 @@ function App() {
   const launchParamsHandled = useRef(false);
   const { lang } = useLang();
   const s = STRINGS[lang];
+
+  useEffect(() => {
+    let cancelled = false;
+    invalidateProviderReachability();
+    const preferred = initialSelection.providerId;
+    void (async () => {
+      const working = await pickFirstWorkingProvider(preferred);
+      if (cancelled) return;
+      if (working) {
+        if (working !== preferred) {
+          setProviderId(working);
+          setModel("");
+        }
+        return;
+      }
+      const fallback = neutralFallbackProviderId();
+      if (preferred === "ollama" || preferred === "browser") {
+        setProviderId(fallback);
+        setModel("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialSelection.providerId, keysVersion]);
 
   const activateConversation = useCallback(
     (id: string | null, snapshot?: Conversation) => {
@@ -443,7 +476,16 @@ function App() {
     );
   }
 
-  const hasModal = providersOpen || onboarding || aboutOpen || faqOpen || guideOpen || tourOpen || mcpOpen || dataOpen;
+  const hasModal =
+    providersOpen ||
+    onboarding ||
+    aboutOpen ||
+    faqOpen ||
+    guideOpen ||
+    tourOpen ||
+    mcpOpen ||
+    dataOpen ||
+    legalDoc !== null;
   const currentMatchesSelection = current === null || current.id === currentId;
   const conversationLoading =
     conversationCreationPending ||
@@ -479,6 +521,7 @@ function App() {
         onClose={closeSidebar}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        onOpenLegal={(kind) => setLegalDoc(kind)}
       />
       <main className="relative flex min-w-0 flex-1 flex-col">
         {sidebarCollapsed && (
@@ -507,7 +550,7 @@ function App() {
           </button>
           <span className="flex items-baseline gap-1.5">
             <span className="text-sm font-bold tracking-tight text-foreground">AIDUSIA</span>
-            <span className="text-[9px] font-medium uppercase tracking-[0.25em] text-muted-foreground">
+            <span className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
               studio
             </span>
           </span>
@@ -578,7 +621,16 @@ function App() {
             onOpenProviders={() => setProvidersOpen(true)}
           />
         )}
-        {aboutOpen && <AboutModal onClose={closeAbout} />}
+        {aboutOpen && (
+          <AboutModal
+            onClose={closeAbout}
+            onOpenLegal={(kind) => {
+              closeAbout();
+              setLegalDoc(kind);
+            }}
+          />
+        )}
+        {legalDoc && <LegalDocModal kind={legalDoc} onClose={() => setLegalDoc(null)} />}
         <ConfirmHost />
         {faqOpen && <FaqPanel onClose={() => setFaqOpen(false)} />}
         {guideOpen && <GuidePage onClose={() => setGuideOpen(false)} />}

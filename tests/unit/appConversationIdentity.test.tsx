@@ -41,8 +41,20 @@ vi.mock("@/lib/deviceDetect", () => ({
   shouldShowOnboarding: () => false,
 }));
 vi.mock("@/lib/i18n", () => ({
-  useLang: () => ({ lang: "fr" }),
+  useLang: () => ({ lang: "fr", setLang: vi.fn() }),
+  getStoredLang: () => "fr" as const,
+  localeOf: () => "fr-FR",
   newConversationTitle: () => "Nouvelle conversation",
+}));
+vi.mock("@/lib/providerReachability", () => ({
+  invalidateProviderReachability: vi.fn(),
+  neutralFallbackProviderId: () => "anthropic",
+  pickFirstWorkingProvider: vi.fn(async () => null),
+  resolveComparisonTargets: vi.fn(async () => [
+    { providerId: "ollama", model: "" },
+    { providerId: "browser", model: "" },
+  ]),
+  getProviderReachability: vi.fn(async () => "ready" as const),
 }));
 vi.mock("@/hooks/useChat", () => ({
   useChat: (onUpdated: (conversation: Conversation) => void) => {

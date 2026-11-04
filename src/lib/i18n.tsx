@@ -5,7 +5,22 @@ export type Lang = "fr" | "en";
 
 const STORAGE_KEY = "aidusia_lang";
 
+function langFromQuery(): Lang | null {
+  try {
+    const param = new URLSearchParams(window.location.search).get("lang")?.toLowerCase();
+    if (param === "fr" || param === "en") return param;
+  } catch {
+    /* hors navigateur */
+  }
+  return null;
+}
+
 function detectLang(): Lang {
+  const fromQuery = langFromQuery();
+  if (fromQuery) {
+    localStorage.setItem(STORAGE_KEY, fromQuery);
+    return fromQuery;
+  }
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === "fr" || stored === "en") return stored;
   return navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en";

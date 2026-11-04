@@ -4,6 +4,7 @@ import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface AboutModalProps {
   onClose: () => void;
+  onOpenLegal: (kind: "mentions" | "privacy") => void;
 }
 
 const STRINGS = {
@@ -71,7 +72,7 @@ const STRINGS = {
 
 const TRUST_ICONS = [IconLock, IconKey, IconBook, IconEyeOff];
 
-export function AboutModal({ onClose }: AboutModalProps) {
+export function AboutModal({ onClose, onOpenLegal }: AboutModalProps) {
   const { lang } = useLang();
   const s = STRINGS[lang];
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
@@ -133,12 +134,20 @@ export function AboutModal({ onClose }: AboutModalProps) {
 
         <div className="mt-5 flex justify-between items-center border-t border-border pt-4">
           <nav className="flex gap-3 text-xs text-muted-foreground">
-            <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+            <button
+              type="button"
+              onClick={() => onOpenLegal("mentions")}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
               {s.legalNotice}
-            </a>
-            <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLegal("privacy")}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
               {s.privacy}
-            </a>
+            </button>
           </nav>
           <button
             type="button"

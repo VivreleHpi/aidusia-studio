@@ -133,6 +133,7 @@ interface SidebarProps {
   onClose: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onOpenLegal: (kind: "mentions" | "privacy") => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -213,6 +214,7 @@ export function Sidebar({
   onClose,
   collapsed,
   onToggleCollapse,
+  onOpenLegal,
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -669,13 +671,21 @@ export function Sidebar({
             </button>
           </div>
         </div>
-        <nav className="mt-1.5 flex gap-2.5 px-1 text-[10px] text-muted-foreground">
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/MENTIONS-LEGALES.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
+        <nav className="mt-1.5 flex gap-2.5 px-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => onOpenLegal("mentions")}
+            className="inline-flex min-h-11 items-center underline-offset-2 transition hover:text-foreground hover:underline sm:min-h-0"
+          >
             {s.legalNotice}
-          </a>
-          <a href="https://github.com/VivreleHpi/aidusia-studio/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center transition hover:text-foreground sm:min-h-0">
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenLegal("privacy")}
+            className="inline-flex min-h-11 items-center underline-offset-2 transition hover:text-foreground hover:underline sm:min-h-0"
+          >
             {s.privacy}
-          </a>
+          </button>
         </nav>
       </div>
       </aside>
