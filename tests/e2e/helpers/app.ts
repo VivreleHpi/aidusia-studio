@@ -13,6 +13,29 @@ export async function prepareApp(page: Page): Promise<void> {
   await expect(page.getByRole("main")).toBeVisible();
 }
 
+/** Visite neuve : onboarding affiché, langue et thème configurables. */
+export async function prepareFreshVisit(
+  page: Page,
+  options: { lang?: "en" | "fr"; queryLang?: "fr" | "en"; theme?: "light" | "dark" } = {},
+): Promise<void> {
+  await page.addInitScript(({ lang, theme }) => {
+    localStorage.removeItem("aidusia_onboarded");
+    localStorage.removeItem("aidusia_lang");
+    if (lang) localStorage.setItem("aidusia_lang", lang);
+    if (theme) localStorage.setItem("aidusia_theme", theme);
+    else localStorage.setItem("aidusia_theme", "light");
+  }, options);
+  const query = options.queryLang ? `?lang=${options.queryLang}` : "";
+  await page.goto(`/${query}`);
+  await expect(page.getByRole("dialog")).toBeVisible();
+}
+
+export async function dismissOnboardingExplore(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /Try without installing anything|Essayer sans rien installer/i }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("main")).toBeVisible();
+}
+
 async function waitForMobileDrawerToSettle(page: Page): Promise<void> {
   const drawer = page.locator("#aidusia-sidebar");
   await expect
