@@ -1,0 +1,22 @@
+[
+  {
+    "id": "summarize",
+    "fr": { "label": "Résumer", "prompt": "Résume le texte suivant en puces claires et concises :\n\n" },
+    "en": { "label": "Summarize", "prompt": "Summarize the following text in clear bullet points:\n\n" }
+  },
+  {
+    "id": "translate",
+    "fr": { "label": "Traduire", "prompt": "Traduis en anglais en conservant le ton :\n\n" },
+    "en": { "label": "Translate", "prompt": "Translate into French while keeping the tone:\n\n" }
+  },
+  {
+    "id": "code",
+    "fr": { "label": "Coder", "prompt": "Explique ce code et propose une version corrigée si nécessaire :\n\n```\n\n```" },
+    "en": { "label": "Code", "prompt": "Explain this code and suggest a fixed version if needed:\n\n```\n\n```" }
+  },
+  {
+    "id": "email",
+    "fr": { "label": "Email", "prompt": "Rédige un email professionnel court pour : " },
+    "en": { "label": "Email", "prompt": "Draft a short professional email about: " }
+  }
+]
