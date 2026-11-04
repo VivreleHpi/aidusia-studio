@@ -3,7 +3,7 @@ import type { McpServer } from "@/lib/mcp/types";
 
 export type McpToolPolicy = "ask" | "allow" | "deny";
 
-const STORAGE_KEY = "aidusia_mcp_tool_policies_v1";
+const STORAGE_KEY = "aidusia_mcp_tool_policies_v1"; // gitleaks:allow — clé localStorage
 
 export interface McpToolPolicyKey {
   serverId: string;
@@ -42,18 +42,18 @@ export interface McpJournalEntry {
   preview: string;
 }
 
-const JOURNAL_KEY = "aidusia_mcp_journal_v1";
+const JOURNAL_STORAGE = "aidusia_mcp_journal_v1"; // gitleaks:allow — clé localStorage
 const MAX_ENTRIES = 200;
 
 export function appendMcpJournal(entry: Omit<McpJournalEntry, "id">): void {
   const list = readMcpJournal();
   list.unshift({ ...entry, id: crypto.randomUUID() });
-  localStorage.setItem(JOURNAL_KEY, JSON.stringify(list.slice(0, MAX_ENTRIES)));
+  localStorage.setItem(JOURNAL_STORAGE, JSON.stringify(list.slice(0, MAX_ENTRIES)));
 }
 
 export function readMcpJournal(): McpJournalEntry[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(JOURNAL_KEY) ?? "[]");
+    const raw = JSON.parse(localStorage.getItem(JOURNAL_STORAGE) ?? "[]");
     return Array.isArray(raw) ? (raw as McpJournalEntry[]) : [];
   } catch {
     return [];
@@ -61,7 +61,7 @@ export function readMcpJournal(): McpJournalEntry[] {
 }
 
 export function clearMcpJournal(): void {
-  localStorage.removeItem(JOURNAL_KEY);
+  localStorage.removeItem(JOURNAL_STORAGE);
 }
 
 export function formatJournalDecision(decision: McpJournalEntry["decision"], lang: Lang): string {
