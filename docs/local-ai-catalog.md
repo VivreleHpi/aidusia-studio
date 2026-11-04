@@ -28,3 +28,51 @@ Le fichier [`src/data/local-ai-catalog.json`](../src/data/local-ai-catalog.json)
 - **Ollama** : bibliothèque [ollama.com/library](https://ollama.com/library) (tags, tailles indicatives).
 
 Ce catalogue est **indicatif** : les tailles réelles dépendent de la quantification servie sur l’appareil (shader-f16, variante f32, etc.).
+
+## Synchronisation automatique (CI)
+
+Un script **`npm run sync:local-ai-catalog`** interroge des **sources publiques** (sans appel réseau au runtime de l’app) :
+
+| Source | Usage |
+|--------|--------|
+| Paquet **`@mlc-ai/web-llm`** (prebuilt MLC) | Rafraîchit les entrées WebGPU déjà présentes ; ajout auto **désactivé par défaut** (`autoAddInstructQ4f16` dans la config) |
+| **API Hugging Face** | Dépôts GGUF suivis (ex. Luciole) — taille fichier, licence |
+| **Bibliothèque Ollama** (`ollama.com`) | Tags + manifeste Docker (`/v2/library/…/manifests/…`) pour les entrées configurées |
+
+### Champs préservés (édition manuelle)
+
+Lors d’une sync, les champs suivants **ne sont jamais écrasés** sur une entrée existante :
+
+- `id`, `name`, `vramGbMin`, `ramGbMin`, `compatibility`, `capabilities`
+
+Les autres champs (`sizeGb`, `license`, `releasedAt`, `modelId`, `quantization`, etc.) peuvent être mis à jour depuis les sources.
+
+Configuration : [`scripts/sync-local-ai-catalog/config.mjs`](../scripts/sync-local-ai-catalog/config.mjs).
+
+### Commandes
+
+```bash
+# Aperçu (stdout + scripts/sync-local-ai-catalog/last-summary.md)
+npm run sync:local-ai-catalog
+
+# Appliquer + valider
+npm run sync:local-ai-catalog -- --write
+
+# CI / vérification stricte
+npm run sync:local-ai-catalog -- --check
+```
+
+### GitHub Actions
+
+Workflow [`.github/workflows/sync-local-ai-catalog.yml`](../.github/workflows/sync-local-ai-catalog.yml) :
+
+- **Planification** : chaque lundi 06:00 UTC
+- **`workflow_dispatch`** : déclenchement manuel
+- Si le JSON change : PR automatique via [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request) (branche `automation/local-ai-catalog-sync`), corps = résumé généré
+
+**Permissions dépôt** (Settings → Actions → General) : autoriser les workflows à **créer des pull requests** (*Workflow permissions* → « Read and write » + cocher *Allow GitHub Actions to create and approve pull requests* si disponible).
+
+Token utilisé : `GITHUB_TOKEN` (fourni par Actions). Aucun secret supplémentaire pour les API publiques HF/Ollama.
+
+Les entrées peuvent porter un objet optionnel `sync` (horodatage, source) — ignoré par l’app, utile pour la revue des PR auto.
+

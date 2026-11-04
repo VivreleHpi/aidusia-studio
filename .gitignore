@@ -36,6 +36,9 @@ test-results
 .vercel
 .env*
 
+# Résumé généré par sync-local-ai-catalog (corps PR automation)
+/scripts/sync-local-ai-catalog/last-summary.md
+
 # Plans / roadmap / notes locales — jamais committer ni pousser (voir AGENTS.md)
 /ROADMAP.md
 /ROADMAP.*.md
