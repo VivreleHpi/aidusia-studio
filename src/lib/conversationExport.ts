@@ -1,6 +1,5 @@
 import type { Conversation, StoredMessage } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 function escapeMd(text: string): string {
   return text.replace(/^(#{1,6}\s)/gm, "\\$1");
@@ -76,6 +75,7 @@ function wrapPdfLine(text: string, maxChars: number): string[] {
 }
 
 export async function exportConversationPdf(conversation: Conversation, lang: Lang): Promise<void> {
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const title = conversation.title || (lang === "fr" ? "Conversation" : "Conversation");
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
