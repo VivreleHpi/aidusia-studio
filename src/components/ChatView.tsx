@@ -29,17 +29,20 @@ import { splitUserFacingError } from "@/lib/chatErrorDisplay";
 import { listAssistantTemplates } from "@/lib/assistantTemplates";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { MobileLocalPathBanner } from "@/components/MobileLocalPathBanner";
+import {
+  chatMarkdownComponents,
+  CopyAnswerButton,
+  ShareAnswerButton,
+  ToolResultBlock,
+} from "@/components/chat/ChatMessageBlocks";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
 import { REPO_URL } from "@/lib/repo";
 import {
   IconArrowUp,
   IconBook,
-  IconCheck,
   IconChevronDown,
-  IconCopy,
   IconRefresh,
-  IconShare,
   IconImage,
   IconKey,
   IconList,
@@ -212,156 +215,6 @@ function providerLabel(providerId: string | undefined, lang: Lang): string | nul
     listProviders().find((p) => p.id === providerId)?.label ??
     providerId;
   return providerDisplayLabel(providerId, lang) ?? fallback;
-}
-
-function safeMarkdownImageHref(src: string | undefined): string | null {
-  if (!src || src.length > 2_048) return null;
-  try {
-    const url = new URL(src, window.location.href);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    if (url.username || url.password) return null;
-    return url.href;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Une réponse de modèle est du contenu non fiable. Ne jamais créer de balise
- * `img` depuis son Markdown : elle déclencherait une requête avant toute action
- * utilisateur. Les pièces jointes locales suivent un autre chemin contrôlé et
- * n'ont pas besoin du rendu d'images Markdown.
- */
-function BlockedMarkdownImage({ src, alt }: { src?: string; alt?: string }) {
-  const { lang } = useLang();
-  const s = STRINGS[lang];
-  const safeHref = safeMarkdownImageHref(src);
-
-  return (
-    <span
-      role="note"
-      className="inline-flex flex-wrap items-center gap-x-2 rounded-md border border-border bg-foreground/5 px-2 py-1 text-xs text-muted-foreground"
-    >
-      <span>
-        [{s.markdownImageBlocked}{alt?.trim() ? ` : ${alt.trim()}` : ""}]
-      </span>
-      {safeHref ? (
-        <a
-          href={safeHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          referrerPolicy="no-referrer"
-          className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
-        >
-          {s.openMarkdownImage}
-        </a>
-      ) : null}
-    </span>
-  );
-}
-
-const markdownComponents = {
-  p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>
-  ),
-  ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>
-  ),
-  li: ({ children }: { children?: React.ReactNode }) => <li className="mb-0.5">{children}</li>,
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80">
-      {children}
-    </a>
-  ),
-  img: BlockedMarkdownImage,
-  code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
-    const isBlock = Boolean(className);
-    return isBlock ? (
-      <code className={`${className ?? ""} font-mono text-xs`}>{children}</code>
-    ) : (
-      <code className="rounded bg-foreground/10 px-1 py-0.5 font-mono text-xs">{children}</code>
-    );
-  },
-  pre: ({ children }: { children?: React.ReactNode }) => (
-    <pre className="mb-2 overflow-x-auto rounded-md bg-foreground/10 p-3 last:mb-0">{children}</pre>
-  ),
-};
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const { lang } = useLang();
-  const s = STRINGS[lang];
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      title={s.copyAnswer}
-      aria-label={s.copyAnswer}
-      className="inline-grid min-h-11 min-w-11 place-items-center sm:min-h-0 sm:min-w-0 rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
-    >
-      {copied ? (
-        <IconCheck className="h-3.5 w-3.5 text-success" />
-      ) : (
-        <IconCopy className="h-3.5 w-3.5" />
-      )}
-    </button>
-  );
-}
-
-function ShareButton({ text }: { text: string }) {
-  const { lang } = useLang();
-  const s = STRINGS[lang];
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        // Partage natif quand le navigateur le propose (mobile surtout) ;
-        // sinon telechargement de la reponse en Markdown, comme DataPanel.
-        if (typeof navigator.share === "function") {
-          try {
-            await navigator.share({ text });
-            return;
-          } catch (err) {
-            if ((err as Error).name === "AbortError") return; // annule par l'utilisateur
-          }
-        }
-        const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = s.shareFilename;
-        link.click();
-        URL.revokeObjectURL(url);
-      }}
-      title={s.shareAnswer}
-      aria-label={s.shareAnswer}
-      className="inline-grid min-h-11 min-w-11 place-items-center sm:min-h-0 sm:min-w-0 rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
-    >
-      <IconShare className="h-3.5 w-3.5" />
-    </button>
-  );
-}
-
-function ToolResultBlock({ name, content }: { name?: string; content: string }) {
-  const { lang } = useLang();
-  const s = STRINGS[lang];
-  return (
-    <details className="message-in w-full rounded-md border border-border bg-background/40 px-3 py-1.5 text-xs text-muted-foreground">
-      <summary className="flex cursor-pointer items-center gap-1.5 [&::-webkit-details-marker]:hidden">
-        <IconPlug className="h-3 w-3 shrink-0" />
-        <span className="truncate">
-          {s.toolResultFrom} <span className="font-mono">{name ?? s.toolFallback}</span>
-        </span>
-      </summary>
-      <pre className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap wrap-break-word font-mono text-[11px]">
-        {content}
-      </pre>
-    </details>
-  );
 }
 
 interface ChatViewProps {
@@ -815,7 +668,7 @@ export function ChatView({
                     )}
                     {m.content ? (
                       <>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={chatMarkdownComponents}>
                           {m.ragCitations?.length
                             ? linkifyCitationMarkers(
                                 m.content,
@@ -868,8 +721,8 @@ export function ChatView({
                                 : "opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
                             }`}
                           >
-                            <CopyButton text={m.content} />
-                            <ShareButton text={m.content} />
+                            <CopyAnswerButton text={m.content} />
+                            <ShareAnswerButton text={m.content} />
                             {isLastAssistant && (
                               <button
                                 type="button"
