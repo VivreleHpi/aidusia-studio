@@ -42,6 +42,9 @@ jobs:
       - name: Brand isolation scan
         run: npm run brand-scan
 
+      - name: Bundle size budget
+        run: npm run budget
+
   accessibility-e2e:
     runs-on: ubuntu-latest
     steps:
