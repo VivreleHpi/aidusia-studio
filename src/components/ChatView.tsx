@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -25,6 +26,7 @@ import {
   saveChatDrafts,
 } from "@/lib/chatDrafts";
 import { splitUserFacingError } from "@/lib/chatErrorDisplay";
+import { listAssistantTemplates } from "@/lib/assistantTemplates";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
 import { MobileLocalPathBanner } from "@/components/MobileLocalPathBanner";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
@@ -448,6 +450,7 @@ export function ChatView({
     null;
   const { lang } = useLang();
   const s = STRINGS[lang];
+  const starterChips = useMemo(() => listAssistantTemplates(lang), [lang]);
   const locale = localeOf(lang);
   const dictation = useDictation(locale);
   const visionCapable = useVisionCapability(providerId, model);
@@ -744,11 +747,11 @@ export function ChatView({
                 className="rise-in mb-3 flex flex-wrap items-center justify-center gap-2"
                 style={{ animationDelay: "200ms" }}
               >
-                {s.chips.map((chip, i) => {
-                  const ChipIcon = CHIP_ICONS[i];
+                {starterChips.map((chip, i) => {
+                  const ChipIcon = CHIP_ICONS[i] ?? IconSparkles;
                   return (
                     <button
-                      key={chip.label}
+                      key={chip.id}
                       type="button"
                       onClick={() => applySuggestion(chip.prompt)}
                       className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-foreground transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
