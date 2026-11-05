@@ -35,29 +35,22 @@ import {
   ShareAnswerButton,
   ToolResultBlock,
 } from "@/components/chat/ChatMessageBlocks";
+import { ChatWelcomeHero } from "@/components/chat/ChatWelcomeHero";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import { StarPrompt } from "@/components/StarPrompt";
-import { REPO_URL } from "@/lib/repo";
 import {
   IconArrowUp,
-  IconBook,
   IconChevronDown,
   IconRefresh,
   IconImage,
-  IconKey,
-  IconList,
-  IconLock,
   IconMic,
   IconPaperclip,
-  IconPencil,
   IconPlug,
-  IconSparkles,
   IconSquare,
   IconX,
 } from "@/components/Icons";
 
-/* Icônes des puces de suggestion, dans l'ordre du tableau chips des STRINGS. */
-const CHIP_ICONS = [IconPencil, IconBook, IconList, IconSparkles];
+/* Icônes des puces de suggestion — voir ChatWelcomeHero pour l'écran vide. */
 
 /** Au-delà de ce seuil, seuls les derniers messages sont rendus (virtualisation légère). */
 const MESSAGE_RENDER_CAP = 80;
@@ -567,55 +560,15 @@ export function ChatView({
       <div className="relative flex-1 overflow-hidden">
         <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto px-6 py-4">
           {!conversation || conversation.messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center px-4 text-center">
-              <div className="rise-in flex flex-1 flex-col items-center justify-center gap-4">
-                <h1 className="bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-center text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
-                  AIDUSIA
-                </h1>
-                <p className="max-w-md text-base text-balance text-muted-foreground">
-                  {s.welcome(new Date().getHours())} {s.helpPrompt}
-                </p>
-                <div
-                  className="rise-in mt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground"
-                  style={{ animationDelay: "100ms" }}
-                >
-                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
-                    <IconLock className="h-3.5 w-3.5 shrink-0" /> {s.badgeLocal}
-                  </span>
-                  <span className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
-                    <IconKey className="h-3.5 w-3.5 shrink-0" /> {s.badgeKeys}
-                  </span>
-                  <a
-                    href={REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
-                  >
-                    <IconBook className="h-3.5 w-3.5" /> {s.badgeOpenSource}
-                  </a>
-                </div>
-              </div>
-
-              <div
-                className="rise-in mb-3 flex flex-wrap items-center justify-center gap-2"
-                style={{ animationDelay: "200ms" }}
-              >
-                {starterChips.map((chip, i) => {
-                  const ChipIcon = CHIP_ICONS[i] ?? IconSparkles;
-                  return (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      onClick={() => applySuggestion(chip.prompt)}
-                      className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-foreground transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
-                    >
-                      <ChipIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      {chip.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <ChatWelcomeHero
+              welcomeLine={s.welcome(new Date().getHours())}
+              helpPrompt={s.helpPrompt}
+              badgeLocal={s.badgeLocal}
+              badgeKeys={s.badgeKeys}
+              badgeOpenSource={s.badgeOpenSource}
+              starterChips={starterChips}
+              onApplyPrompt={applySuggestion}
+            />
           ) : (
             <div className="mx-auto flex max-w-3xl flex-col gap-5">
               {hiddenMessageCount > 0 && (
