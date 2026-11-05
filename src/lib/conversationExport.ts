@@ -81,7 +81,7 @@ export async function exportConversationPdf(conversation: Conversation, lang: La
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   let page = pdf.addPage();
-  const { width, height } = page.getSize();
+  const { height } = page.getSize();
   const margin = 48;
   let y = height - margin;
 
@@ -121,7 +121,7 @@ export async function exportConversationPdf(conversation: Conversation, lang: La
 
   const bytes = await pdf.save();
   const safe = conversation.title.replace(/[^\w-]+/g, "-").slice(0, 40) || "conversation";
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
