@@ -98,7 +98,7 @@ Document de référence regroupant les limites produit par **lot / fonctionnalit
 | OCR Tesseract | Texte imprimé | Vision cloud/Ollama pour manuscrit. |
 | Dictée | Service navigateur (souvent cloud) | Saisie clavier. |
 | OpenAI / Ollama Cloud | Proxy Edge stateless | Auto-héberger les proxys ([README](../README.md)). |
-| Sync multi-appareils | Absente | Export Données / réglages chiffrés manuels. |
+| Sync multi-appareils | Absente (volontaire) | Pas de serveur AIDUSIA : transfert **manuel** via export JSON (RAG clair ou chiffré AES-GCM), export Données / réglages chiffrés (Providers), ou fichiers Markdown. Une « sync cloud » impliquerait un backend et un modèle de confiance distinct — hors scope actuel. Voir [docs/gdpr-data-rights.md](./gdpr-data-rights.md). |
 | Hébergement public | Proxys et en-têtes documentés | [docs/deployment-security.md](./deployment-security.md). |
 
 ---

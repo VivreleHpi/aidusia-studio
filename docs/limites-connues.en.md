@@ -98,7 +98,7 @@ Reference document grouping product limits by **feature / delivery lot**, with w
 | Tesseract OCR | Printed text | Cloud/Ollama vision for handwriting. |
 | Dictation | Browser speech service (often cloud) | Type instead. |
 | OpenAI / Ollama Cloud | Stateless Edge proxy | Self-host proxies ([README](../README.en.md)). |
-| Multi-device sync | Not provided | Manual Data / encrypted settings export. |
+| Multi-device sync | Not provided (by design) | No AIDUSIA server: **manual** transfer via RAG export (plain or AES-GCM encrypted JSON), encrypted settings export (Providers), or Markdown files. A cloud sync would require a backend and a different trust model — out of scope today. See [docs/gdpr-data-rights.en.md](./gdpr-data-rights.en.md). |
 | Public hosting | Documented proxy limits | [docs/deployment-security.md](./deployment-security.md). |
 
 ---
