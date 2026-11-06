@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconBook, IconTrash, IconX } from "@/components/Icons";
+import { PassphraseDialog } from "@/components/PassphraseDialog";
 import { useLang } from "@/lib/i18n";
 import { ingestFileIntoSpace } from "@/lib/rag/ingest";
 import {
@@ -86,6 +87,8 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const [replaceOnImport, setReplaceOnImport] = useState(false);
+  const [passphrasePrompt, setPassphrasePrompt] = useState<"export" | "import" | null>(null);
+  const pendingImportRef = useRef<File | null>(null);
 
   const refreshSpaces = useCallback(async () => {
     const list = await listRagSpaces();
@@ -266,13 +269,7 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
             <button
               type="button"
               className="rounded-lg border border-border bg-card px-3 py-2 text-xs hover:bg-muted/30"
-              onClick={() => {
-                const pass = window.prompt(s.passphraseExport);
-                if (!pass) return;
-                void exportRagArchiveEncrypted(pass).then((blob) =>
-                  downloadRagBlob(blob, `aidusia-rag-${Date.now()}.encrypted.json`),
-                );
-              }}
+              onClick={() => setPassphrasePrompt("export")}
             >
               {s.exportRagEncrypted}
             </button>
@@ -307,12 +304,12 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
                     const replay = new File([content], file.name, { type: file.type });
                     const parsed = JSON.parse(content) as { kind?: string };
                     if (parsed.kind === "aidusia-rag") {
-                      const pass = window.prompt(s.passphraseImport);
-                      if (!pass) return;
-                      await importRagArchiveFromEncrypted(replay, pass, replaceOnImport);
-                    } else {
-                      await importRagArchiveFromPlain(replay, replaceOnImport);
+                      pendingImportRef.current = replay;
+                      setPassphrasePrompt("import");
+                      setBusy(false);
+                      return;
                     }
+                    await importRagArchiveFromPlain(replay, replaceOnImport);
                     await refreshSpaces();
                     if (selectedId) await refreshDocs(selectedId);
                     setStatus(lang === "fr" ? "Sauvegarde restaurée." : "Backup restored.");
@@ -333,6 +330,37 @@ export function DocumentsView({ onClose }: DocumentsViewProps) {
           </a>
         </section>
       </div>
+      <PassphraseDialog
+        open={passphrasePrompt !== null}
+        description={passphrasePrompt === "export" ? s.passphraseExport : s.passphraseImport}
+        onCancel={() => {
+          setPassphrasePrompt(null);
+          pendingImportRef.current = null;
+        }}
+        onConfirm={async (pass) => {
+          const mode = passphrasePrompt;
+          setPassphrasePrompt(null);
+          if (mode === "export") {
+            const blob = await exportRagArchiveEncrypted(pass);
+            downloadRagBlob(blob, `aidusia-rag-${Date.now()}.encrypted.json`);
+            return;
+          }
+          const file = pendingImportRef.current;
+          pendingImportRef.current = null;
+          if (!file) return;
+          setBusy(true);
+          try {
+            await importRagArchiveFromEncrypted(file, pass, replaceOnImport);
+            await refreshSpaces();
+            if (selectedId) await refreshDocs(selectedId);
+            setStatus(lang === "fr" ? "Sauvegarde restaurée." : "Backup restored.");
+          } catch (err) {
+            setStatus(err instanceof Error ? err.message : String(err));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </div>
   );
 }
