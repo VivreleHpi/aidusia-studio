@@ -34,3 +34,32 @@ export function selectMessagesForContext(
   }
   return selected.flat();
 }
+
+/** Messages éligibles pour rejouer l'historique vers le fournisseur (pas d'assistant vide). */
+export function filterEligibleProviderHistory(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter(
+    (m) =>
+      m.role !== "assistant" || Boolean(m.content) || (m.toolCalls?.length ?? 0) > 0,
+  );
+}
+
+export interface ContextSelectionStats {
+  eligibleMessageCount: number;
+  sentMessageCount: number;
+  truncated: boolean;
+  budgetChars: number;
+}
+
+/** Compare l'historique stocké à ce qui est réellement envoyé dans `messages` (budget caractères). */
+export function computeContextSelectionStats(
+  eligibleMessages: ChatMessage[],
+  budget = DEFAULT_CONTEXT_CHARACTER_BUDGET,
+): ContextSelectionStats {
+  const selected = selectMessagesForContext(eligibleMessages, budget);
+  return {
+    eligibleMessageCount: eligibleMessages.length,
+    sentMessageCount: selected.length,
+    truncated: selected.length < eligibleMessages.length,
+    budgetChars: budget,
+  };
+}

@@ -1,7 +1,13 @@
 import type { ChatProvider, ChatStreamParams, ProviderModel, StreamChunk } from "./types";
 import { requestConfirm } from "@/lib/confirm";
-import { selectMessagesForContext } from "@/lib/contextWindow";
-import { isMobile } from "@/lib/deviceDetect";
+import {
+  LUCIOLE_MAX_OUTPUT_TOKENS,
+  LUCIOLE_SAMPLING,
+  lucioleContextTokens,
+  lucioleFullSystemPrompt,
+  lucioleHistoryCharBudget,
+  luciolePrepareMessagesForChat,
+} from "@/lib/lucioleContext";
 import { getStoredLang, type Lang } from "@/lib/i18n";
 import { LOCAL_AI_PROGRESS_EVENT, type LocalAiProgress } from "./browserLocal";
 import wasmUrl from "@wllama/wllama/esm/wasm/wllama.wasm?url";
@@ -15,30 +21,11 @@ export const LUCIOLE_GGUF_URL =
 // Poids ~1,02 Go + marge pour le cache du navigateur et les métadonnées.
 const REQUIRED_FREE_BYTES = 1_150_000_000;
 
-// Cache KV de ce modèle : ~48 Ko par token (24 couches × 8 têtes KV × 64 × K+V
-// en f16). 2048 tokens (~100 Mo) sur téléphone, 4096 (~200 Mo) ailleurs.
-export function lucioleContextTokens(): number {
-  return isMobile() ? 2048 : 4096;
-}
-export const LUCIOLE_MAX_OUTPUT_TOKENS = 640;
-// ~5 caractères/token mesurés en français courant ; 3 par prudence (code,
-// chiffres, autres langues) pour ne jamais déborder du contexte.
-const CHARS_PER_TOKEN = 3;
-const PROMPT_OVERHEAD_TOKENS = 64;
+export { lucioleContextTokens, LUCIOLE_MAX_OUTPUT_TOKENS };
+/** @deprecated Préférer `lucioleHistoryCharBudget` depuis `@/lib/lucioleContext`. */
+export const lucioleHistoryBudget = lucioleHistoryCharBudget;
 
-export function lucioleHistoryBudget(nCtx: number, systemPrompt: string): number {
-  return (nCtx - LUCIOLE_MAX_OUTPUT_TOKENS - PROMPT_OVERHEAD_TOKENS) * CHARS_PER_TOKEN - systemPrompt.length;
-}
-
-// Réglages publiés dans le GGUF (general.sampling.*).
-const SAMPLING = { temperature: 0.7, top_p: 0.9 } as const;
-
-// Le template du modèle n'injecte son identité que sans message système ;
-// l'app en fournit toujours un, on la remet donc en tête.
-const IDENTITY: Record<Lang, string> = {
-  fr: "Tu es Luciole, un assistant IA utile, entraîné par LINAGORA et OpenLLM France.",
-  en: "You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.",
-};
+const SAMPLING = LUCIOLE_SAMPLING;
 
 /* Calcul : "auto" = carte graphique (WebGPU) si un adaptateur répond, sinon
    processeur. "cpu" force le processeur : plus lent, mais contourne les
@@ -277,12 +264,10 @@ export const lucioleProvider: ChatProvider = {
       const loaded = await getEngine(lang, params.signal);
       if (params.signal?.aborted) return;
 
-      const systemPrompt = params.systemPrompt ? `${IDENTITY[lang]}\n\n${params.systemPrompt}` : IDENTITY[lang];
-      const budget = lucioleHistoryBudget(loaded.nCtx, systemPrompt);
-      const history = selectMessagesForContext(
-        params.messages.filter((message) => message.role === "user" || message.role === "assistant"),
-        budget,
-      );
+      const fullSystem = lucioleFullSystemPrompt(lang, params.systemPrompt);
+      const prep = luciolePrepareMessagesForChat(params.messages, loaded.nCtx, lang, params.systemPrompt);
+      const budget = prep.budgetChars;
+      const history = prep.forCompletion;
       const lastUser = history.filter((message) => message.role === "user").at(-1);
       if (lastUser && lastUser.content.length > budget) {
         throw new LucioleError(
@@ -293,7 +278,7 @@ export const lucioleProvider: ChatProvider = {
       }
 
       const messages = [
-        { role: "system" as const, content: systemPrompt },
+        { role: "system" as const, content: fullSystem },
         ...history.map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
       ];
 

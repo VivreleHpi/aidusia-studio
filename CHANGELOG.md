@@ -9,6 +9,11 @@ et le versionnage sémantique depuis sa première version publiée.
 
 - (Réservé aux prochaines versions.)
 
+### Corrigé
+
+- Luciole : les conversations avec outils MCP replient désormais appels et résultats en texte avant envoi au modèle (l’historique ne perd plus les tours tool), avec budget d’historique aligné sur le moteur wllama ; l’indicateur de contexte reflète ce budget Luciole et le repli ; rappel UI si une image est jointe (Luciole reste texte seul).
+- Luciole : échantillonnage aligné sur le Modelfile GGUF officiel (température 0,2, top-k 20, top-p 0,95, min-p 0,1) et prompt système officiel conservé ; le paragraphe « vitrine Studio » n’est plus injecté devant ce 1B (le surplus RAG / consigne reste).
+
 ## [0.2.0] — 2026-11-04
 
 Version regroupant la chaîne UX / IA locale / RAG / export / MCP / vision

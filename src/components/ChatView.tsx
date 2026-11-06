@@ -28,6 +28,8 @@ import {
 import { splitUserFacingError } from "@/lib/chatErrorDisplay";
 import { listAssistantTemplates } from "@/lib/assistantTemplates";
 import { providerDisplayLabel } from "@/lib/providerTaglines";
+import { isLocalProvider } from "@/lib/systemContext";
+import { DEFAULT_CONTEXT_CHARACTER_BUDGET } from "@/lib/contextWindow";
 import { MobileLocalPathBanner } from "@/components/MobileLocalPathBanner";
 import {
   chatMarkdownComponents,
@@ -139,6 +141,20 @@ const STRINGS = {
     aiGenerated: "Généré par IA",
     markdownImageBlocked: "Image Markdown bloquée pour protéger votre confidentialité",
     openMarkdownImage: "Ouvrir l’image externe dans un nouvel onglet",
+    contextFooter:
+      (stored: number, sent: number, eligible: number, budget: string, eligibleNote?: string) =>
+        `Cette conversation : ${stored.toLocaleString("fr-FR")} message(s) conservé(s) localement. Dernier envoi au modèle : ${sent.toLocaleString("fr-FR")} message(s) parmi ${eligible.toLocaleString("fr-FR")} éligible(s)${eligibleNote ?? ""} (plafond historique ~${budget} caractères).`,
+    contextLucioleMcpFolded:
+      "Anciens tours avec outils MCP : repliés en texte pour Luciole (modèle texte seul).",
+    contextTruncated: "Les échanges plus anciens ne sont pas renvoyés au modèle.",
+    contextCloud:
+      "Fournisseur cloud : le texte, les images jointes et les extraits RAG sont transmis au fournisseur via votre clé.",
+    contextLocal:
+      "Fournisseur local : l’inférence reste sur cet appareil ; texte, images et RAG sont traités ici.",
+    contextRag:
+      "Espace documentaire : des extraits peuvent être ajoutés au message système puis envoyés au modèle.",
+    contextFooterPending: (budget: string) =>
+      `Toute la conversation reste sur cet appareil. À chaque envoi, seule une partie récente est renvoyée au modèle (plafond ~${budget} caractères, texte et images inclus).`,
   },
   en: {
     welcome: (hour: number) =>
@@ -203,6 +219,20 @@ const STRINGS = {
     aiGenerated: "AI-generated",
     markdownImageBlocked: "Markdown image blocked to protect your privacy",
     openMarkdownImage: "Open the external image in a new tab",
+    contextFooter:
+      (stored: number, sent: number, eligible: number, budget: string, eligibleNote?: string) =>
+        `This conversation: ${stored.toLocaleString("en-US")} message(s) kept locally on this device. Last request to the model: ${sent.toLocaleString("en-US")} message(s) out of ${eligible.toLocaleString("en-US")} eligible${eligibleNote ?? ""} (history cap ~${budget} characters).`,
+    contextLucioleMcpFolded:
+      "Earlier MCP tool turns were folded into plain text for Luciole (text-only model).",
+    contextTruncated: "Older turns are not sent back to the model.",
+    contextCloud:
+      "Cloud provider: text, attached images, and RAG excerpts are sent to the provider using your key.",
+    contextLocal:
+      "Local provider: inference stays on this device; text, images, and RAG are handled here.",
+    contextRag:
+      "Document space: excerpts may be added to the system prompt and sent to the model.",
+    contextFooterPending: (budget: string) =>
+      `The full thread stays on this device. Each send only includes a recent slice for the model (cap ~${budget} characters, including text and images).`,
   },
 } as const;
 
@@ -307,6 +337,54 @@ export function ChatView({
   const locale = localeOf(lang);
   const dictation = useDictation(locale);
   const visionCapable = useVisionCapability(providerId, model);
+
+  const contextTransparencyLines = useMemo(() => {
+    if (!conversation) return null;
+    const defaultBudgetApprox = new Intl.NumberFormat(locale).format(DEFAULT_CONTEXT_CHARACTER_BUDGET);
+    const lines: string[] = [];
+    const last = conversation.lastContextStats;
+    if (last) {
+      const budgetApprox = new Intl.NumberFormat(locale).format(last.budgetChars);
+      const eligibleForFooter = last.flattenedEligibleCount ?? last.eligibleMessageCount;
+      const eligibleDetail =
+        last.flattenedEligibleCount !== undefined && last.flattenedEligibleCount !== last.eligibleMessageCount
+          ? lang === "fr"
+            ? ` — ${last.eligibleMessageCount.toLocaleString("fr-FR")} messages bruts avant repli des outils MCP`
+            : ` — ${last.eligibleMessageCount.toLocaleString("en-US")} raw messages before MCP tool fold`
+          : "";
+      lines.push(
+        s.contextFooter(
+          conversation.messages.length,
+          last.sentMessageCount,
+          eligibleForFooter,
+          budgetApprox,
+          eligibleDetail,
+        ),
+      );
+      if (last.truncated) lines.push(s.contextTruncated);
+      if (last.lucioleMcpFolded) lines.push(s.contextLucioleMcpFolded);
+    } else {
+      lines.push(s.contextFooterPending(defaultBudgetApprox));
+    }
+    lines.push(isLocalProvider(providerId) ? s.contextLocal : s.contextCloud);
+    if (effectiveRagSpaceId) lines.push(s.contextRag);
+    if (pendingImage) {
+      if (providerId === "luciole") {
+        lines.push(
+          lang === "fr"
+            ? "Luciole 1B est limité au texte : l’image jointe ne sera pas analysée par ce modèle."
+            : "Luciole 1B is text-only: the attached image will not be analyzed by this model.",
+        );
+      } else {
+        lines.push(
+          lang === "fr"
+            ? "Une image est prête à l'envoi : elle sera jointe au prochain message et traitée comme pour le texte (y compris hors de cet appareil si le fournisseur est cloud)."
+            : "An image is ready to send: it will be attached to the next message and handled like text (including off this device if the provider is cloud).",
+        );
+      }
+    }
+    return lines;
+  }, [conversation, effectiveRagSpaceId, lang, locale, pendingImage, providerId, s]);
 
   function persistDraft(key: string, value: string) {
     const drafts = draftsRef.current ?? {};
@@ -1029,6 +1107,15 @@ export function ChatView({
             <span className="hidden sm:inline">{s.hint} · </span>
             {s.disclaimer}
           </p>
+          {contextTransparencyLines && (
+            <div className="rounded-xl border border-border/50 bg-card/40 px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+              {contextTransparencyLines.map((line, index) => (
+                <p key={index} className="mb-1 last:mb-0">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       </form>
     </div>

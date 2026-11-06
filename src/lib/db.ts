@@ -19,6 +19,19 @@ export interface StoredMessage extends ChatMessage {
   ragCitations?: RagCitation[];
 }
 
+/** Résumé du dernier envoi au fournisseur (diffère de l'historique complet en IndexedDB). */
+export interface LastContextStats {
+  sentMessageCount: number;
+  eligibleMessageCount: number;
+  /** Après repli outils MCP (Luciole) : peut différer de `eligibleMessageCount`. */
+  flattenedEligibleCount?: number;
+  truncated: boolean;
+  budgetChars: number;
+  /** Luciole : l’historique contenait des messages tool / appels MCP repliés en texte. */
+  lucioleMcpFolded?: boolean;
+  updatedAt: number;
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -26,6 +39,7 @@ export interface Conversation {
   updatedAt: number;
   messages: StoredMessage[];
   ragSpaceId?: string | null;
+  lastContextStats?: LastContextStats;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
