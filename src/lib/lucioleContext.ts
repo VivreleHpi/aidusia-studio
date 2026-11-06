@@ -1,13 +1,30 @@
 import { DEFAULT_CONTEXT_CHARACTER_BUDGET, selectMessagesForContext } from "@/lib/contextWindow";
 import { isMobile } from "@/lib/deviceDetect";
 import type { Lang } from "@/lib/i18n";
+import { stripStudioBaseContext } from "@/lib/systemContext";
 import type { ChatMessage } from "@/providers/types";
 
-/** Identité + instructions Studio ; même texte que l’ancien `IDENTITY` dans luciole.ts. */
-export const LUCIOLE_IDENTITY: Record<Lang, string> = {
-  fr: "Tu es Luciole, un assistant IA utile, entraîné par LINAGORA et OpenLLM France.",
-  en: "You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.",
-};
+/**
+ * Phrase système exacte du Modelfile / chat template officiel
+ * (OpenLLM-France/Luciole-1B-Instruct-1.1). La remplacer par un long texte
+ * français fait sortir le 1B de son alignement.
+ */
+export const LUCIOLE_OFFICIAL_SYSTEM =
+  "You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.";
+
+/** Une ligne, pas un second persona : le post-entraînement est surtout en anglais. */
+export const LUCIOLE_LANGUAGE_HINT = "Answer in the same language as the user's last message.";
+
+/**
+ * Échantillonnage du Modelfile GGUF officiel (pas le generation_config
+ * Transformers à 0.7, trop dispersé pour ce 1B).
+ */
+export const LUCIOLE_SAMPLING = {
+  temperature: 0.2,
+  top_k: 20,
+  top_p: 0.95,
+  min_p: 0.1,
+} as const;
 
 export const LUCIOLE_MAX_OUTPUT_TOKENS = 640;
 const PROMPT_OVERHEAD_TOKENS = 64;
@@ -27,9 +44,11 @@ export function lucioleHistoryCharBudget(nCtx: number, fullSystemPrompt: string)
   return (nCtx - LUCIOLE_MAX_OUTPUT_TOKENS - PROMPT_OVERHEAD_TOKENS) * CHARS_PER_TOKEN - fullSystemPrompt.length;
 }
 
-/** Prompt système complet passé au moteur : identité Luciole + texte Studio (local/cloud, RAG…). */
+/** Prompt système passé au moteur : phrase officielle + éventuel surplus (RAG), sans le paragraphe Studio. */
 export function lucioleFullSystemPrompt(lang: Lang, studioSystemPrompt: string | undefined): string {
-  return studioSystemPrompt ? `${LUCIOLE_IDENTITY[lang]}\n\n${studioSystemPrompt}` : LUCIOLE_IDENTITY[lang];
+  const extra = stripStudioBaseContext("luciole", lang, studioSystemPrompt);
+  const head = `${LUCIOLE_OFFICIAL_SYSTEM}\n${LUCIOLE_LANGUAGE_HINT}`;
+  return extra ? `${head}\n\n${extra}` : head;
 }
 
 /**

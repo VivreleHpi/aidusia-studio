@@ -12,6 +12,27 @@ export function isLocalProvider(providerId: string): boolean {
 // que le modele sache qu'il tourne dans Aidusia Studio (une vitrine minimale,
 // pas le produit complet) et si l'inference se fait localement ou via une
 // API cloud - certains modeles adaptent leur ton/comportement selon ce point.
+/**
+ * Retire le paragraphe Studio déjà injecté par `buildSystemPrompt`, pour qu’un
+ * petit modèle local garde son prompt d’entraînement et seulement le surplus
+ * (RAG, consigne utilisateur).
+ */
+export function stripStudioBaseContext(
+  providerId: string,
+  lang: Lang,
+  prompt: string | undefined,
+): string | undefined {
+  if (!prompt?.trim()) return undefined;
+  const base = baseContext(providerId, lang);
+  if (prompt.trim() === base) return undefined;
+  const prefix = `${base}\n\n`;
+  if (prompt.startsWith(prefix)) {
+    const rest = prompt.slice(prefix.length).trim();
+    return rest.length > 0 ? rest : undefined;
+  }
+  return prompt.trim();
+}
+
 function baseContext(providerId: string, lang: Lang): string {
   const local = isLocalProvider(providerId);
   if (lang === "fr") {

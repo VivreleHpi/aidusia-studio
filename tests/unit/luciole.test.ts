@@ -101,10 +101,13 @@ describe("Luciole local", () => {
       temperature: number;
       top_p: number;
     };
-    expect(request).toMatchObject({ temperature: 0.7, top_p: 0.9 });
+    expect(request).toMatchObject({ temperature: 0.2, top_k: 20, top_p: 0.95, min_p: 0.1 });
     expect(request.messages[0].role).toBe("system");
-    expect(request.messages[0].content).toContain("Tu es Luciole");
+    expect(request.messages[0].content).toContain(
+      "You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.",
+    );
     expect(request.messages[0].content).toContain("Contexte app");
+    expect(request.messages[0].content).not.toContain("vitrine minimale");
     expect(chunks).toEqual([
       { type: "text", delta: "Bonjour" },
       { type: "usage", outputTokens: 12, tokensPerSecond: 17.5 },

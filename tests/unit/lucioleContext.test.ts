@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   computeProviderContextStats,
+  LUCIOLE_OFFICIAL_SYSTEM,
   lucioleFlattenHistoryForTextModel,
   lucioleFullSystemPrompt,
   lucioleHistoryCharBudget,
   luciolePrepareMessagesForChat,
 } from "@/lib/lucioleContext";
+import { buildSystemPrompt } from "@/lib/systemContext";
 import type { ChatMessage } from "@/providers/types";
 
 const user = (content: string): ChatMessage => ({ role: "user", content });
@@ -44,6 +46,17 @@ describe("lucioleFlattenHistoryForTextModel", () => {
   it("attaches orphan tool result to the previous user turn", () => {
     const flat = lucioleFlattenHistoryForTextModel([tool("done", "x"), user("suite ?")], "fr");
     expect(flat[0]).toEqual(user("suite ?\n\n[Résultat d’outil (x)] done"));
+  });
+});
+
+describe("lucioleFullSystemPrompt", () => {
+  it("keeps the official system sentence and drops the Studio boilerplate", () => {
+    const studio = buildSystemPrompt("luciole", "fr", "Extraits RAG : chapitre 2.");
+    const prompt = lucioleFullSystemPrompt("fr", studio);
+    expect(prompt.startsWith(LUCIOLE_OFFICIAL_SYSTEM)).toBe(true);
+    expect(prompt).toContain("Extraits RAG : chapitre 2.");
+    expect(prompt).not.toContain("vitrine minimale");
+    expect(prompt).not.toContain("Tu es Luciole");
   });
 });
 

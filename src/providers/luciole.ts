@@ -2,6 +2,7 @@ import type { ChatProvider, ChatStreamParams, ProviderModel, StreamChunk } from 
 import { requestConfirm } from "@/lib/confirm";
 import {
   LUCIOLE_MAX_OUTPUT_TOKENS,
+  LUCIOLE_SAMPLING,
   lucioleContextTokens,
   lucioleFullSystemPrompt,
   lucioleHistoryCharBudget,
@@ -24,8 +25,7 @@ export { lucioleContextTokens, LUCIOLE_MAX_OUTPUT_TOKENS };
 /** @deprecated Préférer `lucioleHistoryCharBudget` depuis `@/lib/lucioleContext`. */
 export const lucioleHistoryBudget = lucioleHistoryCharBudget;
 
-// Réglages publiés dans le GGUF (general.sampling.*).
-const SAMPLING = { temperature: 0.7, top_p: 0.9 } as const;
+const SAMPLING = LUCIOLE_SAMPLING;
 
 /* Calcul : "auto" = carte graphique (WebGPU) si un adaptateur répond, sinon
    processeur. "cpu" force le processeur : plus lent, mais contourne les
