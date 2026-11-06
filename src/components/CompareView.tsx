@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { compareMarkdownComponents } from "@/components/compare/CompareMarkdown";
+import { CompareToolbar } from "@/components/compare/CompareToolbar";
 import { ModelMenu, type ModelReadiness } from "@/components/ModelMenu";
 import {
   IconArrowRight,
   IconCheck,
   IconCopy,
-  IconLock,
   IconRefresh,
-  IconShare,
   IconSparkles,
   IconSquare,
 } from "@/components/Icons";
@@ -664,41 +663,16 @@ export function CompareView({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
         <div className="mx-auto w-full max-w-6xl">
-          <div className="mb-3 flex flex-wrap items-start gap-2">
-            {/* Sur téléphone, la note complète occupait un tiers de l'écran :
-                elle devient un disclosure, sans rien retirer de l'information. */}
-            <details className="min-w-0 basis-full text-xs leading-5 text-muted-foreground sm:hidden">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-                <IconLock className="h-3.5 w-3.5 shrink-0" />
-                <span className="underline decoration-dotted underline-offset-2">
-                  {s.privacySummary}
-                </span>
-              </summary>
-              <p className="mt-1.5 pl-5.5">{s.privacy}</p>
-            </details>
-            <p className="hidden min-w-0 flex-1 items-start gap-2 text-xs leading-5 text-muted-foreground sm:flex">
-              <IconLock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>{s.privacy}</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => setBenchmarkEnabled((enabled) => !enabled)}
-              aria-pressed={benchmarkEnabled}
-              className={`inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-xs font-medium transition sm:min-h-9 ${benchmarkEnabled ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-foreground hover:bg-foreground/10"}`}
-            >
-              {s.benchmark}
-            </button>
-            <button
-              type="button"
-              onClick={exportComparison}
-              disabled={!canExport}
-              title={s.exportMarkdown}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground transition hover:bg-foreground/10 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-9"
-            >
-              <IconShare className="h-3.5 w-3.5" />
-              {s.exportMarkdown}
-            </button>
-          </div>
+          <CompareToolbar
+            privacySummary={s.privacySummary}
+            privacy={s.privacy}
+            benchmarkLabel={s.benchmark}
+            benchmarkEnabled={benchmarkEnabled}
+            onToggleBenchmark={() => setBenchmarkEnabled((enabled) => !enabled)}
+            exportLabel={s.exportMarkdown}
+            canExport={canExport}
+            onExport={exportComparison}
+          />
           {benchmarkEnabled ? (
             <p className="mb-3 rounded-lg border border-border/70 bg-card/50 px-3 py-2 text-xs text-muted-foreground">
               {s.benchmarkHelp}
