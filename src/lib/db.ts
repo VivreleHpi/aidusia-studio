@@ -23,8 +23,12 @@ export interface StoredMessage extends ChatMessage {
 export interface LastContextStats {
   sentMessageCount: number;
   eligibleMessageCount: number;
+  /** Après repli outils MCP (Luciole) : peut différer de `eligibleMessageCount`. */
+  flattenedEligibleCount?: number;
   truncated: boolean;
   budgetChars: number;
+  /** Luciole : l’historique contenait des messages tool / appels MCP repliés en texte. */
+  lucioleMcpFolded?: boolean;
   updatedAt: number;
 }
 

@@ -9,6 +9,10 @@ et le versionnage sémantique depuis sa première version publiée.
 
 - (Réservé aux prochaines versions.)
 
+### Corrigé
+
+- Luciole : les conversations avec outils MCP replient désormais appels et résultats en texte avant envoi au modèle (l’historique ne perd plus les tours tool), avec budget d’historique aligné sur le moteur wllama ; l’indicateur de contexte reflète ce budget Luciole et le repli ; rappel UI si une image est jointe (Luciole reste texte seul).
+
 ## [0.2.0] — 2026-11-04
 
 Version regroupant la chaîne UX / IA locale / RAG / export / MCP / vision

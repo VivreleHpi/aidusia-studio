@@ -142,8 +142,10 @@ const STRINGS = {
     markdownImageBlocked: "Image Markdown bloquée pour protéger votre confidentialité",
     openMarkdownImage: "Ouvrir l’image externe dans un nouvel onglet",
     contextFooter:
-      (stored: number, sent: number, eligible: number, budget: string) =>
-        `Cette conversation : ${stored.toLocaleString("fr-FR")} message(s) conservé(s) localement. Dernier envoi au modèle : ${sent.toLocaleString("fr-FR")} message(s) parmi ${eligible.toLocaleString("fr-FR")} éligible(s) (plafond historique ~${budget} caractères).`,
+      (stored: number, sent: number, eligible: number, budget: string, eligibleNote?: string) =>
+        `Cette conversation : ${stored.toLocaleString("fr-FR")} message(s) conservé(s) localement. Dernier envoi au modèle : ${sent.toLocaleString("fr-FR")} message(s) parmi ${eligible.toLocaleString("fr-FR")} éligible(s)${eligibleNote ?? ""} (plafond historique ~${budget} caractères).`,
+    contextLucioleMcpFolded:
+      "Anciens tours avec outils MCP : repliés en texte pour Luciole (modèle texte seul).",
     contextTruncated: "Les échanges plus anciens ne sont pas renvoyés au modèle.",
     contextCloud:
       "Fournisseur cloud : le texte, les images jointes et les extraits RAG sont transmis au fournisseur via votre clé.",
@@ -218,8 +220,10 @@ const STRINGS = {
     markdownImageBlocked: "Markdown image blocked to protect your privacy",
     openMarkdownImage: "Open the external image in a new tab",
     contextFooter:
-      (stored: number, sent: number, eligible: number, budget: string) =>
-        `This conversation: ${stored.toLocaleString("en-US")} message(s) kept locally on this device. Last request to the model: ${sent.toLocaleString("en-US")} message(s) out of ${eligible.toLocaleString("en-US")} eligible (history cap ~${budget} characters).`,
+      (stored: number, sent: number, eligible: number, budget: string, eligibleNote?: string) =>
+        `This conversation: ${stored.toLocaleString("en-US")} message(s) kept locally on this device. Last request to the model: ${sent.toLocaleString("en-US")} message(s) out of ${eligible.toLocaleString("en-US")} eligible${eligibleNote ?? ""} (history cap ~${budget} characters).`,
+    contextLucioleMcpFolded:
+      "Earlier MCP tool turns were folded into plain text for Luciole (text-only model).",
     contextTruncated: "Older turns are not sent back to the model.",
     contextCloud:
       "Cloud provider: text, attached images, and RAG excerpts are sent to the provider using your key.",
@@ -336,25 +340,48 @@ export function ChatView({
 
   const contextTransparencyLines = useMemo(() => {
     if (!conversation) return null;
-    const budgetApprox = new Intl.NumberFormat(locale).format(DEFAULT_CONTEXT_CHARACTER_BUDGET);
+    const defaultBudgetApprox = new Intl.NumberFormat(locale).format(DEFAULT_CONTEXT_CHARACTER_BUDGET);
     const lines: string[] = [];
     const last = conversation.lastContextStats;
     if (last) {
+      const budgetApprox = new Intl.NumberFormat(locale).format(last.budgetChars);
+      const eligibleForFooter = last.flattenedEligibleCount ?? last.eligibleMessageCount;
+      const eligibleDetail =
+        last.flattenedEligibleCount !== undefined && last.flattenedEligibleCount !== last.eligibleMessageCount
+          ? lang === "fr"
+            ? ` — ${last.eligibleMessageCount.toLocaleString("fr-FR")} messages bruts avant repli des outils MCP`
+            : ` — ${last.eligibleMessageCount.toLocaleString("en-US")} raw messages before MCP tool fold`
+          : "";
       lines.push(
-        s.contextFooter(conversation.messages.length, last.sentMessageCount, last.eligibleMessageCount, budgetApprox),
+        s.contextFooter(
+          conversation.messages.length,
+          last.sentMessageCount,
+          eligibleForFooter,
+          budgetApprox,
+          eligibleDetail,
+        ),
       );
       if (last.truncated) lines.push(s.contextTruncated);
+      if (last.lucioleMcpFolded) lines.push(s.contextLucioleMcpFolded);
     } else {
-      lines.push(s.contextFooterPending(budgetApprox));
+      lines.push(s.contextFooterPending(defaultBudgetApprox));
     }
     lines.push(isLocalProvider(providerId) ? s.contextLocal : s.contextCloud);
     if (effectiveRagSpaceId) lines.push(s.contextRag);
     if (pendingImage) {
-      lines.push(
-        lang === "fr"
-          ? "Une image est prête à l'envoi : elle sera jointe au prochain message et traitée comme pour le texte (y compris hors de cet appareil si le fournisseur est cloud)."
-          : "An image is ready to send: it will be attached to the next message and handled like text (including off this device if the provider is cloud).",
-      );
+      if (providerId === "luciole") {
+        lines.push(
+          lang === "fr"
+            ? "Luciole 1B est limité au texte : l’image jointe ne sera pas analysée par ce modèle."
+            : "Luciole 1B is text-only: the attached image will not be analyzed by this model.",
+        );
+      } else {
+        lines.push(
+          lang === "fr"
+            ? "Une image est prête à l'envoi : elle sera jointe au prochain message et traitée comme pour le texte (y compris hors de cet appareil si le fournisseur est cloud)."
+            : "An image is ready to send: it will be attached to the next message and handled like text (including off this device if the provider is cloud).",
+        );
+      }
     }
     return lines;
   }, [conversation, effectiveRagSpaceId, lang, locale, pendingImage, providerId, s]);
