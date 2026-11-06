@@ -5,6 +5,10 @@ et le versionnage sémantique depuis sa première version publiée.
 
 ## [Non publié]
 
+### Modifié
+
+- Luciole 1B est retiré. Le modèle local sans WebGPU est Qwen2.5 0.5B Instruct (GGUF officiel Q4_K_M, environ 0,49 Go, Apache-2.0, français inclus). Avec WebGPU, Llama 3.2 1B reste le modèle léger du navigateur.
+
 ### Ajouté
 
 - (Réservé aux prochaines versions.)

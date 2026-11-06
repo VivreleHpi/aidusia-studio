@@ -16,7 +16,7 @@ import { PROVIDER_LINKS } from "@/lib/providerLinks";
 import type { KeyTestResult } from "@/providers/types";
 import { HardwareGovernor } from "@/components/HardwareGovernor";
 import { LocalAiManager } from "@/components/LocalAiManager";
-import { LucioleManager } from "@/components/LucioleManager";
+import { PortableModelManager } from "@/components/PortableModelManager";
 import { IconX } from "@/components/Icons";
 import { useLang } from "@/lib/i18n";
 import { providerDisabledOnDevice, providerDisplayLabel, providerTagline } from "@/lib/providerTaglines";
@@ -163,7 +163,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
   );
   const [persist, setPersist] = useState(isPersistEnabled());
   const [localAiOpen, setLocalAiOpen] = useState(false);
-  const [lucioleOpen, setLucioleOpen] = useState(false);
+  const [portableOpen, setPortableOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [passphraseAction, setPassphraseAction] = useState<"export" | "import" | null>(null);
   const [passphrase, setPassphrase] = useState("");
@@ -441,10 +441,10 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                           {s.models}
                         </button>
                       )}
-                      {provider.id === "luciole" && (
+                      {provider.id === "portable" && (
                         <button
                           type="button"
-                          onClick={() => setLucioleOpen((value) => !value)}
+                          onClick={() => setPortableOpen((value) => !value)}
                           className="min-h-11 rounded-lg px-2.5 text-xs text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground sm:min-h-0 sm:py-1.5"
                         >
                           {s.models}
@@ -503,7 +503,7 @@ export function ProvidersPanel({ onClose, onProviderReady }: ProvidersPanelProps
                   )}
 
                   {!off.disabled && provider.id === "browser" && localAiOpen && <LocalAiManager />}
-                  {provider.id === "luciole" && lucioleOpen && <LucioleManager />}
+                  {provider.id === "portable" && portableOpen && <PortableModelManager />}
 
                   {!off.disabled && row.editing && (
                     <div className="mt-2 flex min-w-0 gap-2 pl-4">

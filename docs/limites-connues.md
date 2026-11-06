@@ -23,7 +23,7 @@ Document de référence regroupant les limites produit par **lot / fonctionnalit
 
 | Limite | Contournement / piste |
 |--------|------------------------|
-| WebGPU absent ou instable | Luciole, Ollama LAN, ou cloud. |
+| WebGPU absent ou instable | Qwen 0.5B portable, Ollama LAN, ou cloud. |
 | Modèles lourds sur téléphone | Modèles ≤2B ou avertissement ⚠ dans le menu modèle. |
 | Téléchargements volumineux | Wi‑Fi ; PWA installée pour cache persistant. |
 
@@ -71,7 +71,7 @@ Document de référence regroupant les limites produit par **lot / fonctionnalit
 
 | Limite | Contournement / piste |
 |--------|------------------------|
-| Pas de vision WebLLM / Luciole | Ollama vision, cloud, ou OCR. |
+| Pas de vision WebLLM / Qwen portable | Ollama vision, cloud, ou OCR. |
 | JPEG forcé pour APIs cloud | Accepter la compression ou OCR pour texte. |
 | `visionCapable` parfois heuristique | Choisir un modèle vision explicite. |
 

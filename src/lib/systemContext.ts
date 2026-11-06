@@ -2,7 +2,7 @@ import type { Lang } from "@/lib/i18n";
 
 // Fournisseurs qui tournent entierement sur cet appareil (aucun appel reseau
 // vers un tiers pour l'inference) - le reste part vers une API cloud.
-const LOCAL_PROVIDER_IDS = new Set(["ollama", "browser", "luciole"]);
+const LOCAL_PROVIDER_IDS = new Set(["ollama", "browser", "portable"]);
 
 export function isLocalProvider(providerId: string): boolean {
   return LOCAL_PROVIDER_IDS.has(providerId);
@@ -12,6 +12,24 @@ export function isLocalProvider(providerId: string): boolean {
 // que le modele sache qu'il tourne dans Aidusia Studio (une vitrine minimale,
 // pas le produit complet) et si l'inference se fait localement ou via une
 // API cloud - certains modeles adaptent leur ton/comportement selon ce point.
+
+/** Retire le paragraphe Studio pour laisser au petit modèle son prompt d'origine, plus le surplus (RAG). */
+export function stripStudioBaseContext(
+  providerId: string,
+  lang: Lang,
+  prompt: string | undefined,
+): string | undefined {
+  if (!prompt?.trim()) return undefined;
+  const base = baseContext(providerId, lang);
+  if (prompt.trim() === base) return undefined;
+  const prefix = `${base}\n\n`;
+  if (prompt.startsWith(prefix)) {
+    const rest = prompt.slice(prefix.length).trim();
+    return rest.length > 0 ? rest : undefined;
+  }
+  return prompt.trim();
+}
+
 function baseContext(providerId: string, lang: Lang): string {
   const local = isLocalProvider(providerId);
   if (lang === "fr") {

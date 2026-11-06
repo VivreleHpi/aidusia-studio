@@ -41,8 +41,8 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
         a: "Le fournisseur « Sur cet appareil » exécute de vrais modèles ouverts — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) et Gemma 2 (Google) — directement dans votre navigateur via WebGPU. Ils sont compressés par le projet open source MLC-AI et téléchargés une seule fois depuis HuggingFace (0,7 à 1,4 Go selon le modèle), puis mis en cache. Ensuite, tout se passe sur votre appareil : aucune requête vers un serveur, aucune clé, et ça marche sur PC comme sur mobile (Chrome/Edge 121+ sur Android, Safari 26 sur iOS). Vous pouvez voir l'état du téléchargement, la place occupée et supprimer un modèle dans Fournisseurs → Sur cet appareil → Modèles.",
       },
       {
-        q: "Et Luciole 1B sur téléphone ?",
-        a: "Luciole 1B est proposé en bêta comme fournisseur local séparé. Son GGUF officiel Q4 (environ 1,02 Go) est téléchargé depuis Hugging Face après votre confirmation au premier message, puis exécuté sur l'appareil via wllama. Les réponses ne sont pas envoyées à un serveur d'inférence. C'est un petit modèle : il peut se tromper sur les faits, vérifiez les informations importantes. La vitesse dépend du téléphone ; si ses réponses sont incohérentes, passez le calcul sur « Processeur » dans Fournisseurs → Luciole 1B → Modèles, où vous pouvez aussi supprimer ses poids.",
+        q: "Et l'IA locale sur téléphone sans WebGPU ?",
+        a: "Qwen 2.5 0.5B est le modèle portable : GGUF officiel Q4 (environ 0,49 Go), téléchargé depuis Hugging Face après confirmation, puis exécuté sur l'appareil. Rien n'est envoyé à un serveur d'inférence. C'est un petit modèle : il peut se tromper, vérifiez les informations importantes. S'il répond de façon incohérente, passez le calcul sur « Processeur » dans Fournisseurs → Portable (Qwen 0.5B) → Modèles. Avec WebGPU, préférez Llama 3.2 1B dans « Sur votre mobile ».",
       },
       {
         q: "L'application fonctionne-t-elle sans connexion internet ?",
@@ -104,8 +104,8 @@ const STRINGS: Record<Lang, { title: string; dialogLabel: string; closeLabel: st
         a: "The \"On-device\" provider runs real open models — Llama 3.2 (Meta), Qwen 2.5 (Alibaba) and Gemma 2 (Google) — directly in your browser via WebGPU. They're compressed by the open-source MLC-AI project and downloaded once from HuggingFace (0.7 to 1.4 GB depending on the model), then cached. After that, everything happens on your device: no request to any server, no key, and it works on PC and mobile alike (Chrome/Edge 121+ on Android, Safari 26 on iOS). You can see download status, space used, and delete a model under Providers → On-device → Models.",
       },
       {
-        q: "What about Luciole 1B on a phone?",
-        a: "Luciole 1B is a separate beta local provider. Its official Q4 GGUF (about 1.02 GB) downloads from Hugging Face after you confirm on first message, then runs on the device through wllama. Answers are not sent to an inference server. It is a small model: it can get facts wrong, so check important information. Speed depends on the phone; if answers look garbled, switch computation to “Processor” under Providers → Luciole 1B → Models, where you can also remove its weights.",
+        q: "What about on-phone AI without WebGPU?",
+        a: "Qwen 2.5 0.5B is the portable model: official Q4 GGUF (about 0.49 GB), downloaded from Hugging Face after you confirm, then run on the device. Answers are not sent to an inference server. It is a small model and can be wrong, so check important information. If answers look garbled, switch computation to “Processor” under Providers → Portable (Qwen 0.5B) → Models. With WebGPU, prefer Llama 3.2 1B under “On your phone”.",
       },
       {
         q: "Does the app work without an internet connection?",

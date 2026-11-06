@@ -51,7 +51,7 @@ test("shows an actionable WebGPU reason when testing the on-device provider with
   ).toBeVisible();
 });
 
-test("offers Luciole on mobile without downloading it on selection", async ({ page }) => {
+test("offers the portable model on mobile without downloading it on selection", async ({ page }) => {
   test.skip(test.info().project.name !== "mobile", "Mobile-only journey");
   let huggingFaceRequests = 0;
   await page.route("https://huggingface.co/**", async (route) => {
@@ -62,18 +62,18 @@ test("offers Luciole on mobile without downloading it on selection", async ({ pa
   await prepareApp(page);
 
   await page.getByRole("button", { name: "Choose provider and model" }).click();
-  await page.getByRole("button", { name: "Luciole 1B", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Luciole 1B — French (~1.02 GB)" })).toBeVisible();
+  await page.getByRole("button", { name: "Portable (Qwen 0.5B)", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Qwen 2.5 0.5B — phone (~0.49 GB)" })).toBeVisible();
   expect(huggingFaceRequests).toBe(0);
   await page.locator('button[aria-label="Close"].fixed.inset-0').click({ position: { x: 1, y: 1 } });
   await openProviders(page);
   await page.getByRole("button", { name: "Models", exact: true }).last().click();
-  await expect(page.getByText("Not downloaded — about 1.02 GB, confirmed before downloading.")).toBeVisible();
+  await expect(page.getByText("Not downloaded — about 0.49 GB, confirmed before downloading.")).toBeVisible();
   await expect(page.getByRole("radio", { name: /Automatic/ })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("asks before downloading Luciole and sends nothing when the user cancels", async ({ page }) => {
+test("asks before downloading the portable model and sends nothing when the user cancels", async ({ page }) => {
   test.skip(test.info().project.name !== "mobile", "Mobile-only journey");
   let huggingFaceRequests = 0;
   await page.route("https://huggingface.co/**", async (route) => {
@@ -84,12 +84,12 @@ test("asks before downloading Luciole and sends nothing when the user cancels", 
   await prepareApp(page);
 
   await page.getByRole("button", { name: "Choose provider and model" }).click();
-  await page.getByRole("button", { name: "Luciole 1B", exact: true }).click();
-  await page.getByRole("button", { name: "Luciole 1B — French (~1.02 GB)" }).click();
-  await page.getByPlaceholder("Write a message…").fill("Bonjour Luciole");
+  await page.getByRole("button", { name: "Portable (Qwen 0.5B)", exact: true }).click();
+  await page.getByRole("button", { name: "Qwen 2.5 0.5B — phone (~0.49 GB)" }).click();
+  await page.getByPlaceholder("Write a message…").fill("Bonjour");
   await page.getByRole("button", { name: "Send" }).click();
 
-  const consent = page.getByRole("alertdialog", { name: "Download Luciole (1.02 GB)?" });
+  const consent = page.getByRole("alertdialog", { name: "Download Qwen 0.5B (0.49 GB)?" });
   await expect(consent).toBeVisible();
   await expect(consent).toContainText("Wi-Fi recommended");
   // Boîte ancrée en bas et entièrement visible sur un écran de téléphone.
@@ -100,8 +100,8 @@ test("asks before downloading Luciole and sends nothing when the user cancels", 
   await consent.getByRole("button", { name: "Cancel" }).click();
 
   await expect(consent).toBeHidden();
-  await expect(page.getByText("Luciole download cancelled.")).toBeVisible();
+  await expect(page.getByText("Portable model download cancelled.")).toBeVisible();
   // Le brouillon est rendu pour pouvoir réessayer ou changer de modèle.
-  await expect(page.getByPlaceholder("Write a message…")).toHaveValue("Bonjour Luciole");
+  await expect(page.getByPlaceholder("Write a message…")).toHaveValue("Bonjour");
   expect(huggingFaceRequests).toBe(0);
 });

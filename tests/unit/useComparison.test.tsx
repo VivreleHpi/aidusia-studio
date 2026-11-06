@@ -301,7 +301,7 @@ describe("useComparison", () => {
   });
 
   it("enchaîne les modèles quand les deux tournent sur l'appareil ou en benchmark", () => {
-    const local = [{ providerId: "browser", model: "a" }, { providerId: "luciole", model: "b" }];
+    const local = [{ providerId: "browser", model: "a" }, { providerId: "portable", model: "b" }];
     const mixed = [{ providerId: "browser", model: "a" }, { providerId: "anthropic", model: "b" }];
     expect(shouldRunSequentially(local, false)).toBe(true);
     expect(shouldRunSequentially(mixed, false)).toBe(false);

@@ -145,10 +145,9 @@ async function unregisterAidusiaServiceWorker(): Promise<void> {
 }
 
 export async function deleteAllUserData(): Promise<void> {
-  // Luciole conserve son GGUF dans OPFS/Cache Storage sous une clé wllama :
-  // le cache PWA AIDUSIA ne le couvre pas.
-  const { deleteLucioleModel } = await import("@/providers/luciole");
-  await deleteLucioleModel();
+  // Le GGUF portable (et l'ancien Luciole) est dans OPFS/Cache Storage wllama.
+  const { deletePortableModel } = await import("@/providers/portable");
+  await deletePortableModel();
   await deleteLocalDatabase();
   clearAllApiKeys();
   clearAppStorage(localStorage);

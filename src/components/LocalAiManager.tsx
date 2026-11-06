@@ -125,7 +125,7 @@ export function LocalAiManager() {
     // memoire" : on rafraichit a ce moment-la.
     const onProgress = (e: Event) => {
       const detail = (e as CustomEvent<{ progress: number; source?: string }>).detail;
-      if (detail?.source !== "luciole" && detail?.progress === 1) refresh();
+      if (detail?.source !== "portable" && detail?.progress === 1) refresh();
     };
     window.addEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);
     return () => window.removeEventListener(LOCAL_AI_PROGRESS_EVENT, onProgress);

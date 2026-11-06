@@ -62,8 +62,8 @@ const STRINGS = {
     webgpuNotSupported: "non disponible sur ce navigateur",
     mobileOption2AfterSupported: " ; modèle léger conseillé, sans installation.",
     mobileOption2AfterUnsupported: " ; essayez Chrome/Edge récent ou une clé cloud.",
-    mobileLuciole:
-      "Luciole 1B (bêta) fonctionne aussi sans WebGPU : environ 1 Go à télécharger, avec confirmation avant le téléchargement.",
+    mobilePortable:
+      "Sans WebGPU : Qwen 2.5 0.5B (environ 0,5 Go, confirmation avant téléchargement) tourne sur le processeur.",
     configureCloudKey: "Configurer une clé cloud",
     start: "Commencer",
     explore: "Explorer sans configurer",
@@ -111,8 +111,8 @@ const STRINGS = {
     webgpuNotSupported: "not available in this browser",
     mobileOption2AfterSupported: "; a light model is recommended, no install.",
     mobileOption2AfterUnsupported: "; try a recent Chrome/Edge or a cloud key.",
-    mobileLuciole:
-      "Luciole 1B (beta) also works without WebGPU: about 1 GB to download, with confirmation before downloading.",
+    mobilePortable:
+      "Without WebGPU: Qwen 2.5 0.5B (about 0.5 GB, confirmed before download) runs on the processor.",
     configureCloudKey: "Set up a cloud key",
     start: "Get started",
     explore: "Explore without setup",
@@ -274,13 +274,13 @@ export function OnboardingWizard({ onFinish, onOpenProviders }: OnboardingWizard
                 {webgpu?.supported ? s.webgpuSupported : s.webgpuNotSupported}
                 {webgpu?.supported ? s.mobileOption2AfterSupported : s.mobileOption2AfterUnsupported}
               </li>
-              <li>{s.mobileLuciole}</li>
+              <li>{s.mobilePortable}</li>
             </ul>
             {!webgpu?.supported && (
               <p className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 {lang === "fr"
-                  ? "WebGPU est requis pour l'IA « Sur cet appareil ». Vous pouvez utiliser Luciole ou une clé cloud."
-                  : "WebGPU is required for on-device AI. You can use Luciole or a cloud API key."}
+                  ? "WebGPU est requis pour l'IA « Sur cet appareil ». Vous pouvez utiliser Qwen 0.5B (portable) ou une clé cloud."
+                  : "WebGPU is required for on-device AI. You can use Qwen 0.5B (portable) or a cloud API key."}
               </p>
             )}
           </div>

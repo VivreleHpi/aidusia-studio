@@ -2,29 +2,29 @@ import { useEffect, useState } from "react";
 import { requestConfirm } from "@/lib/confirm";
 import { useLang } from "@/lib/i18n";
 import {
-  deleteLucioleModel,
-  getLucioleBackend,
-  getLucioleCacheSize,
-  getLucioleRuntime,
-  setLucioleBackend,
-  type LucioleBackend,
-} from "@/providers/luciole";
+  deletePortableModel,
+  getPortableBackend,
+  getPortableCacheSize,
+  getPortableRuntime,
+  setPortableBackend,
+  type PortableBackend,
+} from "@/providers/portable";
 
 const STRINGS = {
   fr: {
     reading: "Lecture du stockage…",
     downloaded: (gb: string) => `Téléchargé (${gb} Go). Disponible hors connexion.`,
-    notDownloaded: "Non téléchargé — environ 1,02 Go, avec confirmation avant le téléchargement.",
+    notDownloaded: "Non téléchargé — environ 0,49 Go, avec confirmation avant le téléchargement.",
     backendLabel: "Calcul",
     auto: "Automatique",
     autoHelp: "Carte graphique (WebGPU) si disponible, sinon processeur.",
     cpu: "Processeur",
     cpuHelp: "Plus lent, mais à choisir si les réponses sont incohérentes (certains pilotes graphiques mobiles).",
     running: (gpu: boolean) => `En mémoire : ${gpu ? "carte graphique" : "processeur"}.`,
-    remove: "Supprimer Luciole",
+    remove: "Supprimer Qwen 0.5B",
     removing: "Suppression…",
-    removeTitle: "Supprimer Luciole de cet appareil ?",
-    removeMessage: "Les poids (~1,02 Go) seront effacés. Il faudra les retélécharger pour réutiliser Luciole.",
+    removeTitle: "Supprimer Qwen 0.5B de cet appareil ?",
+    removeMessage: "Les poids (~0,49 Go) seront effacés. Il faudra les retélécharger pour réutiliser ce modèle.",
     removeAction: "Supprimer",
     cancel: "Annuler",
     modelCard: "Fiche du modèle sur Hugging Face ↗",
@@ -32,35 +32,35 @@ const STRINGS = {
   en: {
     reading: "Reading storage…",
     downloaded: (gb: string) => `Downloaded (${gb} GB). Available offline.`,
-    notDownloaded: "Not downloaded — about 1.02 GB, confirmed before downloading.",
+    notDownloaded: "Not downloaded — about 0.49 GB, confirmed before downloading.",
     backendLabel: "Computation",
     auto: "Automatic",
     autoHelp: "Graphics card (WebGPU) when available, otherwise processor.",
     cpu: "Processor",
     cpuHelp: "Slower, but pick it if answers look garbled (some mobile graphics drivers).",
     running: (gpu: boolean) => `Loaded on: ${gpu ? "graphics card" : "processor"}.`,
-    remove: "Delete Luciole",
+    remove: "Delete Qwen 0.5B",
     removing: "Deleting…",
-    removeTitle: "Delete Luciole from this device?",
-    removeMessage: "The weights (~1.02 GB) will be erased. You will need to download them again to use Luciole.",
+    removeTitle: "Delete Qwen 0.5B from this device?",
+    removeMessage: "The weights (~0.49 GB) will be erased. You will need to download them again to use this model.",
     removeAction: "Delete",
     cancel: "Cancel",
     modelCard: "Model card on Hugging Face ↗",
   },
 } as const;
 
-export function LucioleManager() {
+export function PortableModelManager() {
   const { lang } = useLang();
   const s = STRINGS[lang];
   const [size, setSize] = useState<number | null>(null);
-  const [backend, setBackend] = useState<LucioleBackend>(getLucioleBackend);
-  const [runtime, setRuntime] = useState(getLucioleRuntime);
+  const [backend, setBackend] = useState<PortableBackend>(getPortableBackend);
+  const [runtime, setRuntime] = useState(getPortableRuntime);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void getLucioleCacheSize()
+    void getPortableCacheSize()
       .then((bytes) => { if (active) setSize(bytes); })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : String(cause));
@@ -68,15 +68,15 @@ export function LucioleManager() {
     return () => { active = false; };
   }, []);
 
-  async function changeBackend(next: LucioleBackend) {
+  async function changeBackend(next: PortableBackend) {
     setBackend(next);
     setError(null);
     try {
-      await setLucioleBackend(next);
+      await setPortableBackend(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
-    setRuntime(getLucioleRuntime());
+    setRuntime(getPortableRuntime());
   }
 
   async function remove() {
@@ -91,7 +91,7 @@ export function LucioleManager() {
     setBusy(true);
     setError(null);
     try {
-      await deleteLucioleModel();
+      await deletePortableModel();
       setSize(0);
       setRuntime(null);
     } catch (cause) {
@@ -119,7 +119,7 @@ export function LucioleManager() {
             >
               <input
                 type="radio"
-                name="luciole-backend"
+                name="portable-backend"
                 value={option}
                 checked={backend === option}
                 onChange={() => void changeBackend(option)}
@@ -147,7 +147,7 @@ export function LucioleManager() {
       )}
       {error && <p role="alert" className="mt-2 text-destructive">{error}</p>}
       <a
-        href="https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1-GGUF"
+        href="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF"
         target="_blank"
         rel="noopener noreferrer"
         className="mt-3 flex min-h-11 w-fit items-center text-primary underline underline-offset-2 sm:min-h-0"
