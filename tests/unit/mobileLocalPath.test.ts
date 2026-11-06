@@ -19,10 +19,10 @@ describe("mobileLocalPath", () => {
     expect(isHeavyMobileBrowserModel("Llama-3.2-1B")).toBe(false);
   });
 
-  it("returns luciole recommendation when mobile without WebGPU", async () => {
+  it("returns the portable model when mobile without WebGPU", async () => {
     const advice = await getMobileLocalPathAdvice("fr");
     expect(advice.mobile).toBe(true);
-    expect(advice.recommendation).toBe("luciole");
+    expect(advice.recommendation).toBe("portable");
     expect(advice.title).toMatch(/WebGPU/i);
   });
 

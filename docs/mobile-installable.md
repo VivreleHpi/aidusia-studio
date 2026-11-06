@@ -35,7 +35,7 @@ produit par `npm run build`.
 
 ### Risques
 
-- **WebGPU / SharedArrayBuffer** : tester Luciole et RAG embeddings sur iPhone
+- **WebGPU / SharedArrayBuffer** : tester Qwen portable et les embeddings RAG sur iPhone
   et Android milieu de gamme ; prévoir repli CPU documenté.
 - **MCP stdio** : inaccessible en sandbox mobile ; garder MCP HTTP/SSE uniquement.
 - **Review stores** : mentionner chiffrement local et absence de collecte dans

@@ -32,7 +32,7 @@ Puis choisissez un mode :
 1. **Ollama local** — installez [Ollama](https://ollama.com/download) et utilisez le Studio sur ordinateur. Depuis un domaine déployé, Ollama doit autoriser l'origine via `OLLAMA_ORIGINS`.
    Si Ollama est installé mais affiché comme injoignable, suivez le [guide de dépannage Ollama](./docs/OLLAMA.md).
 2. **IA dans le navigateur** — choisissez « Sur cet appareil ». Les poids sont téléchargés à la demande, mis en cache, puis exécutés par WebGPU. Performances variables selon navigateur, GPU et mémoire, surtout sur mobile.
-   « Luciole 1B » est aussi disponible séparément en bêta : son GGUF officiel (~1,02 Go) est téléchargé depuis Hugging Face après confirmation (espace libre vérifié) et exécuté localement par wllama, sur la carte graphique si possible, sinon sur le processeur en multi-thread. C'est un petit modèle : il peut se tromper sur les faits.
+   « Qwen 2.5 0.5B (portable) » tourne sans WebGPU : son GGUF officiel (~0,49 Go) est téléchargé depuis Hugging Face après confirmation (espace libre vérifié) et exécuté localement par wllama, sur la carte graphique si possible, sinon sur le processeur. C'est un petit modèle : il peut se tromper sur les faits. Avec WebGPU, préférez Llama 3.2 1B.
 3. **Fournisseur cloud** — ajoutez votre clé API dans « Fournisseurs ». Tarifs, quotas, rétention et conditions du fournisseur s'appliquent.
 
 Dans **Comparer**, activez « Mode benchmark » pour voir la durée totale, le délai avant le premier texte et le débit global en caractères par seconde. Vous pouvez noter manuellement chaque réponse sur l'exactitude, la clarté et l'utilité (1 à 5), puis exporter mesures et notes en Markdown. Les notes restent dans la page et disparaissent lors d'une nouvelle comparaison ; vérifiez les faits avant de noter. Les durées comprennent le chargement éventuel du modèle : relancez la même question pour comparer les essais suivants.
@@ -45,7 +45,7 @@ Légende : ✅ livré · 🧪 livré, expérimental · ❌ non disponible
 |---|---|---|
 | Chat Ollama local | ✅ | Vers l'URL Ollama configurée, généralement votre machine |
 | IA locale navigateur (WebLLM/WebGPU) | ✅ | Poids téléchargés à la demande ; inférence sur l'appareil |
-| Luciole 1B dans le navigateur (wllama/GGUF) | 🧪 | GGUF téléchargé depuis Hugging Face ; inférence sur l'appareil |
+| Qwen 2.5 0.5B portable (wllama/GGUF) | 🧪 | GGUF téléchargé depuis Hugging Face ; inférence sur l'appareil, y compris sans WebGPU |
 | Anthropic, Gemini, Mistral, OpenRouter, Groq, xAI (Grok) | ✅ | Connexion directe navigateur → fournisseur |
 | OpenAI | ✅ | Via le proxy Edge `/api/openai/`, puis OpenAI |
 | Ollama Cloud | ✅ | Via le proxy Edge `/api/ollama-cloud/`, puis Ollama Cloud |
@@ -71,7 +71,7 @@ La disponibilité d'une API, d'un modèle, de WebGPU ou de la dictée varie selo
 <details>
 <summary>Quand des données quittent-elles l'appareil ?</summary>
 
-Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou activez MCP, les données nécessaires sont transmises. Une comparaison envoie uniquement la question aux deux modèles sélectionnés, sans historique ni outil MCP. Si vous demandez une synthèse, la question et les deux réponses sont transmises au modèle choisi. Avec MCP, les définitions d'outils sont présentées au modèle choisi et le résultat d'un appel autorisé lui est renvoyé pour poursuivre la réponse. Les modèles WebLLM sont téléchargés depuis leur infrastructure de distribution et Luciole depuis Hugging Face, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
+Lorsque vous envoyez un message à un fournisseur cloud, utilisez la dictée, analysez une image avec un modèle distant ou activez MCP, les données nécessaires sont transmises. Une comparaison envoie uniquement la question aux deux modèles sélectionnés, sans historique ni outil MCP. Si vous demandez une synthèse, la question et les deux réponses sont transmises au modèle choisi. Avec MCP, les définitions d'outils sont présentées au modèle choisi et le résultat d'un appel autorisé lui est renvoyé pour poursuivre la réponse. Les modèles WebLLM sont téléchargés depuis leur infrastructure de distribution et Qwen portable depuis Hugging Face, uniquement à votre demande. Détail complet dans [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## Connecteurs MCP : avertissement de sécurité
@@ -102,7 +102,7 @@ Récapitulatif par lot (RAG, mobile, export, MCP, API locale, vision, catalogue)
 
 - L'IA locale navigateur peut télécharger plusieurs centaines de mégaoctets ou davantage et échouer sur un appareil peu puissant.
 - Tesseract est adapté au texte imprimé ; ses résultats sur l'écriture manuscrite sont généralement faibles.
-- L'analyse d'image dépend du **modèle et du fournisseur** (vision cloud/Ollama ; pas WebLLM/Luciole) — voir [docs/vision-multimodal.md](./docs/vision-multimodal.md).
+- L'analyse d'image dépend du **modèle et du fournisseur** (vision cloud/Ollama ; pas WebLLM ni Qwen portable) — voir [docs/vision-multimodal.md](./docs/vision-multimodal.md).
 - Il n'existe ni synchronisation multi-appareil, ni compte, ni support commercial garanti.
 - MCP reste expérimental : politiques par outil et journal local existent, mais la classification du risque reste heuristique.
 

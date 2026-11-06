@@ -84,8 +84,8 @@ function runtimeGate(
       level: "marginal",
       reason:
         lang === "fr"
-          ? "Luciole peut tourner sur processeur (plus lent) sans WebGPU."
-          : "Luciole can run on CPU (slower) without WebGPU.",
+          ? "Qwen 0.5B peut tourner sur processeur (plus lent) sans WebGPU."
+          : "Qwen 0.5B can run on CPU (slower) without WebGPU.",
     };
   }
 

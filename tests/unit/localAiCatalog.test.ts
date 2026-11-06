@@ -14,7 +14,7 @@ describe("local AI catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("includes browser, luciole and ollama runtimes", () => {
+  it("includes browser, portable and ollama runtimes", () => {
     const runtimes = new Set(listLocalAiCatalogEntries().map((e) => e.runtime));
     expect(runtimes.has("webllm")).toBe(true);
     expect(runtimes.has("wllama")).toBe(true);

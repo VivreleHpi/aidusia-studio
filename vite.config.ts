@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 // Isolation cross-origin, identique a vercel.json : elle debloque
-// SharedArrayBuffer, donc le calcul multi-thread de Luciole sur processeur
+// SharedArrayBuffer, donc le calcul multi-thread du modèle portable sur processeur
 // (sans elle, wllama tourne sur un seul thread). Servie aussi en dev/preview
 // pour que les tests E2E s'executent dans les memes conditions qu'en prod.
 const isolationHeaders = {

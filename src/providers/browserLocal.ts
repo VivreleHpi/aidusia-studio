@@ -18,7 +18,7 @@ export interface LocalAiProgress {
   text: string;
   progress: number; // 0..1
   // Moteur emetteur : les deux moteurs locaux partagent cet evenement.
-  source?: "browser" | "luciole";
+  source?: "browser" | "portable";
 }
 
 // Catalogue prebuilt de web-llm (MLC). Petits modeles quantises q4f16 : choisis

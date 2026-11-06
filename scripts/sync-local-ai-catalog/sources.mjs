@@ -229,9 +229,9 @@ export async function discoverHuggingfaceGguf(options = {}) {
     const parametersB = estimateParametersB(repo);
 
     out.push({
-      suggestedId: repo.includes("Luciole") ? "luciole-1b" : `gguf-${slugifyId(repo)}`,
+      suggestedId: repo.includes("Qwen2.5-0.5B") ? "portable-qwen-2.5-0.5b" : `gguf-${slugifyId(repo)}`,
       runtime: "wllama",
-      providerId: "luciole",
+      providerId: "portable",
       modelId,
       name: {
         fr: `${shortRepoName(repo)} (GGUF)`,

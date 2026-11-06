@@ -16,7 +16,7 @@ Le fichier [`src/data/local-ai-catalog.json`](../src/data/local-ai-catalog.json)
 |--------|-------------|
 | `id` | Identifiant stable dans le dépôt |
 | `runtime` | `webllm` \| `wllama` \| `ollama` |
-| `providerId` / `modelId` | Liens vers le Studio (`browser`, `luciole`, `ollama` + id modèle) |
+| `providerId` / `modelId` | Liens vers le Studio (`browser`, `portable`, `ollama` + id modèle) |
 | `sizeGb.f16` / `f32` | Taille indicative (WebLLM) ou unique (GGUF / Ollama) |
 | `vramGbMin` / `ramGbMin` | Seuils pour la recommandation machine (estimations) |
 | `compatibility.mobile` | `ok` \| `ok_light` \| `heavy` \| `desktop_only` |
@@ -24,7 +24,7 @@ Le fichier [`src/data/local-ai-catalog.json`](../src/data/local-ai-catalog.json)
 ## Sources publiques utiles
 
 - **WebLLM / MLC** : modèles prébuildés du paquet `@mlc-ai/web-llm` et [Hugging Face mlc-ai](https://huggingface.co/mlc-ai).
-- **Luciole** : dépôt [OpenLLM-France/Luciole-1B-Instruct-1.1-GGUF](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1-GGUF).
+- **Portable** : dépôt [Qwen/Qwen2.5-0.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF).
 - **Ollama** : bibliothèque [ollama.com/library](https://ollama.com/library) (tags, tailles indicatives).
 
 Ce catalogue est **indicatif** : les tailles réelles dépendent de la quantification servie sur l’appareil (shader-f16, variante f32, etc.).
@@ -36,7 +36,7 @@ Un script **`npm run sync:local-ai-catalog`** interroge des **sources publiques*
 | Source | Usage |
 |--------|--------|
 | Paquet **`@mlc-ai/web-llm`** (prebuilt MLC) | Rafraîchit les entrées WebGPU déjà présentes ; ajout auto **désactivé par défaut** (`autoAddInstructQ4f16` dans la config) |
-| **API Hugging Face** | Dépôts GGUF suivis (ex. Luciole) — taille fichier, licence |
+| **API Hugging Face** | Dépôts GGUF suivis (ex. Qwen 0.5B) — taille fichier, licence |
 | **Bibliothèque Ollama** (`ollama.com`) | Tags + manifeste Docker (`/v2/library/…/manifests/…`) pour les entrées configurées |
 
 ### Champs préservés (édition manuelle)

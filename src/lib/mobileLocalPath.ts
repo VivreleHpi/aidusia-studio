@@ -2,7 +2,7 @@ import { probeWebGpu } from "@/lib/hardwareGovernor";
 import { isMobile } from "@/lib/deviceDetect";
 import type { Lang } from "@/lib/i18n";
 
-export type MobileLocalRecommendation = "webgpu" | "luciole" | "cloud";
+export type MobileLocalRecommendation = "webgpu" | "portable" | "cloud";
 
 export interface MobileLocalPathAdvice {
   mobile: boolean;
@@ -21,7 +21,7 @@ export async function getMobileLocalPathAdvice(lang: Lang): Promise<MobileLocalP
     return {
       mobile: false,
       webgpuSupported,
-      recommendation: webgpuSupported ? "webgpu" : "luciole",
+      recommendation: webgpuSupported ? "webgpu" : "portable",
       title: "",
       body: "",
     };
@@ -43,12 +43,12 @@ export async function getMobileLocalPathAdvice(lang: Lang): Promise<MobileLocalP
   return {
     mobile: true,
     webgpuSupported: false,
-    recommendation: "luciole",
+    recommendation: "portable",
     title: lang === "fr" ? "WebGPU indisponible" : "WebGPU unavailable",
     body:
       lang === "fr"
-        ? "Sur cet appareil, utilisez Luciole 1B (GGUF, ~1 Go) ou une clé cloud. L’IA « Sur cet appareil » (WebLLM) reste désactivée."
-        : "On this device, use Luciole 1B (GGUF, ~1 GB) or a cloud API key. On-device WebLLM stays disabled.",
+        ? "Sur cet appareil, utilisez Qwen 2.5 0.5B (GGUF, ~0,5 Go, sans WebGPU) ou une clé cloud. L’IA « Sur cet appareil » (WebLLM) reste désactivée."
+        : "On this device, use Qwen 2.5 0.5B (GGUF, ~0.5 GB, no WebGPU) or a cloud API key. On-device WebLLM stays disabled.",
   };
 }
 

@@ -135,8 +135,8 @@ function emptyQualityScores(): [QualityScores, QualityScores] {
 
 function defaultTargets(): [ComparisonTarget, ComparisonTarget] {
   return [
-    { providerId: "luciole", model: "" },
-    { providerId: "luciole", model: "" },
+    { providerId: "portable", model: "" },
+    { providerId: "portable", model: "" },
   ];
 }
 

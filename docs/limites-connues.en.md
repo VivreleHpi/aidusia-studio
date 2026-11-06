@@ -23,7 +23,7 @@ Reference document grouping product limits by **feature / delivery lot**, with w
 
 | Limitation | Workaround / follow-up |
 |------------|-------------------------|
-| Missing or unstable WebGPU | Luciole, LAN Ollama, or cloud. |
+| Missing or unstable WebGPU | Portable Qwen 0.5B, LAN Ollama, or cloud. |
 | Heavy models on phones | ≤2B models or heed ⚠ in the model menu. |
 | Large downloads | Wi‑Fi; install PWA for persistent cache. |
 
@@ -71,7 +71,7 @@ Reference document grouping product limits by **feature / delivery lot**, with w
 
 | Limitation | Workaround / follow-up |
 |------------|-------------------------|
-| No vision on WebLLM / Luciole | Ollama vision, cloud, or OCR. |
+| No vision on WebLLM / portable Qwen | Ollama vision, cloud, or OCR. |
 | JPEG payload for cloud APIs | Accept compression or use OCR for text. |
 | Sometimes heuristic `visionCapable` | Pick an explicitly vision model id. |
 

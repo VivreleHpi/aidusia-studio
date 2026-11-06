@@ -30,7 +30,7 @@ const STRINGS = {
     configureKey: "Configurer la clé",
     configureOllama: "Configurer Ollama",
     configureBrowser: "Vérifier la compatibilité",
-    configureLuciole: "Ouvrir les réglages locaux",
+    configurePortable: "Ouvrir les réglages locaux",
     openProviders: "Ouvrir Fournisseurs",
     loading: "Chargement des modèles…",
     noModels: "Aucun modèle disponible.",
@@ -50,7 +50,7 @@ const STRINGS = {
     configureKey: "Set up the key",
     configureOllama: "Set up Ollama",
     configureBrowser: "Check compatibility",
-    configureLuciole: "Open local settings",
+    configurePortable: "Open local settings",
     openProviders: "Open Providers",
     loading: "Loading models…",
     noModels: "No models available.",
@@ -135,8 +135,8 @@ export function ModelMenu({
         return s.configureOllama;
       case "browser":
         return s.configureBrowser;
-      case "luciole":
-        return s.configureLuciole;
+      case "portable":
+        return s.configurePortable;
       default:
         return s.openProviders;
     }

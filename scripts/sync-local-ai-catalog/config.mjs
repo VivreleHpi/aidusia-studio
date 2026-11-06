@@ -29,6 +29,6 @@ export const defaultSyncConfig = {
   },
   huggingfaceGguf: {
     enabled: true,
-    watchRepos: ["OpenLLM-France/Luciole-1B-Instruct-1.1-GGUF"],
+    watchRepos: ["Qwen/Qwen2.5-0.5B-Instruct-GGUF"],
   },
 };

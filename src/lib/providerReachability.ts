@@ -1,5 +1,4 @@
 import { getApiKey } from "@/lib/apiKeys";
-import { isMobile } from "@/lib/deviceDetect";
 import { probeOllama } from "@/lib/hardwareGovernor";
 import { getStoredLang } from "@/lib/i18n";
 import { providerDisabledOnDevice } from "@/lib/providerTaglines";
@@ -64,7 +63,7 @@ export function neutralFallbackProviderId(): string {
   const firstCloud = listProviders().find((p) => p.requiresApiKey);
   if (firstCloud) return firstCloud.id;
 
-  return isMobile() ? "luciole" : "luciole";
+  return "portable";
 }
 
 export async function resolveComparisonTargets(): Promise<

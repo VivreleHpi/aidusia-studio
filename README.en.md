@@ -32,7 +32,7 @@ Then choose a mode:
 1. **Local Ollama** — install [Ollama](https://ollama.com/download) and use the Studio on a desktop. From a deployed domain, Ollama must allow that origin through `OLLAMA_ORIGINS`.
    If Ollama is installed but shown as unreachable, follow the [Ollama troubleshooting guide](./docs/OLLAMA.en.md).
 2. **In-browser AI** — select "On-device." Weights are downloaded on request, cached, then run through WebGPU. Performance varies by browser, GPU, and memory, especially on mobile.
-   "Luciole 1B" is also available separately in beta: its official GGUF (~1.02 GB) downloads from Hugging Face after confirmation (free space checked) and runs locally through wllama, on the graphics card when possible, otherwise multi-threaded on the processor. It is a small model: it can get facts wrong.
+   "Qwen 2.5 0.5B (portable)" runs without WebGPU: its official GGUF (~0.49 GB) downloads from Hugging Face after confirmation (free space checked) and runs locally through wllama, on the graphics card when possible, otherwise on the processor. It is a small model and can get facts wrong. With WebGPU, prefer Llama 3.2 1B.
 3. **Cloud provider** — add your API key under "Providers." The provider's pricing, quotas, retention, and terms apply.
 
 In **Compare**, enable "Benchmark mode" to see total duration, time to first text, and overall character throughput. You can manually rate each response for accuracy, clarity, and usefulness (1 to 5), then export measurements and ratings as Markdown. Ratings stay on the page and clear with each new comparison; check the facts before rating. Times may include model loading: run the same question again to compare later runs.
@@ -45,7 +45,7 @@ Legend: ✅ shipped · 🧪 shipped, experimental · ❌ not available
 |---|---|---|
 | Local Ollama chat | ✅ | To the configured Ollama URL, usually your machine |
 | In-browser AI (WebLLM/WebGPU) | ✅ | Weights downloaded on request; inference on device |
-| Luciole 1B in the browser (wllama/GGUF) | 🧪 | GGUF downloaded from Hugging Face; inference on device |
+| Portable Qwen 2.5 0.5B (wllama/GGUF) | 🧪 | GGUF downloaded from Hugging Face; on-device inference, including without WebGPU |
 | Anthropic, Gemini, Mistral, OpenRouter, Groq, xAI (Grok) | ✅ | Direct browser → provider connection |
 | OpenAI | ✅ | Through `/api/openai/`, then OpenAI |
 | Ollama Cloud | ✅ | Through `/api/ollama-cloud/`, then Ollama Cloud |
@@ -71,7 +71,7 @@ API, model, WebGPU, and speech support vary by browser, device, region, and prov
 <details>
 <summary>When does data leave the device?</summary>
 
-When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. A comparison sends only the question to both selected models, without conversation history or MCP tools. If you request a synthesis, the question and both answers are sent to the selected model. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. WebLLM models download through its distribution infrastructure and Luciole through Hugging Face, only when requested. Full details in [PRIVACY.md](./PRIVACY.md).
+When you send a message to a cloud provider, use dictation, analyze an image with a remote model, or enable MCP, the required data is transmitted. A comparison sends only the question to both selected models, without conversation history or MCP tools. If you request a synthesis, the question and both answers are sent to the selected model. With MCP, tool definitions are exposed to the chosen model and the result of an approved call is sent back to it so it can continue the response. WebLLM models download through its distribution infrastructure and portable Qwen through Hugging Face, only when requested. Full details in [PRIVACY.md](./PRIVACY.md).
 </details>
 
 ## MCP connectors: security warning
@@ -100,7 +100,7 @@ Full list by feature lot (RAG, mobile, export, MCP, local API, vision, catalog) 
 
 - In-browser AI may download hundreds of megabytes or more and can fail on resource-constrained devices.
 - Tesseract targets printed text and generally performs poorly on handwriting.
-- Image analysis depends on the **model and provider** (cloud/Ollama vision; not WebLLM/Luciole) — see [docs/vision-multimodal.md](./docs/vision-multimodal.md).
+- Image analysis depends on the **model and provider** (cloud/Ollama vision; not WebLLM or portable Qwen) — see [docs/vision-multimodal.md](./docs/vision-multimodal.md).
 - There is no multi-device synchronization, account, or guaranteed commercial support.
 - MCP remains experimental: per-tool policies and a local journal exist, but risk classification is still heuristic.
 

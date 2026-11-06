@@ -46,7 +46,7 @@ const STRINGS = {
     limitsDoc: "Limites connues (doc complète) ↗",
     limits: [
       "L'OCR (extraction de texte d'image) est 100% local mais conçu pour le texte imprimé — mauvais sur l'écriture manuscrite, quelle que soit la qualité de la photo.",
-      "L'analyse d'image (vision) dépend du modèle : Ollama et principaux fournisseurs cloud compatibles ; pas sur WebLLM ni Luciole.",
+      "L'analyse d'image (vision) dépend du modèle : Ollama et principaux fournisseurs cloud compatibles ; pas sur WebLLM ni Qwen portable.",
       "La dictée vocale utilise l'API du navigateur, qui sur Chrome/Edge envoie l'audio aux serveurs de Google — ce n'est pas garanti 100% local.",
     ],
   },
@@ -86,7 +86,7 @@ const STRINGS = {
     limitsDoc: "Known limitations (full doc) ↗",
     limits: [
       "OCR (extracting text from images) is 100% local but built for printed text — poor at handwriting, whatever the photo quality.",
-      "Vision image analysis depends on the model: Ollama and major compatible cloud providers; not on WebLLM or Luciole.",
+      "Vision image analysis depends on the model: Ollama and major compatible cloud providers; not on WebLLM or portable Qwen.",
       "Voice dictation uses the browser API, which on Chrome/Edge sends audio to Google's servers — it isn't guaranteed 100% local.",
     ],
   },
