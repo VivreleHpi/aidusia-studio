@@ -9,7 +9,11 @@ import { listMcpServers } from "@/lib/mcp/servers";
 import { callTool, initialize as initializeMcp, listTools } from "@/lib/mcp/client";
 import type { McpServer } from "@/lib/mcp/types";
 import { requestToolApproval } from "@/lib/mcp/approval";
-import { selectMessagesForContext } from "@/lib/contextWindow";
+import {
+  computeContextSelectionStats,
+  filterEligibleProviderHistory,
+  selectMessagesForContext,
+} from "@/lib/contextWindow";
 import { buildSystemPrompt } from "@/lib/systemContext";
 import { resolveRagSpaceForConversation } from "@/lib/rag/conversationLink";
 import { retrieveRagContext } from "@/lib/rag/retrieve";
@@ -160,6 +164,8 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
         }
       }
 
+      let lastContextStats: Conversation["lastContextStats"] | undefined;
+
       try {
         const mcpServers = listMcpServers();
         const toolIndex = mcpServers.length > 0 ? await buildToolIndex(mcpServers) : new Map();
@@ -185,6 +191,17 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
           let accumulated = "";
           const toolCalls: ToolCall[] = [];
 
+          const eligibleForContext = filterEligibleProviderHistory(updated.messages.slice(0, -1));
+          const selectionStats = computeContextSelectionStats(eligibleForContext);
+          const nowMs = Date.now();
+          lastContextStats = {
+            sentMessageCount: selectionStats.sentMessageCount,
+            eligibleMessageCount: selectionStats.eligibleMessageCount,
+            truncated: selectionStats.truncated,
+            budgetChars: selectionStats.budgetChars,
+            updatedAt: nowMs,
+          };
+
           await provider.chatStream(
             {
               model,
@@ -194,21 +211,14 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
               // Les assistants vides (laisses par une generation echouee ou
               // interrompue) font rejeter la requete par Mistral & co
               // ("Assistant message must have either content or tool_calls").
-              messages: selectMessagesForContext(
-                updated.messages.slice(0, -1).filter(
-                  (m) =>
-                    m.role !== "assistant" ||
-                    Boolean(m.content) ||
-                    (m.toolCalls?.length ?? 0) > 0,
-                ),
-              ).map((m) => ({
-                  role: m.role,
-                  content: m.content,
-                  images: m.images,
-                  toolCallId: m.toolCallId,
-                  toolName: m.toolName,
-                  toolCalls: m.toolCalls,
-                })),
+              messages: selectMessagesForContext(eligibleForContext).map((m) => ({
+                role: m.role,
+                content: m.content,
+                images: m.images,
+                toolCallId: m.toolCallId,
+                toolName: m.toolName,
+                toolCalls: m.toolCalls,
+              })),
             },
             apiKey,
             (chunk) => {
@@ -298,6 +308,7 @@ export function useChat(onUpdated: (conversation: Conversation) => void, onListC
             (m) =>
               m.role !== "assistant" || Boolean(m.content) || (m.toolCalls?.length ?? 0) > 0,
           ),
+          lastContextStats,
           updatedAt: Date.now(),
         };
         await saveConversation(finalConversation);
